@@ -109,6 +109,9 @@ exports.AppService = AppService = tslib_1.__decorate([
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const tslib_1 = __webpack_require__(5);
 tslib_1.__exportStar(__webpack_require__(9), exports);
+tslib_1.__exportStar(__webpack_require__(10), exports);
+tslib_1.__exportStar(__webpack_require__(13), exports);
+tslib_1.__exportStar(__webpack_require__(15), exports);
 
 
 /***/ }),
@@ -120,16 +123,145 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SharedModule = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
+// import { DatabaseModule } from './database/database.module';
+// import { DatabaseService } from './database/database.service';
 let SharedModule = class SharedModule {
 };
 exports.SharedModule = SharedModule;
 exports.SharedModule = SharedModule = tslib_1.__decorate([
     (0, common_1.Module)({
-        controllers: [],
-        providers: [],
-        exports: [],
+    // imports: [DatabaseModule],
+    // providers: [DatabaseService],
+    // exports: [DatabaseModule, DatabaseService],
     })
 ], SharedModule);
+
+
+/***/ }),
+/* 10 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DatabaseModule = void 0;
+const tslib_1 = __webpack_require__(5);
+const common_1 = __webpack_require__(1);
+const typeorm_1 = __webpack_require__(11);
+const config_1 = __webpack_require__(12);
+let DatabaseModule = class DatabaseModule {
+};
+exports.DatabaseModule = DatabaseModule;
+exports.DatabaseModule = DatabaseModule = tslib_1.__decorate([
+    (0, common_1.Module)({
+        imports: [
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+            }),
+            typeorm_1.TypeOrmModule.forRootAsync({
+                imports: [config_1.ConfigModule],
+                useFactory: (configService) => ({
+                    type: 'postgres',
+                    host: configService.get('DB_HOST', 'localhost'),
+                    port: parseInt(configService.get('DB_PORT', '5432')),
+                    username: configService.get('DB_USERNAME', 'postgres'),
+                    password: configService.get('DB_PASSWORD', 'password'),
+                    database: configService.get('DB_NAME', 'you_fizz'),
+                    entities: [__dirname + '/../**/*.entity{.ts,.js}'],
+                    synchronize: configService.get('NODE_ENV') === 'development',
+                    logging: configService.get('NODE_ENV') === 'development',
+                    retryAttempts: 10,
+                    retryDelay: 3000,
+                    autoLoadEntities: true,
+                }),
+                inject: [config_1.ConfigService],
+            }),
+        ],
+        exports: [typeorm_1.TypeOrmModule],
+    })
+], DatabaseModule);
+
+
+/***/ }),
+/* 11 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/typeorm");
+
+/***/ }),
+/* 12 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/config");
+
+/***/ }),
+/* 13 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DatabaseService = void 0;
+const tslib_1 = __webpack_require__(5);
+const common_1 = __webpack_require__(1);
+const typeorm_1 = __webpack_require__(11);
+const typeorm_2 = __webpack_require__(14);
+let DatabaseService = class DatabaseService {
+    constructor(dataSource) {
+        this.dataSource = dataSource;
+    }
+    async healthCheck() {
+        try {
+            await this.dataSource.query('SELECT 1');
+            return true;
+        }
+        catch (error) {
+            return false;
+        }
+    }
+};
+exports.DatabaseService = DatabaseService;
+exports.DatabaseService = DatabaseService = tslib_1.__decorate([
+    (0, common_1.Injectable)(),
+    tslib_1.__param(0, (0, typeorm_1.InjectDataSource)()),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.DataSource !== "undefined" && typeorm_2.DataSource) === "function" ? _a : Object])
+], DatabaseService);
+
+
+/***/ }),
+/* 14 */
+/***/ ((module) => {
+
+module.exports = require("typeorm");
+
+/***/ }),
+/* 15 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a, _b, _c;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.BaseEntity = void 0;
+const tslib_1 = __webpack_require__(5);
+const typeorm_1 = __webpack_require__(14);
+class BaseEntity {
+}
+exports.BaseEntity = BaseEntity;
+tslib_1.__decorate([
+    (0, typeorm_1.PrimaryGeneratedColumn)('uuid'),
+    tslib_1.__metadata("design:type", String)
+], BaseEntity.prototype, "id", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.CreateDateColumn)(),
+    tslib_1.__metadata("design:type", typeof (_a = typeof Date !== "undefined" && Date) === "function" ? _a : Object)
+], BaseEntity.prototype, "createdAt", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.UpdateDateColumn)(),
+    tslib_1.__metadata("design:type", typeof (_b = typeof Date !== "undefined" && Date) === "function" ? _b : Object)
+], BaseEntity.prototype, "updatedAt", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.DeleteDateColumn)(),
+    tslib_1.__metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
+], BaseEntity.prototype, "deletedAt", void 0);
 
 
 /***/ })
