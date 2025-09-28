@@ -1,0 +1,29 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@you-fizz/shared": ["libs/shared/src/index.ts"],
+      "@you-fizz/shared/*": ["libs/shared/src/lib/*"],
+      "@you-fizz/common": ["libs/common/src/index.ts"],
+      "@you-fizz/common/*": ["libs/common/src/lib/*"],
+      "@you-fizz/auth": ["apps/auth-service/src/index.ts"],
+      "@you-fizz/user": ["apps/user-service/src/index.ts"],
+      "@you-fizz/notification": ["apps/notification-service/src/index.ts"],
+      "@you-fizz/api-gateway": ["apps/api-gateway/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}
