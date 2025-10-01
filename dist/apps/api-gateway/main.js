@@ -45,7 +45,7 @@ exports.AppModule = AppModule = tslib_1.__decorate([
                 provide: 'AUTH_CLIENT',
                 useFactory: () => microservices_1.ClientProxyFactory.create({
                     transport: microservices_1.Transport.TCP,
-                    options: { port: 3001 }
+                    options: { port: 4001 }
                 })
             },
             {

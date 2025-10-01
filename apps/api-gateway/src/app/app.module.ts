@@ -13,7 +13,7 @@ import { ClientProxyFactory, Transport } from '@nestjs/microservices';
       provide: 'AUTH_CLIENT',
       useFactory: () => ClientProxyFactory.create({
         transport: Transport.TCP,
-        options: { port: 3001 }
+        options: { port: 4001 }
       })
     },
     {

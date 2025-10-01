@@ -13,7 +13,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.connectMicroservice({
     transport: Transport.TCP,
-    options: { port: 3001 },
+    options: { port: 4001 },
   });
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);

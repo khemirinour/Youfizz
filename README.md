@@ -95,3 +95,15 @@ Currently, only a basic GET `/api` endpoint exists on each service (returns "Wel
 - run-many command: If `nx run-many --target=serve --projects=api-gateway,auth,user,notification` works after updates, use it for parallel start.
 
 For contributions, see GitLab repo guidelines.
+
+
+
+
+
+
+
+
+
+
+for wassim
+$env:DB_HOST="localhost"; $env:DB_PORT="5432"; $env:DB_USERNAME="postgres"; $env:DB_PASSWORD="password"; $env:DB_NAME="you_fizz"; $env:NODE_ENV="development"; npx nx run-many --target=serve --all --parallel
