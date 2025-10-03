@@ -4,7 +4,7 @@ import { BaseEntity } from '@you-fizz/shared';
 export enum UserRole {
   ADMIN = 'admin',
   VENDEUR = 'vendeur',
-  COFERMATEUR = 'cofermateur',
+  CONFERMATEUR = 'confermateur',
   GUEST = 'guest'
 }
 

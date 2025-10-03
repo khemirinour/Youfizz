@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, ValidationPipe, Query, UseGuards, Request } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, ValidationPipe, Query, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { AuthService } from './auth.service';
@@ -8,6 +8,9 @@ import { LoginDto } from '../dto/login.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { UserRole } from '../entities/user.entity';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { Roles } from './roles.decorator';
+import { RolesGuard } from './roles.guard';
 
 @ApiTags('auth')
 @Controller()
@@ -63,6 +66,8 @@ export class AppController {
     return this.authService.logoutAll(body.userId);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('users')
   @ApiOperation({ summary: 'Get all users' })
   @ApiResponse({ status: 200, description: 'List of users', type: [UserResponseDto] })
@@ -73,6 +78,8 @@ export class AppController {
     return this.authService.findAll();
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Get('users/:id')
   @ApiOperation({ summary: 'Get user by ID' })
   @ApiResponse({ status: 200, description: 'User found', type: UserResponseDto })
@@ -90,9 +97,74 @@ export class AppController {
       description: {
         [UserRole.ADMIN]: 'Full system access',
         [UserRole.VENDEUR]: 'Sales management access',
-        [UserRole.COFERMATEUR]: 'Confirmation access',
+        [UserRole.CONFERMATEUR]: 'Confirmation access',
         [UserRole.GUEST]: 'Limited access, no authentication required'
       }
     };
+  }
+
+  // Admin: manage users
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('users/:id/role/:role')
+  @ApiOperation({ summary: 'Admin: update user role' })
+  async updateUserRole(@Param('id') id: string, @Param('role') role: UserRole) {
+    return this.authService.updateUserRole(id, role);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('users/:id/active')
+  @ApiOperation({ summary: 'Admin: activate/deactivate user' })
+  async setUserActive(@Param('id') id: string, @Body() body: { isActive: boolean }) {
+    return this.authService.setUserActive(id, body.isActive);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Delete('users/:id')
+  @ApiOperation({ summary: 'Admin: delete user' })
+  async deleteUser(@Param('id') id: string) {
+    return this.authService.deleteUser(id);
+  }
+
+  // Vendeur: manage confermateurs associations
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDEUR, UserRole.ADMIN)
+  @Get('vendeurs/:vendeurId/confermateurs')
+  @ApiOperation({ summary: 'Get confermateurs assigned to a vendeur' })
+  async getConfermateursForVendeur(@Param('vendeurId') vendeurId: string) {
+    return this.authService.getConfermateursForVendeur(vendeurId);
+  }
+
+  // Admin/Vendeur: list confermateurs
+  @UseGuards(JwtAuthGuard)
+  @Get('confermateurs')
+  @ApiOperation({ summary: 'List all confermateurs' })
+  async findConfermateurs() {
+    return this.authService.findConfermateurs();
+  }
+
+  // Admin: manage assignment between confermateur and vendeur
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Post('confermateurs/:confermateurId/vendeurs/:vendeurId')
+  @ApiOperation({ summary: 'Assign vendeur to confermateur' })
+  async assignVendeurToConfermateur(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+  ) {
+    return this.authService.assignVendeurToConfermateur(confermateurId, vendeurId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Delete('confermateurs/:confermateurId/vendeurs/:vendeurId')
+  @ApiOperation({ summary: 'Unassign vendeur from confermateur' })
+  async unassignVendeurFromConfermateur(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+  ) {
+    return this.authService.unassignVendeurFromConfermateur(confermateurId, vendeurId);
   }
 }

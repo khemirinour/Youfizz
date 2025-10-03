@@ -123,16 +123,16 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.SharedModule = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
-// import { DatabaseModule } from './database/database.module';
-// import { DatabaseService } from './database/database.service';
+const database_module_1 = __webpack_require__(10);
+const database_service_1 = __webpack_require__(13);
 let SharedModule = class SharedModule {
 };
 exports.SharedModule = SharedModule;
 exports.SharedModule = SharedModule = tslib_1.__decorate([
     (0, common_1.Module)({
-    // imports: [DatabaseModule],
-    // providers: [DatabaseService],
-    // exports: [DatabaseModule, DatabaseService],
+        imports: [database_module_1.DatabaseModule],
+        providers: [database_service_1.DatabaseService],
+        exports: [database_module_1.DatabaseModule, database_service_1.DatabaseService],
     })
 ], SharedModule);
 
