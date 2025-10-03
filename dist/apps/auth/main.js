@@ -1304,6 +1304,21 @@ let VendorsController = class VendorsController {
     constructor(vendeurRepo) {
         this.vendeurRepo = vendeurRepo;
     }
+    async getConfirmQuota(query) {
+        if (!query?.vendorId && !query?.vendorUserId) {
+            throw new common_1.BadRequestException('vendorId or vendorUserId is required');
+        }
+        let vendeur = null;
+        if (query.vendorId) {
+            vendeur = await this.vendeurRepo.findOne({ where: { id: query.vendorId } });
+        }
+        if (!vendeur && query.vendorUserId) {
+            vendeur = await this.vendeurRepo.findOne({ where: { idUser: query.vendorUserId } });
+        }
+        if (!vendeur)
+            throw new common_1.NotFoundException('Vendor not found');
+        return { vendorId: vendeur.id, remaining: vendeur.nbrCmdConf };
+    }
     async consumeConfirmQuota(body) {
         if (!body?.vendorId && !body?.vendorUserId) {
             throw new common_1.BadRequestException('vendorId or vendorUserId is required');
@@ -1325,6 +1340,13 @@ let VendorsController = class VendorsController {
     }
 };
 exports.VendorsController = VendorsController;
+tslib_1.__decorate([
+    (0, common_1.Get)('confirm-quota'),
+    tslib_1.__param(0, (0, common_1.Query)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], VendorsController.prototype, "getConfirmQuota", null);
 tslib_1.__decorate([
     (0, common_1.Post)('confirm-quota/consume'),
     tslib_1.__param(0, (0, common_1.Body)()),

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, ForbiddenException, NotFoundException, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, ForbiddenException, NotFoundException, Post, Get, Query } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vendeur } from '../entities/vendeur.entity';
@@ -8,6 +8,22 @@ export class VendorsController {
   constructor(
     @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
   ) {}
+
+  @Get('confirm-quota')
+  async getConfirmQuota(@Query() query: { vendorId?: string; vendorUserId?: string }) {
+    if (!query?.vendorId && !query?.vendorUserId) {
+      throw new BadRequestException('vendorId or vendorUserId is required');
+    }
+    let vendeur: Vendeur | null = null;
+    if (query.vendorId) {
+      vendeur = await this.vendeurRepo.findOne({ where: { id: query.vendorId } });
+    }
+    if (!vendeur && query.vendorUserId) {
+      vendeur = await this.vendeurRepo.findOne({ where: { idUser: query.vendorUserId } });
+    }
+    if (!vendeur) throw new NotFoundException('Vendor not found');
+    return { vendorId: vendeur.id, remaining: vendeur.nbrCmdConf };
+  }
 
   @Post('confirm-quota/consume')
   async consumeConfirmQuota(@Body() body: { vendorId?: string; vendorUserId?: string }) {

@@ -263,14 +263,22 @@ let AppService = class AppService {
         return this.findOne(id);
     }
     async confirm(id, confirmer) {
-        // If confirmer is vendor or confirmateur, enforce vendor quota via auth internal endpoint
+        // Enforce vendor quota via auth internal APIs: check (GET) then consume (POST)
         if (confirmer?.role === 'VENDEUR' || confirmer?.role === 'CONFIRMATEUR') {
-            const body = {};
-            if (confirmer.vendorId)
-                body.vendorId = confirmer.vendorId;
-            else if (confirmer.id)
-                body.vendorUserId = confirmer.id;
+            const vendorUserId = confirmer.id;
+            const vendorId = confirmer.vendorId;
             try {
+                // 1) Check remaining via GET
+                const params = vendorId ? { vendorId } : { vendorUserId };
+                const check = await axios_1.default.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+                    params,
+                    timeout: 5000,
+                });
+                if (!check?.data || typeof check.data.remaining !== 'number' || check.data.remaining <= 0) {
+                    throw { statusCode: 403, message: 'Vendor has no remaining confirmations' };
+                }
+                // 2) Consume quota via POST to keep atomicity on auth side
+                const body = vendorId ? { vendorId } : { vendorUserId };
                 await axios_1.default.post('http://localhost:3001/api/internal/vendors/confirm-quota/consume', body, { timeout: 5000 });
             }
             catch (e) {
