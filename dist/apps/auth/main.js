@@ -44,6 +44,7 @@ const refresh_token_entity_1 = __webpack_require__(19);
 const vendeur_entity_1 = __webpack_require__(32);
 const confermateur_entity_1 = __webpack_require__(33);
 const seed_service_1 = __webpack_require__(34);
+const vendors_controller_1 = __webpack_require__(35);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -53,7 +54,7 @@ exports.AppModule = AppModule = tslib_1.__decorate([
             shared_1.SharedModule,
             typeorm_1.TypeOrmModule.forFeature([user_entity_1.User, refresh_token_entity_1.RefreshToken, vendeur_entity_1.Vendeur, confermateur_entity_1.Confermateur]),
         ],
-        controllers: [app_controller_1.AppController],
+        controllers: [app_controller_1.AppController, vendors_controller_1.VendorsController],
         providers: [app_service_1.AppService, auth_service_1.AuthService, seed_service_1.SeedService],
     })
 ], AppModule);
@@ -1284,6 +1285,58 @@ exports.SeedService = SeedService = tslib_1.__decorate([
     tslib_1.__param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
 ], SeedService);
+
+
+/***/ }),
+/* 35 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VendorsController = void 0;
+const tslib_1 = __webpack_require__(6);
+const common_1 = __webpack_require__(1);
+const typeorm_1 = __webpack_require__(10);
+const typeorm_2 = __webpack_require__(11);
+const vendeur_entity_1 = __webpack_require__(32);
+let VendorsController = class VendorsController {
+    constructor(vendeurRepo) {
+        this.vendeurRepo = vendeurRepo;
+    }
+    async consumeConfirmQuota(body) {
+        if (!body?.vendorId && !body?.vendorUserId) {
+            throw new common_1.BadRequestException('vendorId or vendorUserId is required');
+        }
+        let vendeur = null;
+        if (body.vendorId) {
+            vendeur = await this.vendeurRepo.findOne({ where: { id: body.vendorId } });
+        }
+        if (!vendeur && body.vendorUserId) {
+            vendeur = await this.vendeurRepo.findOne({ where: { idUser: body.vendorUserId } });
+        }
+        if (!vendeur)
+            throw new common_1.NotFoundException('Vendor not found');
+        if ((vendeur.nbrCmdConf ?? 0) <= 0) {
+            throw new common_1.ForbiddenException('Vendor has no remaining confirmations');
+        }
+        await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: vendeur.nbrCmdConf - 1 });
+        return { vendorId: vendeur.id, remaining: vendeur.nbrCmdConf - 1 };
+    }
+};
+exports.VendorsController = VendorsController;
+tslib_1.__decorate([
+    (0, common_1.Post)('confirm-quota/consume'),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], VendorsController.prototype, "consumeConfirmQuota", null);
+exports.VendorsController = VendorsController = tslib_1.__decorate([
+    (0, common_1.Controller)('internal/vendors'),
+    tslib_1.__param(0, (0, typeorm_1.InjectRepository)(vendeur_entity_1.Vendeur)),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
+], VendorsController);
 
 
 /***/ })

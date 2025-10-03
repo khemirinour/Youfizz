@@ -9,13 +9,14 @@ import { RefreshToken } from '../entities/refresh-token.entity';
 import { Vendeur } from '../entities/vendeur.entity';
 import { Confermateur } from '../entities/confermateur.entity';
 import { SeedService } from './seed.service';
+import { VendorsController } from './vendors.controller';
 
 @Module({
   imports: [
     SharedModule,
     TypeOrmModule.forFeature([User, RefreshToken, Vendeur, Confermateur]),
   ],
-  controllers: [AppController],
+  controllers: [AppController, VendorsController],
   providers: [AppService, AuthService, SeedService],
 })
 export class AppModule {}
