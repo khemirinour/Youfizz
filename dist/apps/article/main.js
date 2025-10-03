@@ -72,6 +72,10 @@ const app_service_1 = __webpack_require__(8);
 const create_article_dto_1 = __webpack_require__(18);
 const update_article_dto_1 = __webpack_require__(20);
 const query_articles_dto_1 = __webpack_require__(21);
+const jwt_auth_guard_1 = __webpack_require__(23);
+const roles_decorator_1 = __webpack_require__(25);
+const roles_guard_1 = __webpack_require__(26);
+const article_response_dto_1 = __webpack_require__(27);
 let AppController = class AppController {
     constructor(appService) {
         this.appService = appService;
@@ -91,11 +95,25 @@ let AppController = class AppController {
     delete(id) {
         return this.appService.remove(id);
     }
+    activate(id) {
+        return this.appService.setActive(id, true);
+    }
+    deactivate(id) {
+        return this.appService.setActive(id, false);
+    }
 };
 exports.AppController = AppController;
 tslib_1.__decorate([
     (0, common_1.Get)(),
-    (0, swagger_1.ApiOkResponse)({ description: 'List articles' }),
+    (0, swagger_1.ApiOperation)({ summary: 'List articles', description: 'Returns paginated list of articles. Use filters for search, category, vendor, status, and visibility.' }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false, description: 'Search by title (ILIKE %search%)' }),
+    (0, swagger_1.ApiQuery)({ name: 'categoryId', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'vendorId', required: false }),
+    (0, swagger_1.ApiQuery)({ name: 'status', required: false, enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] }),
+    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, description: 'true to show only active, false for inactive' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } }),
+    (0, swagger_1.ApiQuery)({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } }),
+    (0, swagger_1.ApiOkResponse)({ description: 'Articles retrieved', type: [article_response_dto_1.ArticleResponseDto] }),
     tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_b = typeof query_articles_dto_1.QueryArticlesDto !== "undefined" && query_articles_dto_1.QueryArticlesDto) === "function" ? _b : Object]),
@@ -103,7 +121,13 @@ tslib_1.__decorate([
 ], AppController.prototype, "list", null);
 tslib_1.__decorate([
     (0, common_1.Post)(),
-    (0, swagger_1.ApiCreatedResponse)({ description: 'Article created' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Create article' }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN', 'VENDEUR'),
+    (0, swagger_1.ApiCreatedResponse)({ description: 'Article created', type: article_response_dto_1.ArticleResponseDto }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_c = typeof create_article_dto_1.CreateArticleDto !== "undefined" && create_article_dto_1.CreateArticleDto) === "function" ? _c : Object]),
@@ -111,7 +135,8 @@ tslib_1.__decorate([
 ], AppController.prototype, "create", null);
 tslib_1.__decorate([
     (0, common_1.Get)(':id'),
-    (0, swagger_1.ApiOkResponse)({ description: 'Get article by id' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get article by id' }),
+    (0, swagger_1.ApiOkResponse)({ description: 'Article retrieved', type: article_response_dto_1.ArticleResponseDto }),
     tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
@@ -119,7 +144,13 @@ tslib_1.__decorate([
 ], AppController.prototype, "get", null);
 tslib_1.__decorate([
     (0, common_1.Patch)(':id'),
-    (0, swagger_1.ApiOkResponse)({ description: 'Update article by id' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Update article by id' }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN', 'VENDEUR'),
+    (0, swagger_1.ApiOkResponse)({ description: 'Article updated', type: article_response_dto_1.ArticleResponseDto }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
     tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
     tslib_1.__param(1, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
@@ -128,12 +159,48 @@ tslib_1.__decorate([
 ], AppController.prototype, "update", null);
 tslib_1.__decorate([
     (0, common_1.Delete)(':id'),
-    (0, swagger_1.ApiOkResponse)({ description: 'Delete article by id' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete article by id' }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN'),
+    (0, swagger_1.ApiOkResponse)({ description: 'Article deleted' }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
     tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
     tslib_1.__metadata("design:returntype", void 0)
 ], AppController.prototype, "delete", null);
+tslib_1.__decorate([
+    (0, common_1.Patch)(':id/activate'),
+    (0, swagger_1.ApiOperation)({ summary: 'Activate article (visible)' }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN', 'VENDEUR'),
+    (0, swagger_1.ApiOkResponse)({ description: 'Article activated', type: article_response_dto_1.ArticleResponseDto }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Set article visible/active' }),
+    tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String]),
+    tslib_1.__metadata("design:returntype", void 0)
+], AppController.prototype, "activate", null);
+tslib_1.__decorate([
+    (0, common_1.Patch)(':id/deactivate'),
+    (0, swagger_1.ApiOperation)({ summary: 'Deactivate article (hidden)' }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN', 'VENDEUR'),
+    (0, swagger_1.ApiOkResponse)({ description: 'Article deactivated', type: article_response_dto_1.ArticleResponseDto }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Set article hidden/inactive' }),
+    tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String]),
+    tslib_1.__metadata("design:returntype", void 0)
+], AppController.prototype, "deactivate", null);
 exports.AppController = AppController = tslib_1.__decorate([
     (0, swagger_1.ApiTags)('articles'),
     (0, common_1.Controller)('articles'),
@@ -171,6 +238,8 @@ let AppService = class AppService {
             where.status = query.status;
         if (query.search)
             where.title = (0, typeorm_2.ILike)(`%${query.search}%`);
+        if (typeof query.isActive === 'boolean')
+            where.isActive = query.isActive;
         return this.articleRepository.find({
             where,
             take: query.limit,
@@ -197,6 +266,10 @@ let AppService = class AppService {
     async remove(id) {
         await this.articleRepository.delete({ id });
         return { id };
+    }
+    async setActive(id, active) {
+        await this.articleRepository.update({ id }, { isActive: active });
+        return this.findOne(id);
     }
 };
 exports.AppService = AppService;
@@ -276,6 +349,10 @@ tslib_1.__decorate([
     (0, typeorm_1.Column)({ type: 'enum', enum: ArticleStatus, default: ArticleStatus.DRAFT }),
     tslib_1.__metadata("design:type", String)
 ], Article.prototype, "status", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.Column)({ type: 'boolean', default: true }),
+    tslib_1.__metadata("design:type", Boolean)
+], Article.prototype, "isActive", void 0);
 tslib_1.__decorate([
     (0, typeorm_1.Column)({ type: 'jsonb', nullable: true }),
     tslib_1.__metadata("design:type", typeof (_a = typeof Record !== "undefined" && Record) === "function" ? _a : Object)
@@ -575,6 +652,11 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:type", typeof (_a = typeof article_entity_1.ArticleStatus !== "undefined" && article_entity_1.ArticleStatus) === "function" ? _a : Object)
 ], QueryArticlesDto.prototype, "status", void 0);
 tslib_1.__decorate([
+    (0, swagger_1.ApiPropertyOptional)({ description: 'Filter by active visibility' }),
+    (0, class_validator_1.IsOptional)(),
+    tslib_1.__metadata("design:type", Boolean)
+], QueryArticlesDto.prototype, "isActive", void 0);
+tslib_1.__decorate([
     (0, swagger_1.ApiPropertyOptional)({ minimum: 1, maximum: 200, default: 20 }),
     (0, class_validator_1.IsOptional)(),
     (0, class_transformer_1.Type)(() => Number),
@@ -598,6 +680,189 @@ tslib_1.__decorate([
 /***/ ((module) => {
 
 module.exports = require("class-transformer");
+
+/***/ }),
+/* 23 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.JwtAuthGuard = void 0;
+const tslib_1 = __webpack_require__(6);
+const common_1 = __webpack_require__(1);
+const jwt = tslib_1.__importStar(__webpack_require__(24));
+let JwtAuthGuard = class JwtAuthGuard {
+    canActivate(context) {
+        const request = context.switchToHttp().getRequest();
+        const auth = request.headers['authorization'];
+        if (!auth)
+            throw new common_1.UnauthorizedException('Missing Authorization header');
+        const [type, token] = auth.split(' ');
+        if (type !== 'Bearer' || !token)
+            throw new common_1.UnauthorizedException('Invalid auth header');
+        try {
+            const secret = process.env.JWT_SECRET || 'your-secret-key';
+            const payload = jwt.verify(token, secret);
+            request.user = payload;
+            return true;
+        }
+        catch (e) {
+            throw new common_1.UnauthorizedException('Invalid or expired token');
+        }
+    }
+};
+exports.JwtAuthGuard = JwtAuthGuard;
+exports.JwtAuthGuard = JwtAuthGuard = tslib_1.__decorate([
+    (0, common_1.Injectable)()
+], JwtAuthGuard);
+
+
+/***/ }),
+/* 24 */
+/***/ ((module) => {
+
+module.exports = require("jsonwebtoken");
+
+/***/ }),
+/* 25 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Roles = exports.ROLES_KEY = void 0;
+const common_1 = __webpack_require__(1);
+exports.ROLES_KEY = 'roles';
+const Roles = (...roles) => (0, common_1.SetMetadata)(exports.ROLES_KEY, roles);
+exports.Roles = Roles;
+
+
+/***/ }),
+/* 26 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.RolesGuard = void 0;
+const tslib_1 = __webpack_require__(6);
+const common_1 = __webpack_require__(1);
+const core_1 = __webpack_require__(2);
+const roles_decorator_1 = __webpack_require__(25);
+let RolesGuard = class RolesGuard {
+    constructor(reflector) {
+        this.reflector = reflector;
+    }
+    canActivate(context) {
+        const requiredRoles = this.reflector.getAllAndOverride(roles_decorator_1.ROLES_KEY, [
+            context.getHandler(),
+            context.getClass(),
+        ]);
+        if (!requiredRoles || requiredRoles.length === 0) {
+            return true;
+        }
+        const request = context.switchToHttp().getRequest();
+        const user = request.user;
+        if (!user?.role)
+            return false;
+        return requiredRoles.includes(user.role);
+    }
+};
+exports.RolesGuard = RolesGuard;
+exports.RolesGuard = RolesGuard = tslib_1.__decorate([
+    (0, common_1.Injectable)(),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof core_1.Reflector !== "undefined" && core_1.Reflector) === "function" ? _a : Object])
+], RolesGuard);
+
+
+/***/ }),
+/* 27 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a, _b, _c, _d;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ArticleResponseDto = void 0;
+const tslib_1 = __webpack_require__(6);
+const swagger_1 = __webpack_require__(4);
+const article_entity_1 = __webpack_require__(11);
+class ArticleResponseDto {
+    static fromEntity(entity) {
+        return {
+            id: entity.id,
+            title: entity.title,
+            description: entity.description ?? null,
+            price: entity.price,
+            stock: entity.stock,
+            sku: entity.sku ?? null,
+            categoryId: entity.categoryId ?? null,
+            vendorId: entity.vendorId ?? null,
+            images: entity.images ?? null,
+            status: entity.status,
+            isActive: entity.isActive,
+            metadata: entity.metadata ?? null,
+            createdAt: entity.createdAt,
+            updatedAt: entity.updatedAt,
+        };
+    }
+}
+exports.ArticleResponseDto = ArticleResponseDto;
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "id", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "title", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, nullable: true }),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "description", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Decimal string' }),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "price", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", Number)
+], ArticleResponseDto.prototype, "stock", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, nullable: true }),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "sku", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, nullable: true }),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "categoryId", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, nullable: true }),
+    tslib_1.__metadata("design:type", String)
+], ArticleResponseDto.prototype, "vendorId", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ type: [String], required: false, nullable: true }),
+    tslib_1.__metadata("design:type", Array)
+], ArticleResponseDto.prototype, "images", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ enum: article_entity_1.ArticleStatus }),
+    tslib_1.__metadata("design:type", typeof (_a = typeof article_entity_1.ArticleStatus !== "undefined" && article_entity_1.ArticleStatus) === "function" ? _a : Object)
+], ArticleResponseDto.prototype, "status", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", Boolean)
+], ArticleResponseDto.prototype, "isActive", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ type: Object, required: false, nullable: true }),
+    tslib_1.__metadata("design:type", typeof (_b = typeof Record !== "undefined" && Record) === "function" ? _b : Object)
+], ArticleResponseDto.prototype, "metadata", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
+], ArticleResponseDto.prototype, "createdAt", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)(),
+    tslib_1.__metadata("design:type", typeof (_d = typeof Date !== "undefined" && Date) === "function" ? _d : Object)
+], ArticleResponseDto.prototype, "updatedAt", void 0);
+
 
 /***/ })
 /******/ 	]);

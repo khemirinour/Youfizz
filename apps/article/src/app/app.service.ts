@@ -21,6 +21,7 @@ export class AppService {
     if (query.vendorId) where.vendorId = query.vendorId;
     if (query.status) where.status = query.status;
     if (query.search) where.title = ILike(`%${query.search}%`);
+    if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
     return this.articleRepository.find({
       where,
       take: query.limit,
@@ -50,6 +51,11 @@ export class AppService {
   async remove(id: string) {
     await this.articleRepository.delete({ id });
     return { id };
+  }
+
+  async setActive(id: string, active: boolean) {
+    await this.articleRepository.update({ id }, { isActive: active });
+    return this.findOne(id);
   }
 }
 

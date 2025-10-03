@@ -37,6 +37,9 @@ export class Article extends BaseEntity {
   @Column({ type: 'enum', enum: ArticleStatus, default: ArticleStatus.DRAFT })
   status!: ArticleStatus;
 
+  @Column({ type: 'boolean', default: true })
+  isActive!: boolean;
+
   @Column({ type: 'jsonb', nullable: true })
   metadata?: Record<string, any>;
 }

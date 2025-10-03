@@ -24,6 +24,10 @@ export class QueryArticlesDto {
   @IsEnum(ArticleStatus)
   status?: ArticleStatus;
 
+  @ApiPropertyOptional({ description: 'Filter by active visibility' })
+  @IsOptional()
+  isActive?: boolean;
+
   @ApiPropertyOptional({ minimum: 1, maximum: 200, default: 20 })
   @IsOptional()
   @Type(() => Number)
