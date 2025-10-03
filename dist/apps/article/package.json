@@ -1,5 +1,5 @@
 {
-  "name": "auth",
+  "name": "article",
   "version": "0.0.1",
   "dependencies": {
     "@nestjs/common": "11.1.6",
@@ -9,10 +9,8 @@
     "@nestjs/platform-express": "11.1.6",
     "@nestjs/swagger": "11.2.0",
     "@nestjs/typeorm": "11.0.0",
-    "bcrypt": "5.1.1",
     "class-transformer": "0.5.1",
     "class-validator": "0.14.2",
-    "jsonwebtoken": "9.0.2",
     "reflect-metadata": "0.1.14",
     "rxjs": "7.8.1",
     "typeorm": "0.3.27"
