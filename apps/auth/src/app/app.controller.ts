@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Body, Param, ValidationPipe, Query, Patch, Delete, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
+import { CustomThrottlerGuard } from './custom-throttler.guard';
 import { AppService } from './app.service';
 import { AuthService } from './auth.service';
 import { CreateUserDto } from '../dto/create-user.dto';
@@ -7,6 +9,11 @@ import { UserResponseDto } from '../dto/user-response.dto';
 import { LoginDto } from '../dto/login.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
+import { RequestPasswordResetDto } from '../dto/request-password-reset.dto';
+import { ResetPasswordDto } from '../dto/reset-password.dto';
+import { PasswordResetResponseDto } from '../dto/password-reset-response.dto';
+import { ConfirmPasswordResetDto } from '../dto/confirm-password-reset.dto';
+import { PasswordResetConfirmationResponseDto } from '../dto/password-reset-confirmation-response.dto';
 import { UserRole } from '../entities/user.entity';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { Roles } from './roles.decorator';
@@ -28,18 +35,82 @@ export class AppController {
   }
 
   @Post('register')
-  @ApiOperation({ summary: 'Register a new user' })
-  @ApiResponse({ status: 201, description: 'User successfully registered', type: UserResponseDto })
-  @ApiResponse({ status: 409, description: 'User already exists' })
-  @ApiResponse({ status: 400, description: 'Bad request' })
+  @UseGuards(CustomThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 60000 } }) // 5 registrations per minute
+  @ApiOperation({ 
+    summary: 'Register a new user',
+    description: 'Creates a new user account in the system. The user will receive a welcome email upon successful registration.',
+    tags: ['Authentication']
+  })
+  @ApiResponse({ 
+    status: 201, 
+    description: 'User successfully registered', 
+    type: UserResponseDto,
+    content: {
+      'application/json': {
+        example: {
+          id: '123e4567-e89b-12d3-a456-426614174000',
+          email: 'john.doe@example.com',
+          firstName: 'John',
+          lastName: 'Doe',
+          role: 'GUEST',
+          isActive: true,
+          createdAt: '2024-01-15T10:30:00.000Z',
+          updatedAt: '2024-01-15T10:30:00.000Z'
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 409, 
+    description: 'User already exists',
+    content: {
+      'application/json': {
+        example: {
+          message: 'User with this email already exists',
+          error: 'Conflict',
+          statusCode: 409
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 400, 
+    description: 'Bad request - validation errors',
+    content: {
+      'application/json': {
+        example: {
+          message: ['email must be a valid email address', 'password must be at least 8 characters long'],
+          error: 'Bad Request',
+          statusCode: 400
+        }
+      }
+    }
+  })
+  @ApiResponse({ 
+    status: 429, 
+    description: 'Too many requests - rate limit exceeded',
+    content: {
+      'application/json': {
+        example: {
+          message: 'Too many registration attempts. Please wait before trying again.',
+          statusCode: 429,
+          retryAfter: 60
+        }
+      }
+    }
+  })
   async register(@Body(ValidationPipe) createUserDto: CreateUserDto): Promise<UserResponseDto> {
     return this.authService.register(createUserDto);
   }
 
   @Post('login')
+  @UseGuards(CustomThrottlerGuard)
+  @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 login attempts per minute
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'Login successful', type: AuthResponseDto })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
   async login(@Body(ValidationPipe) loginDto: LoginDto): Promise<AuthResponseDto> {
     return this.authService.login(loginDto);
   }
@@ -166,5 +237,62 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
   ) {
     return this.authService.unassignVendeurFromConfermateur(confermateurId, vendeurId);
+  }
+
+  // Password reset endpoints
+  @Post('password-reset/request')
+  @UseGuards(CustomThrottlerGuard)
+  @Throttle({ short: { limit: 3, ttl: 300000 } }) // 3 password reset requests per 5 minutes
+  @ApiOperation({ summary: 'Request password reset' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password reset email sent (if account exists)', 
+    type: PasswordResetResponseDto 
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  async requestPasswordReset(
+    @Body(ValidationPipe) requestPasswordResetDto: RequestPasswordResetDto
+  ): Promise<PasswordResetResponseDto> {
+    return this.authService.requestPasswordReset(requestPasswordResetDto.email);
+  }
+
+  @Post('password-reset/confirm')
+  @UseGuards(CustomThrottlerGuard)
+  @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 token confirmations per minute
+  @ApiOperation({ summary: 'Confirm password reset token validity' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Token validation result', 
+    type: PasswordResetConfirmationResponseDto 
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  async confirmPasswordResetToken(
+    @Body(ValidationPipe) confirmPasswordResetDto: ConfirmPasswordResetDto
+  ): Promise<PasswordResetConfirmationResponseDto> {
+    return this.authService.confirmPasswordResetToken(confirmPasswordResetDto.token);
+  }
+
+  @Post('password-reset/reset')
+  @UseGuards(CustomThrottlerGuard)
+  @Throttle({ short: { limit: 5, ttl: 300000 } }) // 5 password resets per 5 minutes
+  @ApiOperation({ summary: 'Reset password with token' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Password reset successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Password has been reset successfully' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired token' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  async resetPassword(
+    @Body(ValidationPipe) resetPasswordDto: ResetPasswordDto
+  ): Promise<{ message: string }> {
+    return this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
   }
 }

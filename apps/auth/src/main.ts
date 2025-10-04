@@ -6,8 +6,8 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { Transport } from '@nestjs/microservices';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
+import { setupSwagger } from './app/swagger.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -18,14 +18,8 @@ async function bootstrap() {
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);
 
-  const config = new DocumentBuilder()
-    .setTitle('Auth Service')
-    .setDescription('Auth API')
-    .setVersion('1.0')
-    .addTag('auth')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api-docs', app, document);
+  // Setup comprehensive Swagger documentation
+  setupSwagger(app);
 
   await app.startAllMicroservices();
   const port = 3001;
@@ -37,7 +31,7 @@ async function bootstrap() {
     `🚀 Microservice is listening on TCP port: ${port}`
   );
   Logger.log(
-    `📖 Swagger docs available on: http://localhost:${port}/api-docs`
+    `📖 Swagger docs available on: http://localhost:${port}/api`
   );
 }
 

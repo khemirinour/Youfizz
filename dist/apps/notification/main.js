@@ -15,39 +15,45 @@ module.exports = require("@nestjs/core");
 
 /***/ }),
 /* 3 */
-/***/ ((module) => {
-
-module.exports = require("@nestjs/microservices");
-
-/***/ }),
-/* 4 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppModule = void 0;
-const tslib_1 = __webpack_require__(5);
+const tslib_1 = __webpack_require__(4);
 const common_1 = __webpack_require__(1);
+const throttler_1 = __webpack_require__(5);
 const app_controller_1 = __webpack_require__(6);
 const app_service_1 = __webpack_require__(7);
-const shared_1 = __webpack_require__(8);
+const notification_controller_1 = __webpack_require__(8);
+const shared_1 = __webpack_require__(10);
+const rate_limiting_config_1 = __webpack_require__(36);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = tslib_1.__decorate([
     (0, common_1.Module)({
-        imports: [shared_1.SharedModule],
-        controllers: [app_controller_1.AppController],
-        providers: [app_service_1.AppService],
+        imports: [
+            shared_1.SharedModule,
+            throttler_1.ThrottlerModule.forRoot((0, rate_limiting_config_1.getRateLimitingConfig)()),
+        ],
+        controllers: [app_controller_1.AppController, notification_controller_1.NotificationController],
+        providers: [app_service_1.AppService, shared_1.SharedRateLimitGuard, shared_1.LoggingInterceptor, shared_1.ResponseInterceptor],
     })
 ], AppModule);
 
 
 /***/ }),
-/* 5 */
+/* 4 */
 /***/ ((module) => {
 
 module.exports = require("tslib");
+
+/***/ }),
+/* 5 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/throttler");
 
 /***/ }),
 /* 6 */
@@ -57,7 +63,7 @@ module.exports = require("tslib");
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
-const tslib_1 = __webpack_require__(5);
+const tslib_1 = __webpack_require__(4);
 const common_1 = __webpack_require__(1);
 const app_service_1 = __webpack_require__(7);
 let AppController = class AppController {
@@ -88,7 +94,7 @@ exports.AppController = AppController = tslib_1.__decorate([
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppService = void 0;
-const tslib_1 = __webpack_require__(5);
+const tslib_1 = __webpack_require__(4);
 const common_1 = __webpack_require__(1);
 let AppService = class AppService {
     getData() {
@@ -106,36 +112,137 @@ exports.AppService = AppService = tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-const tslib_1 = __webpack_require__(5);
-tslib_1.__exportStar(__webpack_require__(9), exports);
-tslib_1.__exportStar(__webpack_require__(10), exports);
-tslib_1.__exportStar(__webpack_require__(13), exports);
-tslib_1.__exportStar(__webpack_require__(15), exports);
+exports.NotificationController = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const swagger_1 = __webpack_require__(9);
+const throttler_1 = __webpack_require__(5);
+const shared_1 = __webpack_require__(10);
+let NotificationController = class NotificationController {
+    constructor(emailService) {
+        this.emailService = emailService;
+    }
+    async sendPasswordResetEmail(data) {
+        await this.emailService.sendPasswordResetEmail(data);
+        return {
+            message: 'Password reset email sent successfully',
+            email: data.email
+        };
+    }
+    async sendWelcomeEmail(data) {
+        await this.emailService.sendWelcomeEmail(data);
+        return {
+            message: 'Welcome email sent successfully',
+            email: data.email
+        };
+    }
+};
+exports.NotificationController = NotificationController;
+tslib_1.__decorate([
+    (0, common_1.Post)('email/password-reset'),
+    (0, common_1.UseGuards)(shared_1.SharedRateLimitGuard),
+    (0, throttler_1.Throttle)({ short: { limit: 10, ttl: 60000 } }) // 10 password reset emails per minute
+    ,
+    (0, swagger_1.ApiOperation)({
+        summary: 'Send password reset email',
+        description: 'Sends a password reset email to the specified user with a secure reset token. The email includes a reset link that expires in 1 hour.',
+        tags: ['Email Notifications']
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Password reset email sent successfully',
+        content: {
+            'application/json': {
+                example: {
+                    message: 'Password reset email sent successfully',
+                    email: 'john.doe@example.com'
+                }
+            }
+        }
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 400,
+        description: 'Bad request - validation errors',
+        content: {
+            'application/json': {
+                example: {
+                    message: ['email must be a valid email address'],
+                    error: 'Bad Request',
+                    statusCode: 400
+                }
+            }
+        }
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 429,
+        description: 'Too many requests - rate limit exceeded',
+        content: {
+            'application/json': {
+                example: {
+                    message: 'Too many password reset email requests. Please wait before trying again.',
+                    statusCode: 429,
+                    retryAfter: 60
+                }
+            }
+        }
+    }),
+    (0, swagger_1.ApiResponse)({
+        status: 500,
+        description: 'Failed to send email - server error',
+        content: {
+            'application/json': {
+                example: {
+                    message: 'Failed to send email: SMTP connection failed',
+                    error: 'Internal Server Error',
+                    statusCode: 500
+                }
+            }
+        }
+    }),
+    tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_b = typeof shared_1.PasswordResetEmailData !== "undefined" && shared_1.PasswordResetEmailData) === "function" ? _b : Object]),
+    tslib_1.__metadata("design:returntype", typeof (_c = typeof Promise !== "undefined" && Promise) === "function" ? _c : Object)
+], NotificationController.prototype, "sendPasswordResetEmail", null);
+tslib_1.__decorate([
+    (0, common_1.Post)('email/welcome'),
+    (0, common_1.UseGuards)(shared_1.SharedRateLimitGuard),
+    (0, throttler_1.Throttle)({ short: { limit: 20, ttl: 60000 } }) // 20 welcome emails per minute
+    ,
+    (0, swagger_1.ApiOperation)({ summary: 'Send welcome email' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Welcome email sent successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Welcome email sent successfully' },
+                email: { type: 'string', example: 'user@example.com' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request' }),
+    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    (0, swagger_1.ApiResponse)({ status: 500, description: 'Failed to send email' }),
+    tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_d = typeof shared_1.WelcomeEmailData !== "undefined" && shared_1.WelcomeEmailData) === "function" ? _d : Object]),
+    tslib_1.__metadata("design:returntype", typeof (_e = typeof Promise !== "undefined" && Promise) === "function" ? _e : Object)
+], NotificationController.prototype, "sendWelcomeEmail", null);
+exports.NotificationController = NotificationController = tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('notifications'),
+    (0, common_1.Controller)('notifications'),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof shared_1.EmailService !== "undefined" && shared_1.EmailService) === "function" ? _a : Object])
+], NotificationController);
 
 
 /***/ }),
 /* 9 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+/***/ ((module) => {
 
-
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.SharedModule = void 0;
-const tslib_1 = __webpack_require__(5);
-const common_1 = __webpack_require__(1);
-const database_module_1 = __webpack_require__(10);
-const database_service_1 = __webpack_require__(13);
-let SharedModule = class SharedModule {
-};
-exports.SharedModule = SharedModule;
-exports.SharedModule = SharedModule = tslib_1.__decorate([
-    (0, common_1.Module)({
-        imports: [database_module_1.DatabaseModule],
-        providers: [database_service_1.DatabaseService],
-        exports: [database_module_1.DatabaseModule, database_service_1.DatabaseService],
-    })
-], SharedModule);
-
+module.exports = require("@nestjs/swagger");
 
 /***/ }),
 /* 10 */
@@ -143,11 +250,77 @@ exports.SharedModule = SharedModule = tslib_1.__decorate([
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.DatabaseModule = void 0;
-const tslib_1 = __webpack_require__(5);
+const tslib_1 = __webpack_require__(4);
+tslib_1.__exportStar(__webpack_require__(11), exports);
+tslib_1.__exportStar(__webpack_require__(12), exports);
+tslib_1.__exportStar(__webpack_require__(15), exports);
+tslib_1.__exportStar(__webpack_require__(29), exports);
+tslib_1.__exportStar(__webpack_require__(17), exports);
+tslib_1.__exportStar(__webpack_require__(18), exports);
+tslib_1.__exportStar(__webpack_require__(28), exports);
+tslib_1.__exportStar(__webpack_require__(30), exports);
+tslib_1.__exportStar(__webpack_require__(32), exports);
+tslib_1.__exportStar(__webpack_require__(26), exports);
+tslib_1.__exportStar(__webpack_require__(20), exports);
+tslib_1.__exportStar(__webpack_require__(22), exports);
+tslib_1.__exportStar(__webpack_require__(23), exports);
+tslib_1.__exportStar(__webpack_require__(27), exports);
+tslib_1.__exportStar(__webpack_require__(33), exports);
+tslib_1.__exportStar(__webpack_require__(35), exports);
+
+
+/***/ }),
+/* 11 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SharedModule = void 0;
+const tslib_1 = __webpack_require__(4);
 const common_1 = __webpack_require__(1);
-const typeorm_1 = __webpack_require__(11);
-const config_1 = __webpack_require__(12);
+const database_module_1 = __webpack_require__(12);
+const database_service_1 = __webpack_require__(15);
+const email_module_1 = __webpack_require__(17);
+const config_module_1 = __webpack_require__(20);
+const rate_limit_guard_1 = __webpack_require__(22);
+const logging_interceptor_1 = __webpack_require__(23);
+const response_interceptor_1 = __webpack_require__(27);
+let SharedModule = class SharedModule {
+};
+exports.SharedModule = SharedModule;
+exports.SharedModule = SharedModule = tslib_1.__decorate([
+    (0, common_1.Module)({
+        imports: [database_module_1.DatabaseModule, email_module_1.EmailModule, config_module_1.AppConfigModule],
+        providers: [
+            database_service_1.DatabaseService,
+            rate_limit_guard_1.SharedRateLimitGuard,
+            logging_interceptor_1.LoggingInterceptor,
+            response_interceptor_1.ResponseInterceptor,
+        ],
+        exports: [
+            database_module_1.DatabaseModule,
+            database_service_1.DatabaseService,
+            email_module_1.EmailModule,
+            config_module_1.AppConfigModule,
+            rate_limit_guard_1.SharedRateLimitGuard,
+            logging_interceptor_1.LoggingInterceptor,
+            response_interceptor_1.ResponseInterceptor,
+        ],
+    })
+], SharedModule);
+
+
+/***/ }),
+/* 12 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.DatabaseModule = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const typeorm_1 = __webpack_require__(13);
+const config_1 = __webpack_require__(14);
 let DatabaseModule = class DatabaseModule {
 };
 exports.DatabaseModule = DatabaseModule;
@@ -182,29 +355,29 @@ exports.DatabaseModule = DatabaseModule = tslib_1.__decorate([
 
 
 /***/ }),
-/* 11 */
+/* 13 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/typeorm");
 
 /***/ }),
-/* 12 */
+/* 14 */
 /***/ ((module) => {
 
 module.exports = require("@nestjs/config");
 
 /***/ }),
-/* 13 */
+/* 15 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 var _a;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.DatabaseService = void 0;
-const tslib_1 = __webpack_require__(5);
+const tslib_1 = __webpack_require__(4);
 const common_1 = __webpack_require__(1);
-const typeorm_1 = __webpack_require__(11);
-const typeorm_2 = __webpack_require__(14);
+const typeorm_1 = __webpack_require__(13);
+const typeorm_2 = __webpack_require__(16);
 let DatabaseService = class DatabaseService {
     constructor(dataSource) {
         this.dataSource = dataSource;
@@ -228,21 +401,793 @@ exports.DatabaseService = DatabaseService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 14 */
+/* 16 */
 /***/ ((module) => {
 
 module.exports = require("typeorm");
 
 /***/ }),
-/* 15 */
+/* 17 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmailModule = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const email_service_1 = __webpack_require__(18);
+let EmailModule = class EmailModule {
+};
+exports.EmailModule = EmailModule;
+exports.EmailModule = EmailModule = tslib_1.__decorate([
+    (0, common_1.Module)({
+        providers: [email_service_1.EmailService],
+        exports: [email_service_1.EmailService],
+    })
+], EmailModule);
+
+
+/***/ }),
+/* 18 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var EmailService_1;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.EmailService = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const nodemailer = tslib_1.__importStar(__webpack_require__(19));
+let EmailService = EmailService_1 = class EmailService {
+    constructor() {
+        this.logger = new common_1.Logger(EmailService_1.name);
+        this.initializeTransporter();
+    }
+    initializeTransporter() {
+        const isDevelopment = process.env.NODE_ENV === 'development';
+        if (isDevelopment) {
+            // Use MailHog for development
+            this.transporter = nodemailer.createTransport({
+                host: process.env.MAILHOG_HOST || 'localhost',
+                port: parseInt(process.env.MAILHOG_PORT || '1025'),
+                secure: false,
+                auth: null,
+            });
+        }
+        else {
+            // Use production email service (SMTP, SendGrid, etc.)
+            this.transporter = nodemailer.createTransport({
+                host: process.env.SMTP_HOST,
+                port: parseInt(process.env.SMTP_PORT || '587'),
+                secure: process.env.SMTP_SECURE === 'true',
+                auth: {
+                    user: process.env.SMTP_USER,
+                    pass: process.env.SMTP_PASS,
+                },
+            });
+        }
+    }
+    async sendEmail(options) {
+        try {
+            const mailOptions = {
+                from: process.env.FROM_EMAIL || 'noreply@youfizz.com',
+                to: options.to,
+                subject: options.subject,
+                html: options.html,
+                text: options.text,
+            };
+            const result = await this.transporter.sendMail(mailOptions);
+            this.logger.log(`Email sent successfully to ${options.to}. MessageId: ${result.messageId}`);
+        }
+        catch (error) {
+            this.logger.error(`Failed to send email to ${options.to}:`, error);
+            throw new Error(`Failed to send email: ${error.message}`);
+        }
+    }
+    async sendPasswordResetEmail(data) {
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${data.resetToken}`;
+        const emailContent = this.generatePasswordResetEmailTemplate(data, resetUrl);
+        await this.sendEmail({
+            to: data.email,
+            subject: 'Password Reset Request - YouFizz',
+            html: emailContent.html,
+            text: emailContent.text,
+        });
+    }
+    async sendWelcomeEmail(data) {
+        const emailContent = this.generateWelcomeEmailTemplate(data);
+        await this.sendEmail({
+            to: data.email,
+            subject: 'Welcome to YouFizz!',
+            html: emailContent.html,
+            text: emailContent.text,
+        });
+    }
+    async sendNotificationEmail(data) {
+        const emailContent = this.generateNotificationEmailTemplate(data);
+        await this.sendEmail({
+            to: data.email,
+            subject: data.subject,
+            html: emailContent.html,
+            text: emailContent.text,
+        });
+    }
+    generatePasswordResetEmailTemplate(data, resetUrl) {
+        const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Password Reset Request</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #333; margin: 0;">YouFizz</h1>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px;">Password Reset Request</h2>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Hello ${data.firstName || 'there'},
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              You have requested to reset your password for your YouFizz account. Click the button below to reset your password:
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                 style="display: inline-block; background-color: #007bff; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Reset Password
+              </a>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              This link will expire in 1 hour for security reasons.
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              If you didn't request this password reset, please ignore this email. Your password will remain unchanged.
+            </p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            
+            <p style="color: #999; font-size: 12px; line-height: 1.4;">
+              If the button doesn't work, copy and paste this link into your browser:<br>
+              <a href="${resetUrl}" style="color: #007bff;">${resetUrl}</a>
+            </p>
+            
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} YouFizz. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+        const text = `
+      Password Reset Request - YouFizz
+      
+      Hello ${data.firstName || 'there'},
+      
+      You have requested to reset your password for your YouFizz account. 
+      Click the link below to reset your password:
+      
+      ${resetUrl}
+      
+      This link will expire in 1 hour for security reasons.
+      
+      If you didn't request this password reset, please ignore this email. 
+      Your password will remain unchanged.
+      
+      Best regards,
+      The YouFizz Team
+    `;
+        return { html, text };
+    }
+    generateWelcomeEmailTemplate(data) {
+        const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Welcome to YouFizz</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #333; margin: 0;">YouFizz</h1>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px;">Welcome to YouFizz!</h2>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Hello ${data.firstName || 'there'},
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Thank you for registering with YouFizz! We're excited to have you on board and look forward to providing you with an amazing experience.
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              You can now start exploring our platform and all the features we have to offer. If you have any questions or need assistance, our support team is here to help.
+            </p>
+            
+            <div style="background-color: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0;">
+              <h3 style="color: #333; margin-top: 0;">Getting Started</h3>
+              <ul style="color: #666; line-height: 1.6; margin: 0; padding-left: 20px;">
+                <li>Complete your profile setup</li>
+                <li>Explore our features and services</li>
+                <li>Connect with other users</li>
+                <li>Check out our help center for tips and guides</li>
+              </ul>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              We're committed to providing you with the best possible experience. If you have any feedback or suggestions, we'd love to hear from you!
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <p style="color: #666; margin: 0;">
+                Best regards,<br>
+                <strong>The YouFizz Team</strong>
+              </p>
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} YouFizz. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+        const text = `
+      Welcome to YouFizz!
+      
+      Hello ${data.firstName || 'there'},
+      
+      Thank you for registering with YouFizz! We're excited to have you on board and look forward to providing you with an amazing experience.
+      
+      You can now start exploring our platform and all the features we have to offer. If you have any questions or need assistance, our support team is here to help.
+      
+      Getting Started:
+      - Complete your profile setup
+      - Explore our features and services
+      - Connect with other users
+      - Check out our help center for tips and guides
+      
+      We're committed to providing you with the best possible experience. If you have any feedback or suggestions, we'd love to hear from you!
+      
+      Best regards,
+      The YouFizz Team
+    `;
+        return { html, text };
+    }
+    generateNotificationEmailTemplate(data) {
+        // Generic notification template - can be extended based on template type
+        const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>${data.subject}</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #333; margin: 0;">YouFizz</h1>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px;">${data.subject}</h2>
+            
+            <div style="color: #666; line-height: 1.6;">
+              ${data.data.content || 'You have a new notification from YouFizz.'}
+            </div>
+            
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} YouFizz. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+        const text = `
+      ${data.subject}
+      
+      ${data.data.content || 'You have a new notification from YouFizz.'}
+      
+      Best regards,
+      The YouFizz Team
+    `;
+        return { html, text };
+    }
+};
+exports.EmailService = EmailService;
+exports.EmailService = EmailService = EmailService_1 = tslib_1.__decorate([
+    (0, common_1.Injectable)(),
+    tslib_1.__metadata("design:paramtypes", [])
+], EmailService);
+
+
+/***/ }),
+/* 19 */
+/***/ ((module) => {
+
+module.exports = require("nodemailer");
+
+/***/ }),
+/* 20 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.AppConfigModule = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const config_1 = __webpack_require__(14);
+const app_config_1 = __webpack_require__(21);
+let AppConfigModule = class AppConfigModule {
+};
+exports.AppConfigModule = AppConfigModule;
+exports.AppConfigModule = AppConfigModule = tslib_1.__decorate([
+    (0, common_1.Module)({
+        imports: [
+            config_1.ConfigModule.forRoot({
+                isGlobal: true,
+                load: [
+                    app_config_1.databaseConfig,
+                    app_config_1.emailConfig,
+                    app_config_1.redisConfig,
+                    app_config_1.rateLimitConfig,
+                    app_config_1.serviceConfig,
+                    app_config_1.authServiceConfig,
+                    app_config_1.userServiceConfig,
+                    app_config_1.notificationServiceConfig,
+                    app_config_1.apiGatewayConfig,
+                ],
+                envFilePath: ['.env.local', '.env'],
+            }),
+        ],
+        exports: [config_1.ConfigModule],
+    })
+], AppConfigModule);
+
+
+/***/ }),
+/* 21 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.apiGatewayConfig = exports.notificationServiceConfig = exports.userServiceConfig = exports.authServiceConfig = exports.serviceConfig = exports.rateLimitConfig = exports.redisConfig = exports.emailConfig = exports.databaseConfig = void 0;
+const config_1 = __webpack_require__(14);
+exports.databaseConfig = (0, config_1.registerAs)('database', () => ({
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432', 10),
+    username: process.env.DB_USERNAME || 'postgres',
+    password: process.env.DB_PASSWORD || 'password',
+    database: process.env.DB_NAME || 'you_fizz',
+    synchronize: process.env.NODE_ENV === 'development',
+    logging: process.env.NODE_ENV === 'development',
+    retryAttempts: parseInt(process.env.DB_RETRY_ATTEMPTS || '10', 10),
+    retryDelay: parseInt(process.env.DB_RETRY_DELAY || '3000', 10),
+}));
+exports.emailConfig = (0, config_1.registerAs)('email', () => ({
+    host: process.env.SMTP_HOST || process.env.MAILHOG_HOST || 'localhost',
+    port: parseInt(process.env.SMTP_PORT || process.env.MAILHOG_PORT || '1025', 10),
+    secure: process.env.SMTP_SECURE === 'true',
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+    fromEmail: process.env.FROM_EMAIL || 'noreply@youfizz.com',
+    frontendUrl: process.env.FRONTEND_URL || 'http://localhost:3000',
+}));
+exports.redisConfig = (0, config_1.registerAs)('redis', () => ({
+    host: process.env.REDIS_HOST || 'localhost',
+    port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    password: process.env.REDIS_PASSWORD,
+    db: parseInt(process.env.REDIS_DB || '0', 10),
+}));
+exports.rateLimitConfig = (0, config_1.registerAs)('rateLimit', () => {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    return {
+        short: {
+            ttl: 1000,
+            limit: isDevelopment ? 10 : 3,
+        },
+        medium: {
+            ttl: 10000,
+            limit: isDevelopment ? 50 : 20,
+        },
+        long: {
+            ttl: 60000,
+            limit: isDevelopment ? 200 : 100,
+        },
+        authStrict: {
+            ttl: 300000,
+            limit: isDevelopment ? 10 : 5,
+        },
+        passwordReset: {
+            ttl: 300000,
+            limit: isDevelopment ? 5 : 3,
+        },
+        loginAttempts: {
+            ttl: 900000,
+            limit: isDevelopment ? 20 : 10,
+        },
+    };
+});
+exports.serviceConfig = (0, config_1.registerAs)('service', () => ({
+    name: process.env.SERVICE_NAME || 'you-fizz',
+    port: parseInt(process.env.PORT || '3000', 10),
+    microservicePort: process.env.MICROSERVICE_PORT ? parseInt(process.env.MICROSERVICE_PORT, 10) : undefined,
+    environment: process.env.NODE_ENV || 'development',
+}));
+// Service-specific configurations
+exports.authServiceConfig = (0, config_1.registerAs)('authService', () => ({
+    port: parseInt(process.env.AUTH_SERVICE_PORT || '3001', 10),
+    microservicePort: parseInt(process.env.AUTH_MICROSERVICE_PORT || '4001', 10),
+    jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
+    jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
+}));
+exports.userServiceConfig = (0, config_1.registerAs)('userService', () => ({
+    port: parseInt(process.env.USER_SERVICE_PORT || '3002', 10),
+    microservicePort: parseInt(process.env.USER_MICROSERVICE_PORT || '3002', 10),
+}));
+exports.notificationServiceConfig = (0, config_1.registerAs)('notificationService', () => ({
+    port: parseInt(process.env.NOTIFICATION_SERVICE_PORT || '3003', 10),
+    microservicePort: parseInt(process.env.NOTIFICATION_MICROSERVICE_PORT || '3003', 10),
+}));
+exports.apiGatewayConfig = (0, config_1.registerAs)('apiGateway', () => ({
+    port: parseInt(process.env.API_GATEWAY_PORT || '3000', 10),
+}));
+
+
+/***/ }),
+/* 22 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.SharedRateLimitGuard = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const throttler_1 = __webpack_require__(5);
+const config_1 = __webpack_require__(14);
+let SharedRateLimitGuard = class SharedRateLimitGuard {
+    constructor(configService) {
+        this.configService = configService;
+    }
+    async canActivate(context) {
+        // This is a simplified rate limiting guard
+        // In a real implementation, you would integrate with a proper rate limiting service
+        // For now, we'll just return true to allow all requests
+        return true;
+    }
+    async throwThrottlingException(context, throttlerLimitDetail) {
+        const { limit, ttl, tracker } = throttlerLimitDetail;
+        const request = context.switchToHttp().getRequest();
+        const response = context.switchToHttp().getResponse();
+        // Add rate limit headers
+        response.setHeader('X-RateLimit-Limit', limit);
+        response.setHeader('X-RateLimit-Remaining', Math.max(0, limit - 0));
+        response.setHeader('X-RateLimit-Reset', new Date(Date.now() + ttl).toISOString());
+        // Custom error message based on endpoint
+        const url = request.url;
+        const method = request.method;
+        let message = 'Too many requests. Please try again later.';
+        // Service-specific error messages
+        if (url.includes('/password-reset/request')) {
+            message = 'Too many password reset requests. Please wait before trying again.';
+        }
+        else if (url.includes('/login')) {
+            message = 'Too many login attempts. Please wait before trying again.';
+        }
+        else if (url.includes('/register')) {
+            message = 'Too many registration attempts. Please wait before trying again.';
+        }
+        else if (url.includes('/password-reset/reset')) {
+            message = 'Too many password reset attempts. Please wait before trying again.';
+        }
+        else if (url.includes('/email/')) {
+            message = 'Too many email requests. Please wait before trying again.';
+        }
+        else if (method === 'POST' && url.includes('/api/')) {
+            message = 'Too many requests to this endpoint. Please wait before trying again.';
+        }
+        throw new throttler_1.ThrottlerException(message);
+    }
+};
+exports.SharedRateLimitGuard = SharedRateLimitGuard;
+exports.SharedRateLimitGuard = SharedRateLimitGuard = tslib_1.__decorate([
+    (0, common_1.Injectable)(),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof config_1.ConfigService !== "undefined" && config_1.ConfigService) === "function" ? _a : Object])
+], SharedRateLimitGuard);
+
+
+/***/ }),
+/* 23 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.LoggingInterceptor = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const operators_1 = __webpack_require__(24);
+const rxjs_1 = __webpack_require__(25);
+const logging_util_1 = __webpack_require__(26);
+let LoggingInterceptor = class LoggingInterceptor {
+    constructor() {
+        this.logger = new logging_util_1.StructuredLogger('HTTP');
+    }
+    intercept(context, next) {
+        const request = context.switchToHttp().getRequest();
+        const response = context.switchToHttp().getResponse();
+        const { method, url, ip } = request;
+        const userAgent = request.get('User-Agent') || '';
+        const requestId = this.generateRequestId();
+        // Add request ID to request object for use in other parts of the application
+        request.requestId = requestId;
+        const startTime = Date.now();
+        this.logger.logRequest(method, url, undefined, requestId);
+        return next.handle().pipe((0, operators_1.tap)(() => {
+            const duration = Date.now() - startTime;
+            const statusCode = response.statusCode;
+            this.logger.logResponse(method, url, statusCode, duration, undefined, requestId);
+        }), (0, operators_1.catchError)((error) => {
+            const duration = Date.now() - startTime;
+            const statusCode = error.status || 500;
+            this.logger.logError(error, `${method} ${url}`, undefined, requestId);
+            this.logger.logResponse(method, url, statusCode, duration, undefined, requestId);
+            return (0, rxjs_1.throwError)(() => error);
+        }));
+    }
+    generateRequestId() {
+        return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    }
+};
+exports.LoggingInterceptor = LoggingInterceptor;
+exports.LoggingInterceptor = LoggingInterceptor = tslib_1.__decorate([
+    (0, common_1.Injectable)()
+], LoggingInterceptor);
+
+
+/***/ }),
+/* 24 */
+/***/ ((module) => {
+
+module.exports = require("rxjs/operators");
+
+/***/ }),
+/* 25 */
+/***/ ((module) => {
+
+module.exports = require("rxjs");
+
+/***/ }),
+/* 26 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.globalLogger = exports.StructuredLogger = void 0;
+exports.LogOperation = LogOperation;
+const common_1 = __webpack_require__(1);
+class StructuredLogger {
+    constructor(context = 'Application', logContext = {}) {
+        this.logger = new common_1.Logger(context);
+        this.context = logContext;
+    }
+    setContext(context) {
+        this.context = { ...this.context, ...context };
+    }
+    formatMessage(message, context) {
+        const mergedContext = { ...this.context, ...context };
+        const contextString = Object.keys(mergedContext).length > 0
+            ? ` [${JSON.stringify(mergedContext)}]`
+            : '';
+        return `${message}${contextString}`;
+    }
+    log(message, context) {
+        this.logger.log(this.formatMessage(message, context));
+    }
+    error(message, trace, context) {
+        this.logger.error(this.formatMessage(message, context), trace);
+    }
+    warn(message, context) {
+        this.logger.warn(this.formatMessage(message, context));
+    }
+    debug(message, context) {
+        this.logger.debug(this.formatMessage(message, context));
+    }
+    verbose(message, context) {
+        this.logger.verbose(this.formatMessage(message, context));
+    }
+    // Request/Response logging
+    logRequest(method, url, userId, requestId) {
+        this.log(`Incoming ${method} request to ${url}`, {
+            operation: 'request',
+            method,
+            url,
+            userId,
+            requestId,
+        });
+    }
+    logResponse(method, url, statusCode, duration, userId, requestId) {
+        this.log(`Outgoing ${method} response from ${url} - ${statusCode} (${duration}ms)`, {
+            operation: 'response',
+            method,
+            url,
+            statusCode,
+            duration,
+            userId,
+            requestId,
+        });
+    }
+    // Business operation logging
+    logOperation(operation, details, userId) {
+        this.log(`Operation: ${operation}`, {
+            operation,
+            details,
+            userId,
+        });
+    }
+    // Error logging with context
+    logError(error, operation, userId, requestId) {
+        this.error(`Error in ${operation || 'operation'}: ${error.message}`, error.stack, {
+            operation,
+            userId,
+            requestId,
+            errorName: error.name,
+        });
+    }
+}
+exports.StructuredLogger = StructuredLogger;
+// Global logger instance
+exports.globalLogger = new StructuredLogger('YouFizz');
+// Logging decorator for methods
+function LogOperation(operation) {
+    return function (target, propertyName, descriptor) {
+        const method = descriptor.value;
+        const logger = new StructuredLogger(target.constructor.name);
+        descriptor.value = async function (...args) {
+            const startTime = Date.now();
+            logger.logOperation(`${operation} started`, { args: args.length });
+            try {
+                const result = await method.apply(this, args);
+                const duration = Date.now() - startTime;
+                logger.logOperation(`${operation} completed`, { duration });
+                return result;
+            }
+            catch (error) {
+                const duration = Date.now() - startTime;
+                logger.logError(error, operation);
+                throw error;
+            }
+        };
+    };
+}
+
+
+/***/ }),
+/* 27 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ResponseInterceptor = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const operators_1 = __webpack_require__(24);
+const response_util_1 = __webpack_require__(28);
+let ResponseInterceptor = class ResponseInterceptor {
+    intercept(context, next) {
+        return next.handle().pipe((0, operators_1.map)((data) => {
+            // If data is already an ApiResponse, return it as is
+            if (data && typeof data === 'object' && 'success' in data) {
+                return data;
+            }
+            // If data is null or undefined, return success response
+            if (data === null || data === undefined) {
+                return response_util_1.ApiResponse.success('Operation completed successfully');
+            }
+            // Wrap data in ApiResponse
+            return response_util_1.ApiResponse.success('Operation completed successfully', data);
+        }));
+    }
+};
+exports.ResponseInterceptor = ResponseInterceptor;
+exports.ResponseInterceptor = ResponseInterceptor = tslib_1.__decorate([
+    (0, common_1.Injectable)()
+], ResponseInterceptor);
+
+
+/***/ }),
+/* 28 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.PaginatedResponse = exports.ApiResponse = void 0;
+const tslib_1 = __webpack_require__(4);
+const swagger_1 = __webpack_require__(9);
+class ApiResponse {
+    constructor(success, message, data, error) {
+        this.success = success;
+        this.message = message;
+        this.data = data;
+        this.error = error;
+        this.timestamp = new Date().toISOString();
+    }
+    static success(message, data) {
+        return new ApiResponse(true, message, data);
+    }
+    static error(message, error) {
+        return new ApiResponse(false, message, undefined, error);
+    }
+}
+exports.ApiResponse = ApiResponse;
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Indicates if the request was successful' }),
+    tslib_1.__metadata("design:type", Boolean)
+], ApiResponse.prototype, "success", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Response message' }),
+    tslib_1.__metadata("design:type", String)
+], ApiResponse.prototype, "message", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Response data' }),
+    tslib_1.__metadata("design:type", Object)
+], ApiResponse.prototype, "data", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Error details if any' }),
+    tslib_1.__metadata("design:type", String)
+], ApiResponse.prototype, "error", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Timestamp of the response' }),
+    tslib_1.__metadata("design:type", String)
+], ApiResponse.prototype, "timestamp", void 0);
+class PaginatedResponse extends ApiResponse {
+    constructor(message, data, page, limit, total) {
+        super(true, message, data);
+        this.pagination = {
+            page,
+            limit,
+            total,
+            totalPages: Math.ceil(total / limit),
+            hasNext: page * limit < total,
+            hasPrev: page > 1,
+        };
+    }
+}
+exports.PaginatedResponse = PaginatedResponse;
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ description: 'Pagination metadata' }),
+    tslib_1.__metadata("design:type", Object)
+], PaginatedResponse.prototype, "pagination", void 0);
+
+
+/***/ }),
+/* 29 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.BaseEntity = void 0;
-const tslib_1 = __webpack_require__(5);
-const typeorm_1 = __webpack_require__(14);
+const tslib_1 = __webpack_require__(4);
+const typeorm_1 = __webpack_require__(16);
 class BaseEntity {
 }
 exports.BaseEntity = BaseEntity;
@@ -262,6 +1207,447 @@ tslib_1.__decorate([
     (0, typeorm_1.DeleteDateColumn)(),
     tslib_1.__metadata("design:type", typeof (_c = typeof Date !== "undefined" && Date) === "function" ? _c : Object)
 ], BaseEntity.prototype, "deletedAt", void 0);
+
+
+/***/ }),
+/* 30 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.VALIDATION_PATTERNS = exports.getGlobalValidationPipe = exports.IsValidLimit = exports.IsValidPagination = exports.IsValidUUID = exports.IsValidName = exports.IsStrongPassword = exports.IsValidEmail = void 0;
+const class_validator_1 = __webpack_require__(31);
+// Common validation decorators
+const IsValidEmail = () => (0, class_validator_1.IsEmail)({}, { message: 'Please provide a valid email address' });
+exports.IsValidEmail = IsValidEmail;
+const IsStrongPassword = () => [
+    (0, class_validator_1.IsString)({ message: 'Password must be a string' }),
+    (0, class_validator_1.MinLength)(8, { message: 'Password must be at least 8 characters long' }),
+    (0, class_validator_1.Matches)(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/, {
+        message: 'Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character',
+    }),
+];
+exports.IsStrongPassword = IsStrongPassword;
+const IsValidName = (fieldName = 'Name') => [
+    (0, class_validator_1.IsString)({ message: `${fieldName} must be a string` }),
+    (0, class_validator_1.MinLength)(1, { message: `${fieldName} must be at least 1 character long` }),
+];
+exports.IsValidName = IsValidName;
+const IsValidUUID = (fieldName = 'ID') => (0, class_validator_1.IsUUID)(4, { message: `${fieldName} must be a valid UUID` });
+exports.IsValidUUID = IsValidUUID;
+const IsValidPagination = () => [
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)({ message: 'Page must be an integer' }),
+    (0, class_validator_1.Min)(1, { message: 'Page must be at least 1' }),
+];
+exports.IsValidPagination = IsValidPagination;
+const IsValidLimit = (maxLimit = 100) => [
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsInt)({ message: 'Limit must be an integer' }),
+    (0, class_validator_1.Min)(1, { message: 'Limit must be at least 1' }),
+    (0, class_validator_1.Max)(maxLimit, { message: `Limit cannot exceed ${maxLimit}` }),
+];
+exports.IsValidLimit = IsValidLimit;
+// Global validation pipe configuration
+const getGlobalValidationPipe = () => ({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    transformOptions: {
+        enableImplicitConversion: true,
+    },
+    validationError: {
+        target: false,
+        value: false,
+    },
+});
+exports.getGlobalValidationPipe = getGlobalValidationPipe;
+// Common validation patterns
+exports.VALIDATION_PATTERNS = {
+    EMAIL: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/,
+    PASSWORD: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+    UUID: /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+    PHONE: /^\+?[1-9]\d{1,14}$/,
+    ALPHANUMERIC: /^[a-zA-Z0-9]+$/,
+    ALPHANUMERIC_WITH_SPACES: /^[a-zA-Z0-9\s]+$/,
+};
+
+
+/***/ }),
+/* 31 */
+/***/ ((module) => {
+
+module.exports = require("class-validator");
+
+/***/ }),
+/* 32 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ErrorHandler = exports.ExternalServiceError = exports.DatabaseError = exports.RateLimitError = exports.ConflictError = exports.ForbiddenError = exports.UnauthorizedError = exports.NotFoundError = exports.ValidationError = exports.AppError = void 0;
+const common_1 = __webpack_require__(1);
+class AppError extends Error {
+    constructor(message, statusCode = common_1.HttpStatus.INTERNAL_SERVER_ERROR, isOperational = true) {
+        super(message);
+        this.statusCode = statusCode;
+        this.isOperational = isOperational;
+        Error.captureStackTrace(this, this.constructor);
+    }
+}
+exports.AppError = AppError;
+class ValidationError extends AppError {
+    constructor(message) {
+        super(message, common_1.HttpStatus.BAD_REQUEST);
+    }
+}
+exports.ValidationError = ValidationError;
+class NotFoundError extends AppError {
+    constructor(resource = 'Resource') {
+        super(`${resource} not found`, common_1.HttpStatus.NOT_FOUND);
+    }
+}
+exports.NotFoundError = NotFoundError;
+class UnauthorizedError extends AppError {
+    constructor(message = 'Unauthorized access') {
+        super(message, common_1.HttpStatus.UNAUTHORIZED);
+    }
+}
+exports.UnauthorizedError = UnauthorizedError;
+class ForbiddenError extends AppError {
+    constructor(message = 'Access forbidden') {
+        super(message, common_1.HttpStatus.FORBIDDEN);
+    }
+}
+exports.ForbiddenError = ForbiddenError;
+class ConflictError extends AppError {
+    constructor(message) {
+        super(message, common_1.HttpStatus.CONFLICT);
+    }
+}
+exports.ConflictError = ConflictError;
+class RateLimitError extends AppError {
+    constructor(message = 'Too many requests') {
+        super(message, common_1.HttpStatus.TOO_MANY_REQUESTS);
+    }
+}
+exports.RateLimitError = RateLimitError;
+class DatabaseError extends AppError {
+    constructor(message = 'Database operation failed') {
+        super(message, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+}
+exports.DatabaseError = DatabaseError;
+class ExternalServiceError extends AppError {
+    constructor(service, message = 'External service error') {
+        super(`${service}: ${message}`, common_1.HttpStatus.BAD_GATEWAY);
+    }
+}
+exports.ExternalServiceError = ExternalServiceError;
+// Global error handler utility
+class ErrorHandler {
+    static handle(error) {
+        this.logger.error('Error occurred:', error);
+        if (error instanceof AppError) {
+            return new common_1.HttpException({
+                success: false,
+                message: error.message,
+                error: error.constructor.name,
+                timestamp: new Date().toISOString(),
+            }, error.statusCode);
+        }
+        // Handle known error types
+        if (error.name === 'ValidationError') {
+            return new common_1.HttpException({
+                success: false,
+                message: 'Validation failed',
+                error: error.message,
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.BAD_REQUEST);
+        }
+        if (error.name === 'CastError') {
+            return new common_1.HttpException({
+                success: false,
+                message: 'Invalid data format',
+                error: 'Invalid ID format',
+                timestamp: new Date().toISOString(),
+            }, common_1.HttpStatus.BAD_REQUEST);
+        }
+        // Default error
+        return new common_1.HttpException({
+            success: false,
+            message: 'Internal server error',
+            error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong',
+            timestamp: new Date().toISOString(),
+        }, common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+    static logError(error, context) {
+        const contextMessage = context ? `[${context}] ` : '';
+        this.logger.error(`${contextMessage}Error:`, error.stack);
+    }
+}
+exports.ErrorHandler = ErrorHandler;
+ErrorHandler.logger = new common_1.Logger(ErrorHandler.name);
+
+
+/***/ }),
+/* 33 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestUtils = void 0;
+const testing_1 = __webpack_require__(34);
+const common_1 = __webpack_require__(1);
+const config_module_1 = __webpack_require__(20);
+class TestUtils {
+    static async createTestingModule(moduleMetadata) {
+        return testing_1.Test.createTestingModule({
+            ...moduleMetadata,
+            imports: [
+                ...(moduleMetadata.imports || []),
+                config_module_1.AppConfigModule,
+            ],
+        }).compile();
+    }
+    static async createTestApp(module) {
+        const app = module.createNestApplication();
+        // Apply global validation pipe
+        app.useGlobalPipes(new common_1.ValidationPipe({
+            whitelist: true,
+            forbidNonWhitelisted: true,
+            transform: true,
+        }));
+        await app.init();
+        return app;
+    }
+    static async closeTestApp(app) {
+        await app.close();
+    }
+    // Mock data generators
+    static generateMockUser(overrides = {}) {
+        return {
+            id: '123e4567-e89b-12d3-a456-426614174000',
+            email: 'test@example.com',
+            firstName: 'Test',
+            lastName: 'User',
+            role: 'guest',
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            ...overrides,
+        };
+    }
+    static generateMockEmailData(overrides = {}) {
+        return {
+            email: 'test@example.com',
+            firstName: 'Test',
+            ...overrides,
+        };
+    }
+    static generateMockPasswordResetData(overrides = {}) {
+        return {
+            email: 'test@example.com',
+            resetToken: 'mock-reset-token-123',
+            firstName: 'Test',
+            ...overrides,
+        };
+    }
+    // Database test utilities
+    static async clearDatabase(app) {
+        // This would be implemented based on your database setup
+        // For now, it's a placeholder
+    }
+    static async seedTestData(app) {
+        // This would be implemented based on your seeding needs
+        // For now, it's a placeholder
+    }
+}
+exports.TestUtils = TestUtils;
+
+
+/***/ }),
+/* 34 */
+/***/ ((module) => {
+
+module.exports = require("@nestjs/testing");
+
+/***/ }),
+/* 35 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.TestModule = void 0;
+const tslib_1 = __webpack_require__(4);
+const common_1 = __webpack_require__(1);
+const config_module_1 = __webpack_require__(20);
+let TestModule = class TestModule {
+};
+exports.TestModule = TestModule;
+exports.TestModule = TestModule = tslib_1.__decorate([
+    (0, common_1.Module)({
+        imports: [config_module_1.AppConfigModule],
+        exports: [config_module_1.AppConfigModule],
+    })
+], TestModule);
+
+
+/***/ }),
+/* 36 */
+/***/ ((__unused_webpack_module, exports) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.getRateLimitingConfig = exports.rateLimitingConfig = void 0;
+exports.rateLimitingConfig = [
+    {
+        name: 'short',
+        ttl: 1000, // 1 second
+        limit: 5, // 5 requests per second
+    },
+    {
+        name: 'medium',
+        ttl: 10000, // 10 seconds
+        limit: 30, // 30 requests per 10 seconds
+    },
+    {
+        name: 'long',
+        ttl: 60000, // 1 minute
+        limit: 100, // 100 requests per minute
+    },
+    // Email-specific limits
+    {
+        name: 'email-strict',
+        ttl: 60000, // 1 minute
+        limit: 10, // 10 emails per minute
+    },
+    {
+        name: 'password-reset-email',
+        ttl: 300000, // 5 minutes
+        limit: 5, // 5 password reset emails per 5 minutes
+    },
+];
+// Rate limiting configuration for different environments
+const getRateLimitingConfig = () => {
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    if (isDevelopment) {
+        // More lenient limits for development
+        return [
+            {
+                name: 'short',
+                ttl: 1000,
+                limit: 10,
+            },
+            {
+                name: 'medium',
+                ttl: 10000,
+                limit: 50,
+            },
+            {
+                name: 'long',
+                ttl: 60000,
+                limit: 200,
+            },
+            {
+                name: 'email-strict',
+                ttl: 60000,
+                limit: 20,
+            },
+            {
+                name: 'password-reset-email',
+                ttl: 300000,
+                limit: 10,
+            },
+        ];
+    }
+    return exports.rateLimitingConfig;
+};
+exports.getRateLimitingConfig = getRateLimitingConfig;
+
+
+/***/ }),
+/* 37 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.setupSwagger = setupSwagger;
+const swagger_1 = __webpack_require__(9);
+function setupSwagger(app) {
+    const config = new swagger_1.DocumentBuilder()
+        .setTitle('YouFizz Notification API')
+        .setDescription(`
+      Email notification service for YouFizz platform.
+      
+      ## Features
+      - Password reset email notifications
+      - Welcome email notifications
+      - Professional HTML email templates
+      - Rate limiting for email sending
+      - SMTP and MailHog integration
+      - Comprehensive error handling
+      
+      ## Email Templates
+      The service provides professional email templates:
+      - **Password Reset**: Secure reset links with 1-hour expiration
+      - **Welcome**: Branded welcome messages with getting started tips
+      - **Responsive Design**: Mobile-friendly HTML templates
+      
+      ## Rate Limiting
+      Email sending is rate limited to prevent abuse:
+      - Password Reset Emails: 10 per minute
+      - Welcome Emails: 20 per minute
+      
+      ## Development
+      In development mode, emails are captured by MailHog:
+      - Web UI: http://localhost:8025
+      - SMTP: localhost:1025
+      
+      ## Production
+      Configure SMTP settings for production email delivery:
+      - SendGrid, AWS SES, or other SMTP providers
+      - Environment-based configuration
+      
+      ## Test Scenarios
+      This API includes comprehensive test examples for:
+      - Email sending functionality
+      - Rate limiting behavior
+      - Error handling and validation
+      - Template rendering
+    `)
+        .setVersion('1.0.0')
+        .setContact('YouFizz Team', 'https://youfizz.com', 'support@youfizz.com')
+        .setLicense('MIT', 'https://opensource.org/licenses/MIT')
+        .addServer('http://localhost:3003', 'Development Server')
+        .addServer('https://notifications.youfizz.com', 'Production Server')
+        .addTag('Email Notifications', 'Email sending and notification endpoints')
+        .addTag('Rate Limiting', 'Rate limiting and security information')
+        .addTag('Templates', 'Email template information')
+        .build();
+    const document = swagger_1.SwaggerModule.createDocument(app, config, {
+        operationIdFactory: (controllerKey, methodKey) => methodKey,
+    });
+    swagger_1.SwaggerModule.setup('api', app, document, {
+        swaggerOptions: {
+            persistAuthorization: true,
+            displayRequestDuration: true,
+            docExpansion: 'none',
+            filter: true,
+            showRequestHeaders: true,
+            showCommonExtensions: true,
+            tryItOutEnabled: true,
+        },
+        customSiteTitle: 'YouFizz Notification API Documentation',
+        customfavIcon: '/favicon.ico',
+        customCss: `
+      .swagger-ui .topbar { display: none; }
+      .swagger-ui .info .title { color: #2c3e50; }
+      .swagger-ui .scheme-container { background: #f8f9fa; padding: 20px; border-radius: 5px; }
+    `,
+    });
+    return document;
+}
 
 
 /***/ })
@@ -304,21 +1690,25 @@ var exports = __webpack_exports__;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
-const microservices_1 = __webpack_require__(3);
-const app_module_1 = __webpack_require__(4);
+const app_module_1 = __webpack_require__(3);
+const swagger_config_1 = __webpack_require__(37);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
-    app.connectMicroservice({
-        transport: microservices_1.Transport.TCP,
-        options: { port: 3003 },
-    });
+    // Remove microservice configuration for HTTP-only service
+    // app.connectMicroservice({
+    //   transport: Transport.TCP,
+    //   options: { port: 3003 },
+    // });
     const globalPrefix = 'api';
     app.setGlobalPrefix(globalPrefix);
-    await app.startAllMicroservices();
-    const port = 3003;
+    // Setup comprehensive Swagger documentation
+    (0, swagger_config_1.setupSwagger)(app);
+    // Remove microservice startup
+    // await app.startAllMicroservices();
+    const port = process.env.PORT || 3003;
     await app.listen(port);
-    common_1.Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
-    common_1.Logger.log(`🚀 Microservice is listening on TCP port: ${port}`);
+    common_1.Logger.log(`🚀 Notification service is running on: http://localhost:${port}/${globalPrefix}`);
+    common_1.Logger.log(`📖 Swagger docs available on: http://localhost:${port}/api`);
 }
 bootstrap();
 

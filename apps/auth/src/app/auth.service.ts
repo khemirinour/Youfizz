@@ -1,6 +1,8 @@
 import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { EmailService } from '@you-fizz/shared';
+import { NotificationClient } from './notification.client';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { LoginDto } from '../dto/login.dto';
@@ -10,6 +12,7 @@ import { User, UserRole } from '../entities/user.entity';
 import { RefreshToken as RefreshTokenEntity } from '../entities/refresh-token.entity';
 import { Vendeur } from '../entities/vendeur.entity';
 import { Confermateur } from '../entities/confermateur.entity';
+import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
@@ -23,6 +26,9 @@ export class AuthService {
     @InjectRepository(RefreshTokenEntity) private readonly refreshRepo: Repository<RefreshTokenEntity>,
     @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
     @InjectRepository(Confermateur) private readonly confermateurRepo: Repository<Confermateur>,
+    @InjectRepository(PasswordResetToken) private readonly passwordResetRepo: Repository<PasswordResetToken>,
+    private readonly emailService: EmailService,
+    private readonly notificationClient: NotificationClient,
   ) {}
   private readonly jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
   private readonly refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret-key';
@@ -51,7 +57,34 @@ export class AuthService {
       isActive: true,
     });
     const saved = await this.userRepo.save(user);
+    
+    // Send welcome email asynchronously (fire-and-forget)
+    this.sendWelcomeEmailAsync(saved.email, saved.firstName);
+    
     return this.toUserResponseDto(saved);
+  }
+
+  // Private method to send welcome email asynchronously
+  private async sendWelcomeEmailAsync(email: string, firstName?: string): Promise<void> {
+    try {
+      await this.emailService.sendWelcomeEmail({ email, firstName });
+      console.log(`Welcome email sent successfully to ${email}`);
+    } catch (error) {
+      // Log error but don't fail the registration
+      console.error(`Failed to send welcome email to ${email}:`, error.message);
+    }
+  }
+
+  // Private method to send password reset email asynchronously
+  private async sendPasswordResetEmailAsync(email: string, token: string, firstName?: string): Promise<void> {
+    try {
+      await this.emailService.sendPasswordResetEmail({ email, resetToken: token, firstName });
+      console.log(`Password reset email sent successfully to ${email}`);
+    } catch (error) {
+      // Log error but don't fail the request for security reasons
+      console.error('Failed to send password reset email:', error.message);
+      console.error('This may be due to email service being unavailable or misconfigured');
+    }
   }
 
   async login(loginDto: LoginDto): Promise<AuthResponseDto> {
@@ -323,5 +356,163 @@ export class AuthService {
       }
     }
     return result;
+  }
+
+  // Password reset functionality
+  async requestPasswordReset(email: string): Promise<{ message: string; email: string }> {
+    const user = await this.userRepo.findOne({ where: { email } });
+    
+    if (!user) {
+      // For security, don't reveal if user exists or not
+      return {
+        message: 'If an account with this email exists, a password reset link has been sent.',
+        email
+      };
+    }
+
+    if (!user.isActive) {
+      return {
+        message: 'If an account with this email exists, a password reset link has been sent.',
+        email
+      };
+    }
+
+    // Deactivate any existing password reset tokens for this user
+    await this.passwordResetRepo.update(
+      { userId: user.id, isActive: true },
+      { isActive: false }
+    );
+
+    // Generate new password reset token
+    const token = this.generatePasswordResetToken();
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 1); // Token expires in 1 hour
+
+    // Save password reset token
+    await this.passwordResetRepo.save(
+      this.passwordResetRepo.create({
+        token,
+        userId: user.id,
+        expiresAt,
+        isActive: true,
+      })
+    );
+
+    // Send email with reset link asynchronously
+    this.sendPasswordResetEmailAsync(user.email, token, user.firstName);
+
+    return {
+      message: 'If an account with this email exists, a password reset link has been sent.',
+      email
+    };
+  }
+
+  async confirmPasswordResetToken(token: string): Promise<{
+    isValid: boolean;
+    email?: string;
+    expiresAt?: Date;
+    message: string;
+  }> {
+    // Find active password reset token
+    const resetToken = await this.passwordResetRepo.findOne({
+      where: { token, isActive: true },
+      relations: ['user']
+    });
+
+    if (!resetToken) {
+      return {
+        isValid: false,
+        message: 'Invalid or expired reset token'
+      };
+    }
+
+    // Check if token is expired
+    if (new Date() > resetToken.expiresAt) {
+      // Mark token as inactive
+      await this.passwordResetRepo.update({ token }, { isActive: false });
+      return {
+        isValid: false,
+        message: 'Reset token has expired'
+      };
+    }
+
+    // Check if token has already been used
+    if (resetToken.usedAt) {
+      return {
+        isValid: false,
+        message: 'Reset token has already been used'
+      };
+    }
+
+    // Check if user is still active
+    if (!resetToken.user.isActive) {
+      return {
+        isValid: false,
+        message: 'User account is no longer active'
+      };
+    }
+
+    return {
+      isValid: true,
+      email: resetToken.user.email,
+      expiresAt: resetToken.expiresAt,
+      message: 'Token is valid and ready for password reset'
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ message: string }> {
+    // Find active password reset token
+    const resetToken = await this.passwordResetRepo.findOne({
+      where: { token, isActive: true },
+      relations: ['user']
+    });
+
+    if (!resetToken) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    // Check if token is expired
+    if (new Date() > resetToken.expiresAt) {
+      await this.passwordResetRepo.update({ token }, { isActive: false });
+      throw new BadRequestException('Reset token has expired');
+    }
+
+    // Check if token has already been used
+    if (resetToken.usedAt) {
+      throw new BadRequestException('Reset token has already been used');
+    }
+
+    // Hash new password
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(newPassword, saltRounds);
+
+    // Update user password
+    await this.userRepo.update(resetToken.userId, { password: hashedPassword });
+
+    // Mark token as used
+    await this.passwordResetRepo.update(
+      { token },
+      { usedAt: new Date(), isActive: false }
+    );
+
+    // Invalidate all refresh tokens for security
+    await this.refreshRepo.delete({ userId: resetToken.userId });
+
+    return { message: 'Password has been reset successfully' };
+  }
+
+  private generatePasswordResetToken(): string {
+    return crypto.randomBytes(32).toString('hex');
+  }
+
+  // Clean up expired password reset tokens (call this periodically)
+  async cleanupExpiredPasswordResetTokens(): Promise<void> {
+    const now = new Date();
+    await this.passwordResetRepo
+      .createQueryBuilder()
+      .update()
+      .set({ isActive: false })
+      .where('expiresAt < :now', { now })
+      .execute();
   }
 }

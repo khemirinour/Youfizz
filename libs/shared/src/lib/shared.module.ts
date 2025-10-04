@@ -1,10 +1,28 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from './database/database.module';
 import { DatabaseService } from './database/database.service';
+import { EmailModule } from './email/email.module';
+import { AppConfigModule } from './config/config.module';
+import { SharedRateLimitGuard } from './guards/rate-limit.guard';
+import { LoggingInterceptor } from './interceptors/logging.interceptor';
+import { ResponseInterceptor } from './interceptors/response.interceptor';
 
 @Module({
-  imports: [DatabaseModule],
-  providers: [DatabaseService],
-  exports: [DatabaseModule, DatabaseService],
+  imports: [DatabaseModule, EmailModule, AppConfigModule],
+  providers: [
+    DatabaseService,
+    SharedRateLimitGuard,
+    LoggingInterceptor,
+    ResponseInterceptor,
+  ],
+  exports: [
+    DatabaseModule,
+    DatabaseService,
+    EmailModule,
+    AppConfigModule,
+    SharedRateLimitGuard,
+    LoggingInterceptor,
+    ResponseInterceptor,
+  ],
 })
 export class SharedModule {}
