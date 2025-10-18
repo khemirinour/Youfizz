@@ -1,10 +1,10 @@
 import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Delete, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
 import { QueryArticlesDto } from '../dto/query-articles.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 import { ArticleResponseDto } from '../dto/article-response.dto';
@@ -13,6 +13,17 @@ import { ArticleResponseDto } from '../dto/article-response.dto';
 @Controller('articles')
 export class AppController {
   constructor(private readonly appService: AppService) {}
+
+  @Get('health')
+  @ApiOperation({ summary: 'Health check' })
+  @ApiResponse({ status: 200, description: 'Service health status' })
+  async healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'article',
+    };
+  }
 
   @Get()
   @ApiOperation({ summary: 'List articles', description: 'Returns paginated list of articles. Use filters for search, category, vendor, status, and visibility.' })
@@ -32,7 +43,7 @@ export class AppController {
   @ApiOperation({ summary: 'Create article' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR')
+  @Roles('admin', 'vendeur')
   @ApiCreatedResponse({ description: 'Article created', type: ArticleResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
@@ -47,11 +58,18 @@ export class AppController {
     return this.appService.findOne(id);
   }
 
+  @Get('vendor/:vendorId')
+  @ApiOperation({ summary: 'Get articles by vendor id' })
+  @ApiOkResponse({ description: 'Articles retrieved', type: [ArticleResponseDto] })
+  getByVendor(@Param('vendorId', new ParseUUIDPipe()) vendorId: string) {
+    return this.appService.findByVendor(vendorId);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Update article by id' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR')
+  @Roles('admin', 'vendeur')
   @ApiOkResponse({ description: 'Article updated', type: ArticleResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
@@ -66,7 +84,7 @@ export class AppController {
   @ApiOperation({ summary: 'Delete article by id' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN')
+  @Roles('admin','vendeur')
   @ApiOkResponse({ description: 'Article deleted' })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
@@ -78,7 +96,7 @@ export class AppController {
   @ApiOperation({ summary: 'Activate article (visible)' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR')
+  @Roles('admin', 'vendeur')
   @ApiOkResponse({ description: 'Article activated', type: ArticleResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
@@ -91,7 +109,7 @@ export class AppController {
   @ApiOperation({ summary: 'Deactivate article (hidden)' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR')
+  @Roles('admin', 'vendeur')
   @ApiOkResponse({ description: 'Article deactivated', type: ArticleResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })

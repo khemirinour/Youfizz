@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Delete, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Delete, UseGuards, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { CreateOrderDto } from '../dto/create-order.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { QueryOrdersDto } from '../dto/query-orders.dto';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 import { Order } from '../entities/order.entity';
@@ -72,9 +73,8 @@ export class AppController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('VENDEUR', 'CONFIRMATEUR')
   @ApiOkResponse({ description: 'Order confirmed', type: Order })
-  confirm(@Param('id', new ParseUUIDPipe()) id: string) {
-    const req: any = (arguments as any)[0]?.switchToHttp?.()?.getRequest?.();
-    return this.appService.confirm(id, req?.user);
+  confirm(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
+    return this.appService.confirm(id, req.user);
   }
 
   @Patch(':id/activate')
@@ -97,5 +97,3 @@ export class AppController {
     return this.appService.setActive(id, false);
   }
 }
-
-

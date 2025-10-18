@@ -6,7 +6,9 @@ import { OrderStatus } from '../entities/order.entity';
 export class QueryOrdersDto {
   @ApiPropertyOptional() @IsOptional() @IsString() search?: string;
   @ApiPropertyOptional({ enum: OrderStatus }) @IsOptional() @IsEnum(OrderStatus) status?: OrderStatus;
-  @ApiPropertyOptional() @IsOptional() @IsString() customerId?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() customerName?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() customerEmail?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() customerPhone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() vendorId?: string;
   @ApiPropertyOptional({ description: 'Filter by active' }) @IsOptional() isActive?: boolean;
 

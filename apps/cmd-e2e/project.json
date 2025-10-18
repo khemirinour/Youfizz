@@ -1,0 +1,30 @@
+{
+  "name": "cmd-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "implicitDependencies": ["cmd", "auth", "article"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{e2eProjectRoot}"],
+      "options": {
+        "jestConfig": "apps/cmd-e2e/jest.config.ts",
+        "passWithNoTests": true
+      }
+    },
+    "test:workflow": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/cmd-e2e/jest.config.ts",
+        "testPathPattern": "simple-order-workflow"
+      }
+    },
+    "test:full": {
+      "executor": "@nx/jest:jest",
+      "options": {
+        "jestConfig": "apps/cmd-e2e/jest.config.ts",
+        "testPathPattern": "order-confirmation-workflow"
+      }
+    }
+  }
+}

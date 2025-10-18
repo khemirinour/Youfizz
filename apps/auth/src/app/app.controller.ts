@@ -15,7 +15,7 @@ import { PasswordResetResponseDto } from '../dto/password-reset-response.dto';
 import { ConfirmPasswordResetDto } from '../dto/confirm-password-reset.dto';
 import { PasswordResetConfirmationResponseDto } from '../dto/password-reset-confirmation-response.dto';
 import { UserRole } from '../entities/user.entity';
-import { JwtAuthGuard } from './jwt-auth.guard';
+import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
 
@@ -32,6 +32,17 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Welcome message' })
   getData() {
     return this.appService.getData();
+  }
+
+  @Get('health')
+  @ApiOperation({ summary: 'Health check' })
+  @ApiResponse({ status: 200, description: 'Service health status' })
+  async healthCheck() {
+    return {
+      status: 'ok',
+      timestamp: new Date().toISOString(),
+      service: 'auth',
+    };
   }
 
   @Post('register')

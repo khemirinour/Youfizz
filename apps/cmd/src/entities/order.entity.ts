@@ -24,8 +24,14 @@ export class Order extends BaseEntity {
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   total!: string;
 
-  @Column({ type: 'varchar', length: 50 })
-  customerId!: string;
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  customerName?: string;
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  customerEmail?: string;
+  @Column({ type: 'varchar', length: 20, nullable: true })
+  customerPhone?: string
+  @Column({ type: 'varchar', length: 200, nullable: true })
+  customerAddress?: string;
 
   @Column({ type: 'varchar', length: 50, nullable: true })
   vendorId?: string;
@@ -36,5 +42,3 @@ export class Order extends BaseEntity {
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
 }
-
-

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { ILike, Repository } from 'typeorm';
@@ -16,7 +16,9 @@ export class AppService {
     const where: any = {};
     if (query.search) where.number = ILike(`%${query.search}%`);
     if (query.status) where.status = query.status;
-    if (query.customerId) where.customerId = query.customerId;
+    if (query.customerName) where.customerName = ILike(`%${query.customerName}%`);
+    if (query.customerEmail) where.customerEmail = ILike(`%${query.customerEmail}%`);
+    if (query.customerPhone) where.customerPhone = ILike(`%${query.customerPhone}%`);
     if (query.vendorId) where.vendorId = query.vendorId;
     if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
     return this.repo.find({ where, take: query.limit, skip: query.offset, order: { createdAt: 'DESC' } });
@@ -25,6 +27,19 @@ export class AppService {
   findOne(id: string) { return this.repo.findOne({ where: { id } }); }
 
   async create(data: Partial<Order>) {
+    const lastOrders = await this.repo.find({
+      order: { createdAt: 'DESC' },
+      take: 1,
+    });
+
+    if (lastOrders.length > 0) {
+      const lastOrder = lastOrders[0];
+      const lastNumber = parseInt(lastOrder.number.split('-')[1]);
+      data.number = `ORDER-${(lastNumber + 1).toString().padStart(3, '0')}`;
+    } else {
+      data.number = 'ORDER-001';
+    }
+    
     const entity = this.repo.create(data);
     return this.repo.save(entity);
   }
@@ -45,8 +60,17 @@ export class AppService {
   }
 
   async confirm(id: string, confirmer?: { id?: string; role?: string; vendorId?: string }) {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
     // Enforce vendor quota via auth internal APIs: check (GET) then consume (POST)
     if (confirmer?.role === 'VENDEUR' || confirmer?.role === 'CONFIRMATEUR') {
+      if (order.vendorId && order.vendorId !== confirmer.vendorId) {
+        throw new ForbiddenException();
+      }
+
       const vendorUserId = confirmer.id;
       const vendorId = confirmer.vendorId;
       try {
@@ -70,5 +94,3 @@ export class AppService {
     return this.findOne(id);
   }
 }
-
-

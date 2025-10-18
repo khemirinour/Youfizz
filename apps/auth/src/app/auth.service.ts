@@ -9,12 +9,13 @@ import { LoginDto } from '../dto/login.dto';
 import { AuthResponseDto } from '../dto/auth-response.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { User, UserRole } from '../entities/user.entity';
+import { Vendeur } from '../entities/vendeur.entity';
 import { RefreshToken as RefreshTokenEntity } from '../entities/refresh-token.entity';
 import { Vendeur } from '../entities/vendeur.entity';
 import { Confermateur } from '../entities/confermateur.entity';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import * as bcrypt from 'bcrypt';
-import * as jwt from 'jsonwebtoken';
+import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
 
 @Injectable()
@@ -23,14 +24,22 @@ export class AuthService {
   private confermateurVendeurs: Map<string, Set<string>> = new Map();
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
+    @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
     @InjectRepository(RefreshTokenEntity) private readonly refreshRepo: Repository<RefreshTokenEntity>,
     @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
     @InjectRepository(Confermateur) private readonly confermateurRepo: Repository<Confermateur>,
     @InjectRepository(PasswordResetToken) private readonly passwordResetRepo: Repository<PasswordResetToken>,
     private readonly emailService: EmailService,
     private readonly notificationClient: NotificationClient,
+    private readonly jwtService: JwtService,
   ) {}
-  private readonly jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
+  private readonly jwtSecret = (() => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('Missing required environment variable JWT_SECRET');
+    }
+    return secret;
+  })();
   private readonly refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret-key';
   private readonly accessTokenExpiry = '15m'; // 15 minutes
   private readonly refreshTokenExpiry = '7d'; // 7 days
@@ -57,6 +66,15 @@ export class AuthService {
       isActive: true,
     });
     const saved = await this.userRepo.save(user);
+
+    if (saved.role === UserRole.VENDEUR) {
+      const vendeur = this.vendeurRepo.create({
+        user: saved,
+        idUser: saved.id,
+        nbrCmdConf: 10, // Default value
+      });
+      await this.vendeurRepo.save(vendeur);
+    }
     
     // Send welcome email asynchronously (fire-and-forget)
     this.sendWelcomeEmailAsync(saved.email, saved.firstName);
@@ -98,19 +116,35 @@ export class AuthService {
       throw new UnauthorizedException('Account is deactivated');
     }
 
-    const passwordMatches = await bcrypt.compare(loginDto.password, (user as any).password);
+    const passwordMatches = await user.validatePassword(loginDto.password);
     if (!passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // If user has old password format (with separate salt), migrate to new format
+    if (user.salt) {
+      user.password = await bcrypt.hash(loginDto.password, 12);
+      user.salt = null;
+      user.passwordChangedAt = new Date();
+      await this.userRepo.save(user);
+    }
+
     // Generate access token
-    const accessTokenPayload = { 
+    const accessTokenPayload: any = { 
       sub: user.id, 
       email: user.email, 
       role: user.role,
       type: 'access'
     };
-    const accessToken = jwt.sign(accessTokenPayload, this.jwtSecret, { expiresIn: this.accessTokenExpiry });
+
+    if (user.role === UserRole.VENDEUR) {
+      const vendeur = await this.vendeurRepo.findOne({ where: { user: { id: user.id } } });
+      if (vendeur) {
+        accessTokenPayload.vendorId = vendeur.id;
+      }
+    }
+
+    const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
 
     // Generate refresh token
     const refreshToken = this.generateRefreshToken();
@@ -173,7 +207,7 @@ export class AuthService {
       role: user.role,
       type: 'access'
     };
-    const accessToken = jwt.sign(accessTokenPayload, this.jwtSecret, { expiresIn: this.accessTokenExpiry });
+    const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
 
     // Generate new refresh token (rotate refresh token)
     const newRefreshToken = this.generateRefreshToken();

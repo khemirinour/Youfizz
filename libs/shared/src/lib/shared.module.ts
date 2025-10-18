@@ -3,12 +3,13 @@ import { DatabaseModule } from './database/database.module';
 import { DatabaseService } from './database/database.service';
 import { EmailModule } from './email/email.module';
 import { AppConfigModule } from './config/config.module';
+import { AuthModule } from './auth/auth.module';
 import { SharedRateLimitGuard } from './guards/rate-limit.guard';
 import { LoggingInterceptor } from './interceptors/logging.interceptor';
 import { ResponseInterceptor } from './interceptors/response.interceptor';
 
 @Module({
-  imports: [DatabaseModule, EmailModule, AppConfigModule],
+  imports: [DatabaseModule, EmailModule, AppConfigModule, AuthModule],
   providers: [
     DatabaseService,
     SharedRateLimitGuard,
@@ -20,6 +21,7 @@ import { ResponseInterceptor } from './interceptors/response.interceptor';
     DatabaseService,
     EmailModule,
     AppConfigModule,
+    AuthModule,
     SharedRateLimitGuard,
     LoggingInterceptor,
     ResponseInterceptor,

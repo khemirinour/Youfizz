@@ -6,7 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { Article } from '../entities/article.entity';
 
 @Module({
-  imports: [SharedModule, TypeOrmModule.forFeature([Article])],
+  imports: [
+    SharedModule, 
+    TypeOrmModule.forFeature([Article]),
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

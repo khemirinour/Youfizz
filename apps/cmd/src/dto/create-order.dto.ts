@@ -9,11 +9,12 @@ class OrderItemDto {
 }
 
 export class CreateOrderDto {
-  @ApiProperty({ maxLength: 30 }) @IsString() @MaxLength(30) number!: string;
   @ApiProperty({ type: [OrderItemDto] }) @IsArray() @ValidateNested({ each: true }) @Type(() => OrderItemDto) items!: OrderItemDto[];
   @ApiProperty({ description: 'Decimal string' }) @IsNumberString() total!: string;
   @ApiProperty() @IsString() customerId!: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(50) customerName?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(100) customerEmail?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) customerPhone?: string;
+  @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) customerAddress?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() vendorId?: string;
 }
-
-

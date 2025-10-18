@@ -116,7 +116,13 @@ export const serviceConfig = registerAs('service', (): ServiceConfig => ({
 export const authServiceConfig = registerAs('authService', () => ({
   port: parseInt(process.env.AUTH_SERVICE_PORT || '3001', 10),
   microservicePort: parseInt(process.env.AUTH_MICROSERVICE_PORT || '4001', 10),
-  jwtSecret: process.env.JWT_SECRET || 'your-secret-key',
+  jwtSecret: (() => {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('Missing required environment variable JWT_SECRET');
+    }
+    return secret;
+  })(),
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN || '7d',
 }));

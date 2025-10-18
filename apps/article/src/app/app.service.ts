@@ -33,6 +33,9 @@ export class AppService {
   findOne(id: string) {
     return this.articleRepository.findOne({ where: { id } });
   }
+  findByVendor(vendorId: string) {
+    return this.articleRepository.find({ where: { vendorId } });
+  }
 
   async create(data: Partial<Article>) {
     try {
