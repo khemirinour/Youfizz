@@ -16,4 +16,10 @@ export class AuthResponseDto {
 
   @ApiProperty()
   expiresIn: number; // in seconds
+
+  @ApiProperty({ required: false, description: 'Vendor ID if user is a vendor' })
+  vendorId?: string;
+
+  @ApiProperty({ required: false, description: 'Confirmateur ID if user is a confirmateur' })
+  confirmateurId?: string;
 }

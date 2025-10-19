@@ -8,6 +8,8 @@ import { AuthResponseDto } from '../dto/auth-response.dto';
 import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { User, UserRole } from '../entities/user.entity';
 import { RefreshToken as RefreshTokenEntity } from '../entities/refresh-token.entity';
+import { Vendeur } from '../entities/vendeur.entity';
+import { Confermateur } from '../entities/confermateur.entity';
 import * as bcrypt from 'bcrypt';
 import * as jwt from 'jsonwebtoken';
 import * as crypto from 'crypto';
@@ -19,6 +21,8 @@ export class AuthService {
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(RefreshTokenEntity) private readonly refreshRepo: Repository<RefreshTokenEntity>,
+    @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
+    @InjectRepository(Confermateur) private readonly confermateurRepo: Repository<Confermateur>,
   ) {}
   private readonly jwtSecret = process.env.JWT_SECRET || 'your-secret-key';
   private readonly refreshTokenSecret = process.env.REFRESH_TOKEN_SECRET || 'your-refresh-secret-key';
@@ -93,12 +97,17 @@ export class AuthService {
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
 
+    // Get vendor/confirmateur IDs
+    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+
     return {
       user: this.toUserResponseDto(user),
       accessToken,
       refreshToken,
       tokenType: 'Bearer',
-      expiresIn: accessTokenExpirySeconds
+      expiresIn: accessTokenExpirySeconds,
+      vendorId,
+      confirmateurId
     };
   }
 
@@ -152,12 +161,17 @@ export class AuthService {
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
 
+    // Get vendor/confirmateur IDs
+    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+
     return {
       user: this.toUserResponseDto(user),
       accessToken,
       refreshToken: newRefreshToken,
       tokenType: 'Bearer',
-      expiresIn: accessTokenExpirySeconds
+      expiresIn: accessTokenExpirySeconds,
+      vendorId,
+      confirmateurId
     };
   }
 
@@ -177,6 +191,18 @@ export class AuthService {
 
   private generateRefreshToken(): string {
     return crypto.randomBytes(64).toString('hex');
+  }
+
+  private async getVendorAndConfirmateurIds(userId: string): Promise<{ vendorId?: string; confirmateurId?: string }> {
+    const [vendeur, confermateur] = await Promise.all([
+      this.vendeurRepo.findOne({ where: { idUser: userId } }),
+      this.confermateurRepo.findOne({ where: { idUser: userId } })
+    ]);
+
+    return {
+      vendorId: vendeur?.id,
+      confirmateurId: confermateur?.id
+    };
   }
 
   async findAll(): Promise<UserResponseDto[]> {
