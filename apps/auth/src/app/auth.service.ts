@@ -11,7 +11,6 @@ import { RefreshTokenDto } from '../dto/refresh-token.dto';
 import { User, UserRole } from '../entities/user.entity';
 import { Vendeur } from '../entities/vendeur.entity';
 import { RefreshToken as RefreshTokenEntity } from '../entities/refresh-token.entity';
-import { Vendeur } from '../entities/vendeur.entity';
 import { Confermateur } from '../entities/confermateur.entity';
 import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import * as bcrypt from 'bcrypt';
@@ -26,7 +25,6 @@ export class AuthService {
     @InjectRepository(User) private readonly userRepo: Repository<User>,
     @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
     @InjectRepository(RefreshTokenEntity) private readonly refreshRepo: Repository<RefreshTokenEntity>,
-    @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
     @InjectRepository(Confermateur) private readonly confermateurRepo: Repository<Confermateur>,
     @InjectRepository(PasswordResetToken) private readonly passwordResetRepo: Repository<PasswordResetToken>,
     private readonly emailService: EmailService,
