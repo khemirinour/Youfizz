@@ -3816,6 +3816,7 @@ tslib_1.__decorate([
 ], Vendeur.prototype, "user", void 0);
 tslib_1.__decorate([
     (0, typeorm_1.RelationId)((v) => v.user),
+    (0, typeorm_1.Column)({ name: 'id_user' }),
     tslib_1.__metadata("design:type", String)
 ], Vendeur.prototype, "idUser", void 0);
 tslib_1.__decorate([
@@ -3891,6 +3892,7 @@ tslib_1.__decorate([
 ], Confermateur.prototype, "user", void 0);
 tslib_1.__decorate([
     (0, typeorm_1.RelationId)((c) => c.user),
+    (0, typeorm_1.Column)({ name: 'id_user' }),
     tslib_1.__metadata("design:type", String)
 ], Confermateur.prototype, "idUser", void 0);
 tslib_1.__decorate([
@@ -5267,3 +5269,4 @@ bootstrap();
 
 /******/ })()
 ;
+//# sourceMappingURL=main.js.map

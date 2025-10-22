@@ -796,10 +796,14 @@ const passport_jwt_1 = __webpack_require__(24);
 const config_1 = __webpack_require__(12);
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(configService) {
+        const secret = configService.get('authService.jwtSecret');
+        if (!secret) {
+            throw new Error('JWT secret is not configured');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get('authService.jwtSecret'),
+            secretOrKey: secret,
             algorithms: ['HS256'],
         });
         this.configService = configService;
@@ -816,6 +820,8 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             email: payload.email,
             role: payload.role,
             jti: payload.jti,
+            vendorId: payload.vendorId,
+            confirmateurId: payload.confirmateurId,
         };
     }
 };

@@ -9,6 +9,7 @@ export class Vendeur extends BaseEntity {
   user: User;
 
   @RelationId((v: Vendeur) => v.user)
+  @Column({ name: 'id_user' })
   idUser: string;
 
   @Column({ name: 'nbr_cmd_conf', type: 'int', default: 0 })

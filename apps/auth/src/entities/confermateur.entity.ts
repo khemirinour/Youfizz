@@ -1,4 +1,4 @@
-import { Entity, OneToOne, JoinColumn, RelationId, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, OneToOne, JoinColumn, RelationId, ManyToMany, JoinTable, Column } from 'typeorm';
 import { BaseEntity } from '@you-fizz/shared';
 import { User } from './user.entity';
 import { Vendeur } from './vendeur.entity';
@@ -10,6 +10,7 @@ export class Confermateur extends BaseEntity {
   user: User;
 
   @RelationId((c: Confermateur) => c.user)
+  @Column({ name: 'id_user' })
   idUser: string;
 
   @ManyToMany(() => Vendeur)
