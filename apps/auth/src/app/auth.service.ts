@@ -127,7 +127,10 @@ export class AuthService {
       await this.userRepo.save(user);
     }
 
-    // Generate access token
+    // Get vendor/confirmateur IDs first
+    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+
+    // Generate access token with vendor/confirmateur IDs
     const accessTokenPayload: any = { 
       sub: user.id, 
       email: user.email, 
@@ -135,11 +138,14 @@ export class AuthService {
       type: 'access'
     };
 
-    if (user.role === UserRole.VENDEUR) {
-      const vendeur = await this.vendeurRepo.findOne({ where: { user: { id: user.id } } });
-      if (vendeur) {
-        accessTokenPayload.vendorId = vendeur.id;
-      }
+    // Include vendor ID if user is a vendor
+    if (user.role === UserRole.VENDEUR && vendorId) {
+      accessTokenPayload.vendorId = vendorId;
+    }
+
+    // Include confirmateur ID if user is a confirmateur
+    if (user.role === UserRole.CONFERMATEUR && confirmateurId) {
+      accessTokenPayload.confirmateurId = confirmateurId;
     }
 
     const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
@@ -161,9 +167,6 @@ export class AuthService {
 
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
-
-    // Get vendor/confirmateur IDs
-    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
 
     return {
       user: this.toUserResponseDto(user),
@@ -198,13 +201,27 @@ export class AuthService {
       throw new UnauthorizedException('User not found or inactive');
     }
 
-    // Generate new access token
-    const accessTokenPayload = { 
+    // Get vendor/confirmateur IDs first
+    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+
+    // Generate new access token with vendor/confirmateur IDs
+    const accessTokenPayload: any = { 
       sub: user.id, 
       email: user.email, 
       role: user.role,
       type: 'access'
     };
+
+    // Include vendor ID if user is a vendor
+    if (user.role === UserRole.VENDEUR && vendorId) {
+      accessTokenPayload.vendorId = vendorId;
+    }
+
+    // Include confirmateur ID if user is a confirmateur
+    if (user.role === UserRole.CONFERMATEUR && confirmateurId) {
+      accessTokenPayload.confirmateurId = confirmateurId;
+    }
+
     const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
 
     // Generate new refresh token (rotate refresh token)
@@ -225,9 +242,6 @@ export class AuthService {
 
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
-
-    // Get vendor/confirmateur IDs
-    const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
 
     return {
       user: this.toUserResponseDto(user),

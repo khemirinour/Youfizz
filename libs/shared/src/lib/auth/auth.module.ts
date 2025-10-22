@@ -5,6 +5,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 import { JwtAuthGuard } from './jwt.guard';
 import { TokenBlacklistService } from './token-blacklist.service';
+import { StringValue } from 'ms';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { TokenBlacklistService } from './token-blacklist.service';
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get<string>('authService.jwtSecret'),
         signOptions: { 
-          expiresIn: configService.get<string>('authService.jwtExpiresIn') || '1h',
+          expiresIn: (configService.get<string>('authService.jwtExpiresIn') || '1h') as StringValue,
           algorithm: 'HS256',
         },
       }),

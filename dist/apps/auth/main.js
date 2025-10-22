@@ -38,12 +38,12 @@ const jwt_1 = __webpack_require__(26);
 const passport_1 = __webpack_require__(27);
 const shared_2 = __webpack_require__(15);
 const typeorm_1 = __webpack_require__(13);
-const rate_limiting_config_1 = __webpack_require__(78);
+const rate_limiting_config_1 = __webpack_require__(79);
 const user_entity_1 = __webpack_require__(60);
 const refresh_token_entity_1 = __webpack_require__(63);
-const password_reset_token_entity_1 = __webpack_require__(64);
+const password_reset_token_entity_1 = __webpack_require__(65);
 const vendeur_entity_1 = __webpack_require__(62);
-const confermateur_entity_1 = __webpack_require__(79);
+const confermateur_entity_1 = __webpack_require__(64);
 const seed_service_1 = __webpack_require__(80);
 const notification_client_1 = __webpack_require__(59);
 const vendors_controller_1 = __webpack_require__(81);
@@ -60,7 +60,7 @@ exports.AppModule = AppModule = tslib_1.__decorate([
             passport_1.PassportModule,
             jwt_1.JwtModule.register({
                 secret: process.env.JWT_SECRET,
-                signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+                signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') },
             }),
         ],
         controllers: [app_controller_1.AppController, vendors_controller_1.VendorsController],
@@ -102,20 +102,20 @@ const throttler_1 = __webpack_require__(7);
 const custom_throttler_guard_1 = __webpack_require__(10);
 const app_service_1 = __webpack_require__(11);
 const auth_service_1 = __webpack_require__(12);
-const create_user_dto_1 = __webpack_require__(65);
-const user_response_dto_1 = __webpack_require__(67);
-const login_dto_1 = __webpack_require__(68);
-const auth_response_dto_1 = __webpack_require__(69);
-const refresh_token_dto_1 = __webpack_require__(70);
-const request_password_reset_dto_1 = __webpack_require__(71);
-const reset_password_dto_1 = __webpack_require__(72);
-const password_reset_response_dto_1 = __webpack_require__(73);
-const confirm_password_reset_dto_1 = __webpack_require__(74);
-const password_reset_confirmation_response_dto_1 = __webpack_require__(75);
+const create_user_dto_1 = __webpack_require__(66);
+const user_response_dto_1 = __webpack_require__(68);
+const login_dto_1 = __webpack_require__(69);
+const auth_response_dto_1 = __webpack_require__(70);
+const refresh_token_dto_1 = __webpack_require__(71);
+const request_password_reset_dto_1 = __webpack_require__(72);
+const reset_password_dto_1 = __webpack_require__(73);
+const password_reset_response_dto_1 = __webpack_require__(74);
+const confirm_password_reset_dto_1 = __webpack_require__(75);
+const password_reset_confirmation_response_dto_1 = __webpack_require__(76);
 const user_entity_1 = __webpack_require__(60);
 const shared_1 = __webpack_require__(15);
-const roles_decorator_1 = __webpack_require__(76);
-const roles_guard_1 = __webpack_require__(77);
+const roles_decorator_1 = __webpack_require__(77);
+const roles_guard_1 = __webpack_require__(78);
 let AppController = class AppController {
     constructor(appService, authService) {
         this.appService = appService;
@@ -206,7 +206,15 @@ exports.AppController = AppController;
 tslib_1.__decorate([
     (0, common_1.Get)(),
     (0, swagger_1.ApiOperation)({ summary: 'Get welcome message' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Welcome message' }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Welcome message',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Hello API!' }
+            }
+        }
+    }),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", []),
     tslib_1.__metadata("design:returntype", void 0)
@@ -214,7 +222,17 @@ tslib_1.__decorate([
 tslib_1.__decorate([
     (0, common_1.Get)('health'),
     (0, swagger_1.ApiOperation)({ summary: 'Health check' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Service health status' }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Service health status',
+        schema: {
+            type: 'object',
+            properties: {
+                status: { type: 'string', example: 'ok' },
+                timestamp: { type: 'string', format: 'date-time' },
+                service: { type: 'string', example: 'auth' }
+            }
+        }
+    }),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", []),
     tslib_1.__metadata("design:returntype", Promise)
@@ -226,64 +244,46 @@ tslib_1.__decorate([
     ,
     (0, swagger_1.ApiOperation)({
         summary: 'Register a new user',
-        description: 'Creates a new user account in the system. The user will receive a welcome email upon successful registration.',
-        tags: ['Authentication']
+        description: 'Creates a new user account in the system. The user will receive a welcome email upon successful registration.'
     }),
-    (0, swagger_1.ApiResponse)({
-        status: 201,
+    (0, swagger_1.ApiCreatedResponse)({
         description: 'User successfully registered',
-        type: user_response_dto_1.UserResponseDto,
-        content: {
-            'application/json': {
-                example: {
-                    id: '123e4567-e89b-12d3-a456-426614174000',
-                    email: 'john.doe@example.com',
-                    firstName: 'John',
-                    lastName: 'Doe',
-                    role: 'GUEST',
-                    isActive: true,
-                    createdAt: '2024-01-15T10:30:00.000Z',
-                    updatedAt: '2024-01-15T10:30:00.000Z'
-                }
-            }
-        }
+        type: user_response_dto_1.UserResponseDto
     }),
-    (0, swagger_1.ApiResponse)({
-        status: 409,
-        description: 'User already exists',
-        content: {
-            'application/json': {
-                example: {
-                    message: 'User with this email already exists',
-                    error: 'Conflict',
-                    statusCode: 409
-                }
-            }
-        }
-    }),
-    (0, swagger_1.ApiResponse)({
-        status: 400,
+    (0, swagger_1.ApiBadRequestResponse)({
         description: 'Bad request - validation errors',
-        content: {
-            'application/json': {
-                example: {
-                    message: ['email must be a valid email address', 'password must be at least 8 characters long'],
-                    error: 'Bad Request',
-                    statusCode: 400
-                }
+        schema: {
+            type: 'object',
+            properties: {
+                message: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['email must be a valid email address', 'password must be at least 8 characters long']
+                },
+                error: { type: 'string', example: 'Bad Request' },
+                statusCode: { type: 'number', example: 400 }
             }
         }
     }),
-    (0, swagger_1.ApiResponse)({
-        status: 429,
+    (0, swagger_1.ApiConflictResponse)({
+        description: 'User already exists',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'User with this email already exists' },
+                error: { type: 'string', example: 'Conflict' },
+                statusCode: { type: 'number', example: 409 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiTooManyRequestsResponse)({
         description: 'Too many requests - rate limit exceeded',
-        content: {
-            'application/json': {
-                example: {
-                    message: 'Too many registration attempts. Please wait before trying again.',
-                    statusCode: 429,
-                    retryAfter: 60
-                }
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Too many registration attempts. Please wait before trying again.' },
+                statusCode: { type: 'number', example: 429 },
+                retryAfter: { type: 'number', example: 60 }
             }
         }
     }),
@@ -297,10 +297,31 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(custom_throttler_guard_1.CustomThrottlerGuard),
     (0, throttler_1.Throttle)({ short: { limit: 10, ttl: 60000 } }) // 10 login attempts per minute
     ,
-    (0, swagger_1.ApiOperation)({ summary: 'Login user' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Login successful', type: auth_response_dto_1.AuthResponseDto }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid credentials' }),
-    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Login user',
+        description: 'Authenticate user with email and password to receive access and refresh tokens.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Login successful',
+        type: auth_response_dto_1.AuthResponseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({
+        description: 'Invalid credentials',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Invalid email or password' },
+                error: { type: 'string', example: 'Unauthorized' },
+                statusCode: { type: 'number', example: 401 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiTooManyRequestsResponse)({
+        description: 'Too many requests - rate limit exceeded'
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_e = typeof login_dto_1.LoginDto !== "undefined" && login_dto_1.LoginDto) === "function" ? _e : Object]),
@@ -308,9 +329,28 @@ tslib_1.__decorate([
 ], AppController.prototype, "login", null);
 tslib_1.__decorate([
     (0, common_1.Post)('refresh'),
-    (0, swagger_1.ApiOperation)({ summary: 'Refresh access token' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Token refreshed successfully', type: auth_response_dto_1.AuthResponseDto }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid refresh token' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Refresh access token',
+        description: 'Generate new access token using valid refresh token.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Token refreshed successfully',
+        type: auth_response_dto_1.AuthResponseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({
+        description: 'Invalid refresh token',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Invalid refresh token' },
+                error: { type: 'string', example: 'Unauthorized' },
+                statusCode: { type: 'number', example: 401 }
+            }
+        }
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_g = typeof refresh_token_dto_1.RefreshTokenDto !== "undefined" && refresh_token_dto_1.RefreshTokenDto) === "function" ? _g : Object]),
@@ -318,8 +358,22 @@ tslib_1.__decorate([
 ], AppController.prototype, "refreshToken", null);
 tslib_1.__decorate([
     (0, common_1.Post)('logout'),
-    (0, swagger_1.ApiOperation)({ summary: 'Logout user' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Successfully logged out' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Logout user',
+        description: 'Invalidate refresh token to log out user from current session.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Successfully logged out',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Successfully logged out' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_j = typeof refresh_token_dto_1.RefreshTokenDto !== "undefined" && refresh_token_dto_1.RefreshTokenDto) === "function" ? _j : Object]),
@@ -327,8 +381,22 @@ tslib_1.__decorate([
 ], AppController.prototype, "logout", null);
 tslib_1.__decorate([
     (0, common_1.Post)('logout-all'),
-    (0, swagger_1.ApiOperation)({ summary: 'Logout from all devices' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Successfully logged out from all devices' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Logout from all devices',
+        description: 'Invalidate all refresh tokens for a user to log out from all devices.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Successfully logged out from all devices',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Successfully logged out from all devices' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [Object]),
@@ -338,8 +406,23 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Get)('users'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get all users' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'List of users', type: [user_response_dto_1.UserResponseDto] }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get all users',
+        description: 'Retrieve list of all users. Admin only. Can filter by role.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiQuery)({
+        name: 'role',
+        required: false,
+        enum: user_entity_1.UserRole,
+        description: 'Filter users by role'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'List of users',
+        type: [user_response_dto_1.UserResponseDto]
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Query)('role')),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_m = typeof user_entity_1.UserRole !== "undefined" && user_entity_1.UserRole) === "function" ? _m : Object]),
@@ -349,9 +432,23 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Get)('users/:id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get user by ID' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'User found', type: user_response_dto_1.UserResponseDto }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'User not found' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get user by ID',
+        description: 'Retrieve specific user by ID. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User found',
+        type: user_response_dto_1.UserResponseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID format'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'User not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
@@ -359,8 +456,32 @@ tslib_1.__decorate([
 ], AppController.prototype, "findOne", null);
 tslib_1.__decorate([
     (0, common_1.Get)('roles'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get available roles' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Available roles' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get available roles',
+        description: 'Retrieve list of available user roles and their descriptions.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Available roles',
+        schema: {
+            type: 'object',
+            properties: {
+                roles: {
+                    type: 'array',
+                    items: { type: 'string' },
+                    example: ['ADMIN', 'VENDEUR', 'CONFERMATEUR', 'GUEST']
+                },
+                description: {
+                    type: 'object',
+                    properties: {
+                        ADMIN: { type: 'string', example: 'Full system access' },
+                        VENDEUR: { type: 'string', example: 'Sales management access' },
+                        CONFERMATEUR: { type: 'string', example: 'Confirmation access' },
+                        GUEST: { type: 'string', example: 'Limited access, no authentication required' }
+                    }
+                }
+            }
+        }
+    }),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", []),
     tslib_1.__metadata("design:returntype", void 0)
@@ -369,7 +490,23 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Patch)('users/:id/role/:role'),
-    (0, swagger_1.ApiOperation)({ summary: 'Admin: update user role' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: update user role',
+        description: 'Update user role. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User role updated successfully',
+        type: user_response_dto_1.UserResponseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID or role'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'User not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Param)('role')),
     tslib_1.__metadata("design:type", Function),
@@ -380,7 +517,23 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Patch)('users/:id/active'),
-    (0, swagger_1.ApiOperation)({ summary: 'Admin: activate/deactivate user' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: activate/deactivate user',
+        description: 'Activate or deactivate user account. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User status updated successfully',
+        type: user_response_dto_1.UserResponseDto
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID or status'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'User not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
@@ -391,7 +544,28 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Delete)('users/:id'),
-    (0, swagger_1.ApiOperation)({ summary: 'Admin: delete user' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: delete user',
+        description: 'Delete user account permanently. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User deleted successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'User deleted successfully' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'User not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
@@ -401,7 +575,22 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.VENDEUR, user_entity_1.UserRole.ADMIN),
     (0, common_1.Get)('vendeurs/:vendeurId/confermateurs'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get confermateurs assigned to a vendeur' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get confermateurs assigned to a vendeur',
+        description: 'Retrieve list of confermateurs assigned to a specific vendeur.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Confermateurs retrieved successfully'
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid vendeur ID'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'Vendeur not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Vendeur or Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('vendeurId')),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
@@ -410,7 +599,15 @@ tslib_1.__decorate([
 tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
     (0, common_1.Get)('confermateurs'),
-    (0, swagger_1.ApiOperation)({ summary: 'List all confermateurs' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'List all confermateurs',
+        description: 'Retrieve list of all confermateurs in the system.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Confermateurs retrieved successfully'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", []),
     tslib_1.__metadata("design:returntype", Promise)
@@ -419,7 +616,22 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Post)('confermateurs/:confermateurId/vendeurs/:vendeurId'),
-    (0, swagger_1.ApiOperation)({ summary: 'Assign vendeur to confermateur' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Assign vendeur to confermateur',
+        description: 'Create assignment between confermateur and vendeur. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiCreatedResponse)({
+        description: 'Assignment created successfully'
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid confermateur or vendeur ID'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'Confermateur or vendeur not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('confermateurId')),
     tslib_1.__param(1, (0, common_1.Param)('vendeurId')),
     tslib_1.__metadata("design:type", Function),
@@ -430,7 +642,22 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
     (0, common_1.Delete)('confermateurs/:confermateurId/vendeurs/:vendeurId'),
-    (0, swagger_1.ApiOperation)({ summary: 'Unassign vendeur from confermateur' }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Unassign vendeur from confermateur',
+        description: 'Remove assignment between confermateur and vendeur. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Assignment removed successfully'
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid confermateur or vendeur ID'
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'Assignment not found'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
     tslib_1.__param(0, (0, common_1.Param)('confermateurId')),
     tslib_1.__param(1, (0, common_1.Param)('vendeurId')),
     tslib_1.__metadata("design:type", Function),
@@ -442,14 +669,20 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(custom_throttler_guard_1.CustomThrottlerGuard),
     (0, throttler_1.Throttle)({ short: { limit: 3, ttl: 300000 } }) // 3 password reset requests per 5 minutes
     ,
-    (0, swagger_1.ApiOperation)({ summary: 'Request password reset' }),
-    (0, swagger_1.ApiResponse)({
-        status: 200,
+    (0, swagger_1.ApiOperation)({
+        summary: 'Request password reset',
+        description: 'Send password reset email to user if account exists. Rate limited to prevent abuse.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
         description: 'Password reset email sent (if account exists)',
         type: password_reset_response_dto_1.PasswordResetResponseDto
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request' }),
-    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
+    (0, swagger_1.ApiTooManyRequestsResponse)({
+        description: 'Too many requests - rate limit exceeded'
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_r = typeof request_password_reset_dto_1.RequestPasswordResetDto !== "undefined" && request_password_reset_dto_1.RequestPasswordResetDto) === "function" ? _r : Object]),
@@ -460,14 +693,20 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(custom_throttler_guard_1.CustomThrottlerGuard),
     (0, throttler_1.Throttle)({ short: { limit: 10, ttl: 60000 } }) // 10 token confirmations per minute
     ,
-    (0, swagger_1.ApiOperation)({ summary: 'Confirm password reset token validity' }),
-    (0, swagger_1.ApiResponse)({
-        status: 200,
+    (0, swagger_1.ApiOperation)({
+        summary: 'Confirm password reset token validity',
+        description: 'Verify if password reset token is valid and not expired.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
         description: 'Token validation result',
         type: password_reset_confirmation_response_dto_1.PasswordResetConfirmationResponseDto
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request' }),
-    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - validation errors'
+    }),
+    (0, swagger_1.ApiTooManyRequestsResponse)({
+        description: 'Too many requests - rate limit exceeded'
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_t = typeof confirm_password_reset_dto_1.ConfirmPasswordResetDto !== "undefined" && confirm_password_reset_dto_1.ConfirmPasswordResetDto) === "function" ? _t : Object]),
@@ -478,9 +717,11 @@ tslib_1.__decorate([
     (0, common_1.UseGuards)(custom_throttler_guard_1.CustomThrottlerGuard),
     (0, throttler_1.Throttle)({ short: { limit: 5, ttl: 300000 } }) // 5 password resets per 5 minutes
     ,
-    (0, swagger_1.ApiOperation)({ summary: 'Reset password with token' }),
-    (0, swagger_1.ApiResponse)({
-        status: 200,
+    (0, swagger_1.ApiOperation)({
+        summary: 'Reset password with token',
+        description: 'Reset user password using valid reset token. Rate limited to prevent abuse.'
+    }),
+    (0, swagger_1.ApiOkResponse)({
         description: 'Password reset successfully',
         schema: {
             type: 'object',
@@ -489,8 +730,12 @@ tslib_1.__decorate([
             }
         }
     }),
-    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid or expired token' }),
-    (0, swagger_1.ApiResponse)({ status: 429, description: 'Too many requests' }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid or expired token'
+    }),
+    (0, swagger_1.ApiTooManyRequestsResponse)({
+        description: 'Too many requests - rate limit exceeded'
+    }),
     tslib_1.__param(0, (0, common_1.Body)(common_1.ValidationPipe)),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [typeof (_v = typeof reset_password_dto_1.ResetPasswordDto !== "undefined" && reset_password_dto_1.ResetPasswordDto) === "function" ? _v : Object]),
@@ -579,7 +824,7 @@ exports.AppService = AppService = tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var _a, _b, _c, _d, _e, _f, _g;
+var _a, _b, _c, _d, _e, _f, _g, _h;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthService = void 0;
 const tslib_1 = __webpack_require__(5);
@@ -591,15 +836,17 @@ const notification_client_1 = __webpack_require__(59);
 const user_entity_1 = __webpack_require__(60);
 const vendeur_entity_1 = __webpack_require__(62);
 const refresh_token_entity_1 = __webpack_require__(63);
-const password_reset_token_entity_1 = __webpack_require__(64);
+const confermateur_entity_1 = __webpack_require__(64);
+const password_reset_token_entity_1 = __webpack_require__(65);
 const bcrypt = tslib_1.__importStar(__webpack_require__(48));
 const jwt_1 = __webpack_require__(26);
 const crypto = tslib_1.__importStar(__webpack_require__(47));
 let AuthService = class AuthService {
-    constructor(userRepo, vendeurRepo, refreshRepo, passwordResetRepo, emailService, notificationClient, jwtService) {
+    constructor(userRepo, vendeurRepo, refreshRepo, confermateurRepo, passwordResetRepo, emailService, notificationClient, jwtService) {
         this.userRepo = userRepo;
         this.vendeurRepo = vendeurRepo;
         this.refreshRepo = refreshRepo;
+        this.confermateurRepo = confermateurRepo;
         this.passwordResetRepo = passwordResetRepo;
         this.emailService = emailService;
         this.notificationClient = notificationClient;
@@ -690,18 +937,22 @@ let AuthService = class AuthService {
             user.passwordChangedAt = new Date();
             await this.userRepo.save(user);
         }
-        // Generate access token
+        // Get vendor/confirmateur IDs first
+        const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+        // Generate access token with vendor/confirmateur IDs
         const accessTokenPayload = {
             sub: user.id,
             email: user.email,
             role: user.role,
             type: 'access'
         };
-        if (user.role === user_entity_1.UserRole.VENDEUR) {
-            const vendeur = await this.vendeurRepo.findOne({ where: { user: { id: user.id } } });
-            if (vendeur) {
-                accessTokenPayload.vendorId = vendeur.id;
-            }
+        // Include vendor ID if user is a vendor
+        if (user.role === user_entity_1.UserRole.VENDEUR && vendorId) {
+            accessTokenPayload.vendorId = vendorId;
+        }
+        // Include confirmateur ID if user is a confirmateur
+        if (user.role === user_entity_1.UserRole.CONFERMATEUR && confirmateurId) {
+            accessTokenPayload.confirmateurId = confirmateurId;
         }
         const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
         // Generate refresh token
@@ -722,7 +973,9 @@ let AuthService = class AuthService {
             accessToken,
             refreshToken,
             tokenType: 'Bearer',
-            expiresIn: accessTokenExpirySeconds
+            expiresIn: accessTokenExpirySeconds,
+            vendorId,
+            confirmateurId
         };
     }
     async refreshToken(refreshTokenDto) {
@@ -742,13 +995,23 @@ let AuthService = class AuthService {
         if (!user || !user.isActive) {
             throw new common_1.UnauthorizedException('User not found or inactive');
         }
-        // Generate new access token
+        // Get vendor/confirmateur IDs first
+        const { vendorId, confirmateurId } = await this.getVendorAndConfirmateurIds(user.id);
+        // Generate new access token with vendor/confirmateur IDs
         const accessTokenPayload = {
             sub: user.id,
             email: user.email,
             role: user.role,
             type: 'access'
         };
+        // Include vendor ID if user is a vendor
+        if (user.role === user_entity_1.UserRole.VENDEUR && vendorId) {
+            accessTokenPayload.vendorId = vendorId;
+        }
+        // Include confirmateur ID if user is a confirmateur
+        if (user.role === user_entity_1.UserRole.CONFERMATEUR && confirmateurId) {
+            accessTokenPayload.confirmateurId = confirmateurId;
+        }
         const accessToken = await this.jwtService.signAsync(accessTokenPayload, { secret: this.jwtSecret, expiresIn: this.accessTokenExpiry });
         // Generate new refresh token (rotate refresh token)
         const newRefreshToken = this.generateRefreshToken();
@@ -769,7 +1032,9 @@ let AuthService = class AuthService {
             accessToken,
             refreshToken: newRefreshToken,
             tokenType: 'Bearer',
-            expiresIn: accessTokenExpirySeconds
+            expiresIn: accessTokenExpirySeconds,
+            vendorId,
+            confirmateurId
         };
     }
     async logout(refreshToken) {
@@ -784,6 +1049,16 @@ let AuthService = class AuthService {
     }
     generateRefreshToken() {
         return crypto.randomBytes(64).toString('hex');
+    }
+    async getVendorAndConfirmateurIds(userId) {
+        const [vendeur, confermateur] = await Promise.all([
+            this.vendeurRepo.findOne({ where: { idUser: userId } }),
+            this.confermateurRepo.findOne({ where: { idUser: userId } })
+        ]);
+        return {
+            vendorId: vendeur?.id,
+            confirmateurId: confermateur?.id
+        };
     }
     async findAll() {
         const users = await this.userRepo.find();
@@ -1019,8 +1294,9 @@ exports.AuthService = AuthService = tslib_1.__decorate([
     tslib_1.__param(0, (0, typeorm_1.InjectRepository)(user_entity_1.User)),
     tslib_1.__param(1, (0, typeorm_1.InjectRepository)(vendeur_entity_1.Vendeur)),
     tslib_1.__param(2, (0, typeorm_1.InjectRepository)(refresh_token_entity_1.RefreshToken)),
-    tslib_1.__param(3, (0, typeorm_1.InjectRepository)(password_reset_token_entity_1.PasswordResetToken)),
-    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, typeof (_c = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _c : Object, typeof (_d = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _d : Object, typeof (_e = typeof shared_1.EmailService !== "undefined" && shared_1.EmailService) === "function" ? _e : Object, typeof (_f = typeof notification_client_1.NotificationClient !== "undefined" && notification_client_1.NotificationClient) === "function" ? _f : Object, typeof (_g = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _g : Object])
+    tslib_1.__param(3, (0, typeorm_1.InjectRepository)(confermateur_entity_1.Confermateur)),
+    tslib_1.__param(4, (0, typeorm_1.InjectRepository)(password_reset_token_entity_1.PasswordResetToken)),
+    tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object, typeof (_b = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _b : Object, typeof (_c = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _c : Object, typeof (_d = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _d : Object, typeof (_e = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _e : Object, typeof (_f = typeof shared_1.EmailService !== "undefined" && shared_1.EmailService) === "function" ? _f : Object, typeof (_g = typeof notification_client_1.NotificationClient !== "undefined" && notification_client_1.NotificationClient) === "function" ? _g : Object, typeof (_h = typeof jwt_1.JwtService !== "undefined" && jwt_1.JwtService) === "function" ? _h : Object])
 ], AuthService);
 
 
@@ -1679,7 +1955,7 @@ exports.AuthModule = AuthModule = tslib_1.__decorate([
                 useFactory: async (configService) => ({
                     secret: configService.get('authService.jwtSecret'),
                     signOptions: {
-                        expiresIn: configService.get('authService.jwtExpiresIn') || '1h',
+                        expiresIn: (configService.get('authService.jwtExpiresIn') || '1h'),
                         algorithm: 'HS256',
                     },
                 }),
@@ -1719,10 +1995,14 @@ const passport_jwt_1 = __webpack_require__(29);
 const config_1 = __webpack_require__(18);
 let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(passport_jwt_1.Strategy) {
     constructor(configService) {
+        const secret = configService.get('authService.jwtSecret');
+        if (!secret) {
+            throw new Error('JWT secret is not configured');
+        }
         super({
             jwtFromRequest: passport_jwt_1.ExtractJwt.fromAuthHeaderAsBearerToken(),
             ignoreExpiration: false,
-            secretOrKey: configService.get('authService.jwtSecret'),
+            secretOrKey: secret,
             algorithms: ['HS256'],
         });
         this.configService = configService;
@@ -1739,6 +2019,8 @@ let JwtStrategy = class JwtStrategy extends (0, passport_1.PassportStrategy)(pas
             email: payload.email,
             role: payload.role,
             jti: payload.jti,
+            vendorId: payload.vendorId,
+            confirmateurId: payload.confirmateurId,
         };
     }
 };
@@ -3591,6 +3873,45 @@ exports.RefreshToken = RefreshToken = tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.Confermateur = void 0;
+const tslib_1 = __webpack_require__(5);
+const typeorm_1 = __webpack_require__(14);
+const shared_1 = __webpack_require__(15);
+const user_entity_1 = __webpack_require__(60);
+const vendeur_entity_1 = __webpack_require__(62);
+let Confermateur = class Confermateur extends shared_1.BaseEntity {
+};
+exports.Confermateur = Confermateur;
+tslib_1.__decorate([
+    (0, typeorm_1.OneToOne)(() => user_entity_1.User, { onDelete: 'CASCADE' }),
+    (0, typeorm_1.JoinColumn)({ name: 'id_user' }),
+    tslib_1.__metadata("design:type", typeof (_a = typeof user_entity_1.User !== "undefined" && user_entity_1.User) === "function" ? _a : Object)
+], Confermateur.prototype, "user", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.RelationId)((c) => c.user),
+    tslib_1.__metadata("design:type", String)
+], Confermateur.prototype, "idUser", void 0);
+tslib_1.__decorate([
+    (0, typeorm_1.ManyToMany)(() => vendeur_entity_1.Vendeur),
+    (0, typeorm_1.JoinTable)({
+        name: 'confermateur_vendeurs',
+        joinColumn: { name: 'confermateur_id', referencedColumnName: 'id' },
+        inverseJoinColumn: { name: 'vendeur_id', referencedColumnName: 'id' }
+    }),
+    tslib_1.__metadata("design:type", Array)
+], Confermateur.prototype, "vendeurs", void 0);
+exports.Confermateur = Confermateur = tslib_1.__decorate([
+    (0, typeorm_1.Entity)('confermateurs')
+], Confermateur);
+
+
+/***/ }),
+/* 65 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
 var _a, _b, _c;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.PasswordResetToken = void 0;
@@ -3633,7 +3954,7 @@ exports.PasswordResetToken = PasswordResetToken = tslib_1.__decorate([
 
 
 /***/ }),
-/* 65 */
+/* 66 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -3644,7 +3965,7 @@ const tslib_1 = __webpack_require__(5);
 const class_validator_1 = __webpack_require__(41);
 const swagger_1 = __webpack_require__(9);
 const user_entity_1 = __webpack_require__(60);
-const swagger_examples_1 = __webpack_require__(66);
+const swagger_examples_1 = __webpack_require__(67);
 class CreateUserDto {
 }
 exports.CreateUserDto = CreateUserDto;
@@ -3711,7 +4032,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 66 */
+/* 67 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4024,7 +4345,7 @@ exports.TestScenarios = {
 
 
 /***/ }),
-/* 67 */
+/* 68 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4034,7 +4355,7 @@ exports.UserResponseDto = void 0;
 const tslib_1 = __webpack_require__(5);
 const swagger_1 = __webpack_require__(9);
 const user_entity_1 = __webpack_require__(60);
-const swagger_examples_1 = __webpack_require__(66);
+const swagger_examples_1 = __webpack_require__(67);
 class UserResponseDto {
 }
 exports.UserResponseDto = UserResponseDto;
@@ -4107,7 +4428,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 68 */
+/* 69 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4116,7 +4437,7 @@ exports.LoginDto = void 0;
 const tslib_1 = __webpack_require__(5);
 const class_validator_1 = __webpack_require__(41);
 const swagger_1 = __webpack_require__(9);
-const swagger_examples_1 = __webpack_require__(66);
+const swagger_examples_1 = __webpack_require__(67);
 class LoginDto {
 }
 exports.LoginDto = LoginDto;
@@ -4145,7 +4466,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 69 */
+/* 70 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4154,7 +4475,7 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AuthResponseDto = void 0;
 const tslib_1 = __webpack_require__(5);
 const swagger_1 = __webpack_require__(9);
-const user_response_dto_1 = __webpack_require__(67);
+const user_response_dto_1 = __webpack_require__(68);
 class AuthResponseDto {
     constructor() {
         this.tokenType = 'Bearer';
@@ -4181,10 +4502,18 @@ tslib_1.__decorate([
     (0, swagger_1.ApiProperty)(),
     tslib_1.__metadata("design:type", Number)
 ], AuthResponseDto.prototype, "expiresIn", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: 'Vendor ID if user is a vendor' }),
+    tslib_1.__metadata("design:type", String)
+], AuthResponseDto.prototype, "vendorId", void 0);
+tslib_1.__decorate([
+    (0, swagger_1.ApiProperty)({ required: false, description: 'Confirmateur ID if user is a confirmateur' }),
+    tslib_1.__metadata("design:type", String)
+], AuthResponseDto.prototype, "confirmateurId", void 0);
 
 
 /***/ }),
-/* 70 */
+/* 71 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4205,7 +4534,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 71 */
+/* 72 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4214,7 +4543,7 @@ exports.RequestPasswordResetDto = void 0;
 const tslib_1 = __webpack_require__(5);
 const class_validator_1 = __webpack_require__(41);
 const swagger_1 = __webpack_require__(9);
-const swagger_examples_1 = __webpack_require__(66);
+const swagger_examples_1 = __webpack_require__(67);
 class RequestPasswordResetDto {
 }
 exports.RequestPasswordResetDto = RequestPasswordResetDto;
@@ -4232,7 +4561,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 72 */
+/* 73 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4241,7 +4570,7 @@ exports.ResetPasswordDto = void 0;
 const tslib_1 = __webpack_require__(5);
 const class_validator_1 = __webpack_require__(41);
 const swagger_1 = __webpack_require__(9);
-const swagger_examples_1 = __webpack_require__(66);
+const swagger_examples_1 = __webpack_require__(67);
 class ResetPasswordDto {
 }
 exports.ResetPasswordDto = ResetPasswordDto;
@@ -4275,7 +4604,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 73 */
+/* 74 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4303,7 +4632,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 74 */
+/* 75 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4327,7 +4656,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 75 */
+/* 76 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4372,7 +4701,7 @@ tslib_1.__decorate([
 
 
 /***/ }),
-/* 76 */
+/* 77 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4385,7 +4714,7 @@ exports.Roles = Roles;
 
 
 /***/ }),
-/* 77 */
+/* 78 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4395,7 +4724,7 @@ exports.RolesGuard = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
-const roles_decorator_1 = __webpack_require__(76);
+const roles_decorator_1 = __webpack_require__(77);
 let RolesGuard = class RolesGuard {
     constructor(reflector) {
         this.reflector = reflector;
@@ -4423,7 +4752,7 @@ exports.RolesGuard = RolesGuard = tslib_1.__decorate([
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4506,45 +4835,6 @@ exports.getRateLimitingConfig = getRateLimitingConfig;
 
 
 /***/ }),
-/* 79 */
-/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
-
-
-var _a;
-Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.Confermateur = void 0;
-const tslib_1 = __webpack_require__(5);
-const typeorm_1 = __webpack_require__(14);
-const shared_1 = __webpack_require__(15);
-const user_entity_1 = __webpack_require__(60);
-const vendeur_entity_1 = __webpack_require__(62);
-let Confermateur = class Confermateur extends shared_1.BaseEntity {
-};
-exports.Confermateur = Confermateur;
-tslib_1.__decorate([
-    (0, typeorm_1.OneToOne)(() => user_entity_1.User, { onDelete: 'CASCADE' }),
-    (0, typeorm_1.JoinColumn)({ name: 'id_user' }),
-    tslib_1.__metadata("design:type", typeof (_a = typeof user_entity_1.User !== "undefined" && user_entity_1.User) === "function" ? _a : Object)
-], Confermateur.prototype, "user", void 0);
-tslib_1.__decorate([
-    (0, typeorm_1.RelationId)((c) => c.user),
-    tslib_1.__metadata("design:type", String)
-], Confermateur.prototype, "idUser", void 0);
-tslib_1.__decorate([
-    (0, typeorm_1.ManyToMany)(() => vendeur_entity_1.Vendeur),
-    (0, typeorm_1.JoinTable)({
-        name: 'confermateur_vendeurs',
-        joinColumn: { name: 'confermateur_id', referencedColumnName: 'id' },
-        inverseJoinColumn: { name: 'vendeur_id', referencedColumnName: 'id' }
-    }),
-    tslib_1.__metadata("design:type", Array)
-], Confermateur.prototype, "vendeurs", void 0);
-exports.Confermateur = Confermateur = tslib_1.__decorate([
-    (0, typeorm_1.Entity)('confermateurs')
-], Confermateur);
-
-
-/***/ }),
 /* 80 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
@@ -4598,9 +4888,12 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.VendorsController = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
+const swagger_1 = __webpack_require__(9);
 const typeorm_1 = __webpack_require__(13);
 const typeorm_2 = __webpack_require__(14);
 const vendeur_entity_1 = __webpack_require__(62);
+const jwt_auth_guard_1 = __webpack_require__(82);
+const roles_guard_1 = __webpack_require__(78);
 let VendorsController = class VendorsController {
     constructor(vendeurRepo) {
         this.vendeurRepo = vendeurRepo;
@@ -4643,6 +4936,60 @@ let VendorsController = class VendorsController {
 exports.VendorsController = VendorsController;
 tslib_1.__decorate([
     (0, common_1.Get)('confirm-quota'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get vendor confirmation quota',
+        description: 'Retrieve remaining confirmation quota for a vendor. Either vendorId or vendorUserId must be provided.'
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'vendorId',
+        required: false,
+        description: 'Vendor ID',
+        schema: { type: 'string', format: 'uuid' }
+    }),
+    (0, swagger_1.ApiQuery)({
+        name: 'vendorUserId',
+        required: false,
+        description: 'Vendor User ID',
+        schema: { type: 'string', format: 'uuid' }
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Vendor quota retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                vendorId: { type: 'string', format: 'uuid' },
+                remaining: { type: 'number', minimum: 0 }
+            },
+            example: {
+                vendorId: '123e4567-e89b-12d3-a456-426614174000',
+                remaining: 5
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - vendorId or vendorUserId required',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'vendorId or vendorUserId is required' },
+                error: { type: 'string', example: 'Bad Request' },
+                statusCode: { type: 'number', example: 400 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'Vendor not found',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Vendor not found' },
+                error: { type: 'string', example: 'Not Found' },
+                statusCode: { type: 'number', example: 404 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
     tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [Object]),
@@ -4650,13 +4997,82 @@ tslib_1.__decorate([
 ], VendorsController.prototype, "getConfirmQuota", null);
 tslib_1.__decorate([
     (0, common_1.Post)('confirm-quota/consume'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Consume vendor confirmation quota',
+        description: 'Decrease vendor confirmation quota by 1. Either vendorId or vendorUserId must be provided.'
+    }),
+    (0, swagger_1.ApiBody)({
+        schema: {
+            type: 'object',
+            properties: {
+                vendorId: { type: 'string', format: 'uuid' },
+                vendorUserId: { type: 'string', format: 'uuid' }
+            },
+            required: [],
+            description: 'Either vendorId or vendorUserId is required',
+            example: {
+                vendorId: '123e4567-e89b-12d3-a456-426614174000'
+            }
+        }
+    }),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Quota consumed successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                vendorId: { type: 'string', format: 'uuid' },
+                remaining: { type: 'number', minimum: 0 }
+            },
+            example: {
+                vendorId: '123e4567-e89b-12d3-a456-426614174000',
+                remaining: 4
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Bad request - vendorId or vendorUserId required',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'vendorId or vendorUserId is required' },
+                error: { type: 'string', example: 'Bad Request' },
+                statusCode: { type: 'number', example: 400 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiNotFoundResponse)({
+        description: 'Vendor not found',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Vendor not found' },
+                error: { type: 'string', example: 'Not Found' },
+                statusCode: { type: 'number', example: 404 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiForbiddenResponse)({
+        description: 'No remaining confirmations',
+        schema: {
+            type: 'object',
+            properties: {
+                message: { type: 'string', example: 'Vendor has no remaining confirmations' },
+                error: { type: 'string', example: 'Forbidden' },
+                statusCode: { type: 'number', example: 403 }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], VendorsController.prototype, "consumeConfirmQuota", null);
 exports.VendorsController = VendorsController = tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('internal'),
     (0, common_1.Controller)('internal/vendors'),
+    (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, swagger_1.ApiBearerAuth)(),
     tslib_1.__param(0, (0, typeorm_1.InjectRepository)(vendeur_entity_1.Vendeur)),
     tslib_1.__metadata("design:paramtypes", [typeof (_a = typeof typeorm_2.Repository !== "undefined" && typeorm_2.Repository) === "function" ? _a : Object])
 ], VendorsController);
@@ -4664,6 +5080,24 @@ exports.VendorsController = VendorsController = tslib_1.__decorate([
 
 /***/ }),
 /* 82 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.JwtAuthGuard = void 0;
+const tslib_1 = __webpack_require__(5);
+const common_1 = __webpack_require__(1);
+const passport_1 = __webpack_require__(27);
+let JwtAuthGuard = class JwtAuthGuard extends (0, passport_1.AuthGuard)('jwt') {
+};
+exports.JwtAuthGuard = JwtAuthGuard;
+exports.JwtAuthGuard = JwtAuthGuard = tslib_1.__decorate([
+    (0, common_1.Injectable)()
+], JwtAuthGuard);
+
+
+/***/ }),
+/* 83 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4809,7 +5243,7 @@ const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
 const microservices_1 = __webpack_require__(3);
 const app_module_1 = __webpack_require__(4);
-const swagger_config_1 = __webpack_require__(82);
+const swagger_config_1 = __webpack_require__(83);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.connectMicroservice({
@@ -4833,4 +5267,3 @@ bootstrap();
 
 /******/ })()
 ;
-//# sourceMappingURL=main.js.map

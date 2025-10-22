@@ -1038,7 +1038,7 @@ exports.AuthModule = AuthModule = tslib_1.__decorate([
                 useFactory: async (configService) => ({
                     secret: configService.get('authService.jwtSecret'),
                     signOptions: {
-                        expiresIn: configService.get('authService.jwtExpiresIn') || '1h',
+                        expiresIn: (configService.get('authService.jwtExpiresIn') || '1h'),
                         algorithm: 'HS256',
                     },
                 }),

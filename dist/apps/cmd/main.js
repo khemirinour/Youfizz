@@ -53,7 +53,7 @@ exports.AppModule = AppModule = tslib_1.__decorate([
             passport_1.PassportModule,
             jwt_1.JwtModule.register({
                 secret: process.env.JWT_SECRET,
-                signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+                signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') },
             }),
         ],
         controllers: [app_controller_1.AppController],
@@ -1071,7 +1071,7 @@ exports.AuthModule = AuthModule = tslib_1.__decorate([
                 useFactory: async (configService) => ({
                     secret: configService.get('authService.jwtSecret'),
                     signOptions: {
-                        expiresIn: configService.get('authService.jwtExpiresIn') || '1h',
+                        expiresIn: (configService.get('authService.jwtExpiresIn') || '1h'),
                         algorithm: 'HS256',
                     },
                 }),

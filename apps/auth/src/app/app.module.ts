@@ -18,6 +18,7 @@ import { Confermateur } from '../entities/confermateur.entity';
 import { SeedService } from './seed.service';
 import { NotificationClient } from './notification.client';
 import { VendorsController } from './vendors.controller';
+import { StringValue } from 'ms';
 
 @Module({
   imports: [
@@ -28,7 +29,7 @@ import { VendorsController } from './vendors.controller';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET as string,
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+      signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as StringValue },
     }),
   ],
   controllers: [AppController, VendorsController],

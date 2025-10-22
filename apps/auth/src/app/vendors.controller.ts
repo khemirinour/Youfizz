@@ -1,5 +1,5 @@
 import { BadRequestException, Body, Controller, ForbiddenException, NotFoundException, Post, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiBearerAuth } from '@nestjs/swagger';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vendeur } from '../entities/vendeur.entity';
@@ -17,20 +17,60 @@ export class VendorsController {
   ) {}
 
   @Get('confirm-quota')
-  @ApiOperation({ summary: 'Get vendor confirmation quota' })
-  @ApiQuery({ name: 'vendorId', required: false, description: 'Vendor ID' })
-  @ApiQuery({ name: 'vendorUserId', required: false, description: 'Vendor User ID' })
-  @ApiResponse({ status: 200, description: 'Vendor quota retrieved', schema: { 
-    type: 'object', 
-    properties: { 
-      vendorId: { type: 'string' }, 
-      remaining: { type: 'number' } 
-    } 
-  }})
-  @ApiResponse({ status: 400, description: 'Bad request - vendorId or vendorUserId required' })
-  @ApiResponse({ status: 404, description: 'Vendor not found' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiOperation({ 
+    summary: 'Get vendor confirmation quota',
+    description: 'Retrieve remaining confirmation quota for a vendor. Either vendorId or vendorUserId must be provided.'
+  })
+  @ApiQuery({ 
+    name: 'vendorId', 
+    required: false, 
+    description: 'Vendor ID',
+    schema: { type: 'string', format: 'uuid' }
+  })
+  @ApiQuery({ 
+    name: 'vendorUserId', 
+    required: false, 
+    description: 'Vendor User ID',
+    schema: { type: 'string', format: 'uuid' }
+  })
+  @ApiOkResponse({ 
+    description: 'Vendor quota retrieved successfully',
+    schema: { 
+      type: 'object', 
+      properties: { 
+        vendorId: { type: 'string', format: 'uuid' }, 
+        remaining: { type: 'number', minimum: 0 }
+      },
+      example: {
+        vendorId: '123e4567-e89b-12d3-a456-426614174000',
+        remaining: 5
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Bad request - vendorId or vendorUserId required',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'vendorId or vendorUserId is required' },
+        error: { type: 'string', example: 'Bad Request' },
+        statusCode: { type: 'number', example: 400 }
+      }
+    }
+  })
+  @ApiNotFoundResponse({ 
+    description: 'Vendor not found',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Vendor not found' },
+        error: { type: 'string', example: 'Not Found' },
+        statusCode: { type: 'number', example: 404 }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role' })
   async getConfirmQuota(@Query() query: { vendorId?: string; vendorUserId?: string }) {
     if (!query?.vendorId && !query?.vendorUserId) {
       throw new BadRequestException('vendorId or vendorUserId is required');
@@ -47,28 +87,72 @@ export class VendorsController {
   }
 
   @Post('confirm-quota/consume')
-  @ApiOperation({ summary: 'Consume vendor confirmation quota' })
+  @ApiOperation({ 
+    summary: 'Consume vendor confirmation quota',
+    description: 'Decrease vendor confirmation quota by 1. Either vendorId or vendorUserId must be provided.'
+  })
   @ApiBody({ 
     schema: { 
       type: 'object', 
       properties: { 
-        vendorId: { type: 'string' }, 
-        vendorUserId: { type: 'string' } 
+        vendorId: { type: 'string', format: 'uuid' }, 
+        vendorUserId: { type: 'string', format: 'uuid' }
       },
-      description: 'Either vendorId or vendorUserId is required'
-    } 
+      required: [],
+      description: 'Either vendorId or vendorUserId is required',
+      example: {
+        vendorId: '123e4567-e89b-12d3-a456-426614174000'
+      }
+    }
   })
-  @ApiResponse({ status: 200, description: 'Quota consumed successfully', schema: { 
-    type: 'object', 
-    properties: { 
-      vendorId: { type: 'string' }, 
-      remaining: { type: 'number' } 
-    } 
-  }})
-  @ApiResponse({ status: 400, description: 'Bad request - vendorId or vendorUserId required' })
-  @ApiResponse({ status: 404, description: 'Vendor not found' })
-  @ApiResponse({ status: 403, description: 'No remaining confirmations' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiOkResponse({ 
+    description: 'Quota consumed successfully',
+    schema: { 
+      type: 'object', 
+      properties: { 
+        vendorId: { type: 'string', format: 'uuid' }, 
+        remaining: { type: 'number', minimum: 0 }
+      },
+      example: {
+        vendorId: '123e4567-e89b-12d3-a456-426614174000',
+        remaining: 4
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Bad request - vendorId or vendorUserId required',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'vendorId or vendorUserId is required' },
+        error: { type: 'string', example: 'Bad Request' },
+        statusCode: { type: 'number', example: 400 }
+      }
+    }
+  })
+  @ApiNotFoundResponse({ 
+    description: 'Vendor not found',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Vendor not found' },
+        error: { type: 'string', example: 'Not Found' },
+        statusCode: { type: 'number', example: 404 }
+      }
+    }
+  })
+  @ApiForbiddenResponse({ 
+    description: 'No remaining confirmations',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Vendor has no remaining confirmations' },
+        error: { type: 'string', example: 'Forbidden' },
+        statusCode: { type: 'number', example: 403 }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   async consumeConfirmQuota(@Body() body: { vendorId?: string; vendorUserId?: string }) {
     if (!body?.vendorId && !body?.vendorUserId) {
       throw new BadRequestException('vendorId or vendorUserId is required');

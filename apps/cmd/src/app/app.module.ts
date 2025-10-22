@@ -7,6 +7,7 @@ import { Order } from '../entities/order.entity';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '@you-fizz/shared';
+import { StringValue } from 'ms';
 
 @Module({
   imports: [
@@ -15,7 +16,7 @@ import { JwtStrategy } from '@you-fizz/shared';
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET as string,
-      signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1h' },
+      signOptions: { expiresIn: (process.env.JWT_EXPIRES_IN || '1h') as StringValue },
     }),
   ],
   controllers: [AppController],
