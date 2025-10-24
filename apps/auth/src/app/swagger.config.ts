@@ -73,7 +73,7 @@ export function setupSwagger(app: INestApplication) {
     operationIdFactory: (controllerKey: string, methodKey: string) => methodKey,
   });
 
-  SwaggerModule.setup('api', app, document, {
+  SwaggerModule.setup('api-docs', app, document, {
     swaggerOptions: {
       persistAuthorization: true,
       displayRequestDuration: true,

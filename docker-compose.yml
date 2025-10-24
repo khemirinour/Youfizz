@@ -35,6 +35,33 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  auth:
+    build:
+      context: .
+      dockerfile: apps/auth/Dockerfile
+    container_name: you_fizz_auth
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/you_fizz
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-super-secret-jwt-key-change-in-production
+      - JWT_EXPIRES_IN=1h
+      - SMTP_HOST=mailhog
+      - SMTP_PORT=1025
+      - SMTP_USER=
+      - SMTP_PASS=
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    volumes:
+      - ./apps/auth:/app
+      - /app/node_modules
+    command: npm run start:dev auth
+
 volumes:
   postgres_data:
   mailhog_data:
