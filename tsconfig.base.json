@@ -15,7 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@you-fizz/shared": ["libs/shared/src/index.ts"]
+      "@you-fizz/shared": ["libs/shared/src/index.ts"],
+      "@/*": ["apps/auth-panel/src/*"]
     }
   },
   "exclude": ["node_modules", "tmp"]
