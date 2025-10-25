@@ -1,0 +1,10 @@
+{
+  "name": "auth-panel-e2e",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "sourceRoot": "apps/auth-panel-e2e/src",
+  "tags": [],
+  "implicitDependencies": ["auth-panel"],
+  "// targets": "to see all targets run: nx show project auth-panel-e2e --web",
+  "targets": {}
+}

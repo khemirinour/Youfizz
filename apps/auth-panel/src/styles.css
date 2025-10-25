@@ -1,0 +1,93 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Dark space-themed marketplace colors */
+    --background: 0 0% 3%;
+    --foreground: 0 0% 95%;
+
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 95%;
+
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+
+    /* Orange accent as primary */
+    --primary: 19 82% 65%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 19 90% 70%;
+
+    /* Dark secondary with subtle variation */
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
+
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+
+    /* Blue accent */
+    --accent: 207 72% 39%;
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 19 82% 65%;
+
+    --radius: 0.75rem;
+
+    /* Custom design tokens */
+    --gradient-primary: linear-gradient(135deg, hsl(19, 82%, 65%), hsl(19, 90%, 70%));
+    --gradient-dark: linear-gradient(180deg, hsl(0, 0%, 3%), hsl(0, 0%, 6%));
+    --gradient-radial: radial-gradient(circle at 50% 50%, hsl(19, 82%, 65% / 0.15), transparent 70%);
+    
+    --shadow-glow: 0 0 30px hsl(19, 82%, 65% / 0.3);
+    --shadow-card: 0 10px 40px hsl(0, 0%, 0% / 0.5);
+    
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "kern" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .glow-effect {
+    box-shadow: var(--shadow-glow);
+    transition: var(--transition-smooth);
+  }
+  
+  .glow-effect:hover {
+    box-shadow: 0 0 40px hsl(19, 82%, 65% / 0.5);
+  }
+
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .card-glass {
+    background: hsl(0, 0%, 6% / 0.6);
+    backdrop-filter: blur(20px);
+    border: 1px solid hsl(0, 0%, 15% / 0.5);
+  }
+}
