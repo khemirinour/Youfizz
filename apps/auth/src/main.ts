@@ -31,7 +31,7 @@ async function bootstrap() {
     `🚀 Microservice is listening on TCP port: ${port}`
   );
   Logger.log(
-    `📖 Swagger docs available on: http://localhost:${port}/api`
+    `📖 Swagger docs available on: http://localhost:${port}/api-docs`
   );
 }
 

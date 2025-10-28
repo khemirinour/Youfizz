@@ -5173,7 +5173,7 @@ function setupSwagger(app) {
     const document = swagger_1.SwaggerModule.createDocument(app, config, {
         operationIdFactory: (controllerKey, methodKey) => methodKey,
     });
-    swagger_1.SwaggerModule.setup('api', app, document, {
+    swagger_1.SwaggerModule.setup('api-docs', app, document, {
         swaggerOptions: {
             persistAuthorization: true,
             displayRequestDuration: true,
@@ -5261,7 +5261,7 @@ async function bootstrap() {
     await app.listen(port);
     common_1.Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
     common_1.Logger.log(`🚀 Microservice is listening on TCP port: ${port}`);
-    common_1.Logger.log(`📖 Swagger docs available on: http://localhost:${port}/api`);
+    common_1.Logger.log(`📖 Swagger docs available on: http://localhost:${port}/api-docs`);
 }
 bootstrap();
 

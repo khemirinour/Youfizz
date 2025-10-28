@@ -7,6 +7,8 @@ declare global {
         userId: string;
         role: string;
         email: string;
+        vendorId?: string;
+        confirmateurId?: string;
         [key: string]: any;
       };
     }
