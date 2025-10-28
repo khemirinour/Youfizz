@@ -74,7 +74,15 @@ export class AppController {
   @Roles('VENDEUR', 'CONFIRMATEUR')
   @ApiOkResponse({ description: 'Order confirmed', type: Order })
   confirm(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
-    return this.appService.confirm(id, req.user);
+    // Extract user data from JWT token (same logic as login token)
+    const user = req.user as any; // Type assertion to avoid linter conflicts
+    const userData = {
+      userId: user?.userId,           // User ID from token
+      role: user?.role,                // User role
+      vendorId: user?.vendorId,     // Vendor ID from token (if vendeur)
+      confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confirmateur)
+    };
+    return this.appService.confirm(id, userData);
   }
 
   @Patch(':id/activate')

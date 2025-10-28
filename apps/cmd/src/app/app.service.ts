@@ -59,7 +59,7 @@ export class AppService {
     return this.findOne(id);
   }
 
-  async confirm(id: string, confirmer?: { id?: string; role?: string; vendorId?: string }) {
+  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string }) {
     const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -71,8 +71,10 @@ export class AppService {
         throw new ForbiddenException();
       }
 
-      const vendorUserId = confirmer.id;
-      const vendorId = confirmer.vendorId;
+      // Use same logic as login token: get user ID and vendor ID from token
+      const vendorUserId = confirmer.userId; // userId from token (same as login logic)
+      const vendorId = confirmer.vendorId;   // vendorId from token (same as login logic)
+      
       try {
         // 1) Check remaining via GET
         const params: any = vendorId ? { vendorId } : { vendorUserId };
