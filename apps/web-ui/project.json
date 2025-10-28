@@ -5,5 +5,61 @@
   "projectType": "application",
   "tags": [],
   "// targets": "to see all targets run: nx show project web-ui --web",
-  "targets": {}
+  "targets": {
+    "build": {
+      "executor": "@nx/next:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/web-ui"
+      },
+      "configurations": {
+        "development": {
+          "outputPath": "apps/web-ui"
+        },
+        "production": {}
+      }
+    },
+    "serve": {
+      "executor": "@nx/next:server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "web-ui:build",
+        "dev": true
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "web-ui:build:development",
+          "dev": true
+        },
+        "production": {
+          "buildTarget": "web-ui:build:production",
+          "dev": false
+        }
+      }
+    },
+    "export": {
+      "executor": "@nx/next:export",
+      "options": {
+        "buildTarget": "web-ui:build:production"
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "apps/web-ui/jest.config.ts",
+        "passWithNoTests": true
+      },
+      "configurations": {
+        "ci": {
+          "ci": true,
+          "coverageReporters": ["text"]
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
 }

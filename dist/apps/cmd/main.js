@@ -108,7 +108,15 @@ let AppController = class AppController {
         return this.appService.remove(id);
     }
     confirm(id, req) {
-        return this.appService.confirm(id, req.user);
+        // Extract user data from JWT token (same logic as login token)
+        const user = req.user; // Type assertion to avoid linter conflicts
+        const userData = {
+            userId: user?.userId, // User ID from token
+            role: user?.role, // User role
+            vendorId: user?.vendorId, // Vendor ID from token (if vendeur)
+            confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confirmateur)
+        };
+        return this.appService.confirm(id, userData);
     }
     activate(id) {
         return this.appService.setActive(id, true);
@@ -306,8 +314,9 @@ let AppService = class AppService {
             if (order.vendorId && order.vendorId !== confirmer.vendorId) {
                 throw new common_1.ForbiddenException();
             }
-            const vendorUserId = confirmer.id;
-            const vendorId = confirmer.vendorId;
+            // Use same logic as login token: get user ID and vendor ID from token
+            const vendorUserId = confirmer.userId; // userId from token (same as login logic)
+            const vendorId = confirmer.vendorId; // vendorId from token (same as login logic)
             try {
                 // 1) Check remaining via GET
                 const params = vendorId ? { vendorId } : { vendorUserId };
