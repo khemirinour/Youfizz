@@ -15,6 +15,8 @@ import { PasswordResetResponseDto } from '../dto/password-reset-response.dto';
 import { ConfirmPasswordResetDto } from '../dto/confirm-password-reset.dto';
 import { PasswordResetConfirmationResponseDto } from '../dto/password-reset-confirmation-response.dto';
 import { UserRole } from '../entities/user.entity';
+import { ListUsersQuery } from '../dto/list-users.query';
+import { Paginated } from '../dto/paginated.dto';
 import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
@@ -224,23 +226,18 @@ export class AppController {
     description: 'Retrieve list of all users. Admin only. Can filter by role.'
   })
   @ApiBearerAuth()
-  @ApiQuery({ 
-    name: 'role', 
-    required: false, 
-    enum: UserRole,
-    description: 'Filter users by role'
-  })
+  @ApiQuery({ name: 'role', required: false, enum: UserRole, description: 'Filter users by role' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'number', default: 1 } })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'number', default: 10 } })
   @ApiOkResponse({ 
     description: 'List of users', 
     type: [UserResponseDto]
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
-  async findAll(@Query('role') role?: UserRole): Promise<UserResponseDto[]> {
-    if (role) {
-      return this.authService.findByRole(role);
-    }
-    return this.authService.findAll();
+  async findAll(@Query() query: ListUsersQuery): Promise<Paginated<UserResponseDto>> {
+    const { role, page, limit } = query;
+    return this.authService.findAllPaginated({ role, page, limit });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -88,7 +88,18 @@ const SignIn = () => {
             {t('signIn.backHome')}
           </button>
           <h1 className="text-4xl font-bold mb-2">
-            {t('signIn.title').split(' ')[0]} <span className="text-gradient">{t('signIn.title').split(' ').slice(1).join(' ') || 'Back'}</span>
+            {(() => {
+              const parts = t('signIn.title').split(' ');
+              if (parts.length > 1) {
+                const [first, ...rest] = parts;
+                return (
+                  <>
+                    {first} <span className="text-gradient">{rest.join(' ')}</span>
+                  </>
+                );
+              }
+              return t('signIn.title');
+            })()}
           </h1>
           <p className="text-muted-foreground">{t('signIn.subtitle')}</p>
         </div>

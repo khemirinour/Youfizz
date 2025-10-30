@@ -289,6 +289,18 @@ export class AuthService {
     return users.map(u => this.toUserResponseDto(u));
   }
 
+  async findAllPaginated(params: { role?: UserRole; page: number; limit: number; }): Promise<{ items: UserResponseDto[]; total: number; page: number; limit: number; }> {
+    const { role, page, limit } = params;
+    const where = role ? { role } as any : {};
+    const [items, total] = await this.userRepo.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+    return { items: items.map(u => this.toUserResponseDto(u)), total, page, limit };
+  }
+
   async findOne(id: string): Promise<UserResponseDto> {
     const user = await this.userRepo.findOne({ where: { id } });
 

@@ -74,6 +74,26 @@ const resources = {
         resetLinkSent: "Password reset link sent to your email!",
         resetLinkFailed: "Failed to send reset link. Please try again."
       }
+      ,
+      admin: {
+        title: "Admin Dashboard",
+        totalUsers: "Total Users",
+        byRole: "By Role",
+        status: "Status",
+        ready: "Ready",
+        loading: "Loading…",
+        users: "Users",
+        role: "Role",
+        active: "Active",
+        actions: "Actions",
+        delete: "Delete",
+        confirmDelete: "Delete this user?",
+        updated: "Updated successfully",
+        deleted: "User deleted",
+        activated: "Activated",
+        deactivated: "Deactivated",
+        noUsers: "No users"
+      }
     }
   },
   fr: {
@@ -146,6 +166,26 @@ const resources = {
         signInFailed: "E-mail ou mot de passe invalide",
         resetLinkSent: "Lien de réinitialisation envoyé à votre e-mail !",
         resetLinkFailed: "Échec de l'envoi du lien. Veuillez réessayer."
+      }
+      ,
+      admin: {
+        title: "Tableau de bord Admin",
+        totalUsers: "Utilisateurs au total",
+        byRole: "Par rôle",
+        status: "Statut",
+        ready: "Prêt",
+        loading: "Chargement…",
+        users: "Utilisateurs",
+        role: "Rôle",
+        active: "Actif",
+        actions: "Actions",
+        delete: "Supprimer",
+        confirmDelete: "Supprimer cet utilisateur ?",
+        updated: "Mise à jour effectuée",
+        deleted: "Utilisateur supprimé",
+        activated: "Activé",
+        deactivated: "Désactivé",
+        noUsers: "Aucun utilisateur"
       }
     }
   }

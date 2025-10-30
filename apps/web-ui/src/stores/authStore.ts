@@ -7,7 +7,7 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'vendeur' | 'confirmateur';
+  role: 'vendeur' | 'confirmateur' | 'admin';
 }
 
 interface AuthState {

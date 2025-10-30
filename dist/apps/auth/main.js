@@ -38,15 +38,15 @@ const jwt_1 = __webpack_require__(26);
 const passport_1 = __webpack_require__(27);
 const shared_2 = __webpack_require__(15);
 const typeorm_1 = __webpack_require__(13);
-const rate_limiting_config_1 = __webpack_require__(79);
+const rate_limiting_config_1 = __webpack_require__(80);
 const user_entity_1 = __webpack_require__(60);
 const refresh_token_entity_1 = __webpack_require__(63);
 const password_reset_token_entity_1 = __webpack_require__(65);
 const vendeur_entity_1 = __webpack_require__(62);
 const confermateur_entity_1 = __webpack_require__(64);
-const seed_service_1 = __webpack_require__(80);
+const seed_service_1 = __webpack_require__(81);
 const notification_client_1 = __webpack_require__(59);
-const vendors_controller_1 = __webpack_require__(81);
+const vendors_controller_1 = __webpack_require__(82);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -113,9 +113,10 @@ const password_reset_response_dto_1 = __webpack_require__(74);
 const confirm_password_reset_dto_1 = __webpack_require__(75);
 const password_reset_confirmation_response_dto_1 = __webpack_require__(76);
 const user_entity_1 = __webpack_require__(60);
+const list_users_query_1 = __webpack_require__(77);
 const shared_1 = __webpack_require__(15);
-const roles_decorator_1 = __webpack_require__(77);
-const roles_guard_1 = __webpack_require__(78);
+const roles_decorator_1 = __webpack_require__(78);
+const roles_guard_1 = __webpack_require__(79);
 let AppController = class AppController {
     constructor(appService, authService) {
         this.appService = appService;
@@ -146,11 +147,9 @@ let AppController = class AppController {
     async logoutAll(body) {
         return this.authService.logoutAll(body.userId);
     }
-    async findAll(role) {
-        if (role) {
-            return this.authService.findByRole(role);
-        }
-        return this.authService.findAll();
+    async findAll(query) {
+        const { role, page, limit } = query;
+        return this.authService.findAllPaginated({ role, page, limit });
     }
     async findOne(id) {
         return this.authService.findOne(id);
@@ -411,21 +410,18 @@ tslib_1.__decorate([
         description: 'Retrieve list of all users. Admin only. Can filter by role.'
     }),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiQuery)({
-        name: 'role',
-        required: false,
-        enum: user_entity_1.UserRole,
-        description: 'Filter users by role'
-    }),
+    (0, swagger_1.ApiQuery)({ name: 'role', required: false, enum: user_entity_1.UserRole, description: 'Filter users by role' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, schema: { type: 'number', default: 1 } }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, schema: { type: 'number', default: 10 } }),
     (0, swagger_1.ApiOkResponse)({
         description: 'List of users',
         type: [user_response_dto_1.UserResponseDto]
     }),
     (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
     (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
-    tslib_1.__param(0, (0, common_1.Query)('role')),
+    tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_m = typeof user_entity_1.UserRole !== "undefined" && user_entity_1.UserRole) === "function" ? _m : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_m = typeof list_users_query_1.ListUsersQuery !== "undefined" && list_users_query_1.ListUsersQuery) === "function" ? _m : Object]),
     tslib_1.__metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], AppController.prototype, "findAll", null);
 tslib_1.__decorate([
@@ -1063,6 +1059,17 @@ let AuthService = class AuthService {
     async findAll() {
         const users = await this.userRepo.find();
         return users.map(u => this.toUserResponseDto(u));
+    }
+    async findAllPaginated(params) {
+        const { role, page, limit } = params;
+        const where = role ? { role } : {};
+        const [items, total] = await this.userRepo.findAndCount({
+            where,
+            order: { createdAt: 'DESC' },
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+        return { items: items.map(u => this.toUserResponseDto(u)), total, page, limit };
     }
     async findOne(id) {
         const user = await this.userRepo.findOne({ where: { id } });
@@ -4707,6 +4714,44 @@ tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ListUsersQuery = void 0;
+const tslib_1 = __webpack_require__(5);
+const class_validator_1 = __webpack_require__(41);
+const class_transformer_1 = __webpack_require__(61);
+const user_entity_1 = __webpack_require__(60);
+class ListUsersQuery {
+    constructor() {
+        this.page = 1;
+        this.limit = 10;
+    }
+}
+exports.ListUsersQuery = ListUsersQuery;
+tslib_1.__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(user_entity_1.UserRole),
+    tslib_1.__metadata("design:type", typeof (_a = typeof user_entity_1.UserRole !== "undefined" && user_entity_1.UserRole) === "function" ? _a : Object)
+], ListUsersQuery.prototype, "role", void 0);
+tslib_1.__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    tslib_1.__metadata("design:type", Object)
+], ListUsersQuery.prototype, "page", void 0);
+tslib_1.__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    tslib_1.__metadata("design:type", Object)
+], ListUsersQuery.prototype, "limit", void 0);
+
+
+/***/ }),
+/* 78 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Roles = exports.ROLES_KEY = void 0;
 const common_1 = __webpack_require__(1);
@@ -4716,7 +4761,7 @@ exports.Roles = Roles;
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4726,7 +4771,7 @@ exports.RolesGuard = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
-const roles_decorator_1 = __webpack_require__(77);
+const roles_decorator_1 = __webpack_require__(78);
 let RolesGuard = class RolesGuard {
     constructor(reflector) {
         this.reflector = reflector;
@@ -4754,7 +4799,7 @@ exports.RolesGuard = RolesGuard = tslib_1.__decorate([
 
 
 /***/ }),
-/* 79 */
+/* 80 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4837,7 +4882,7 @@ exports.getRateLimitingConfig = getRateLimitingConfig;
 
 
 /***/ }),
-/* 80 */
+/* 81 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4881,7 +4926,7 @@ exports.SeedService = SeedService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4894,8 +4939,8 @@ const swagger_1 = __webpack_require__(9);
 const typeorm_1 = __webpack_require__(13);
 const typeorm_2 = __webpack_require__(14);
 const vendeur_entity_1 = __webpack_require__(62);
-const jwt_auth_guard_1 = __webpack_require__(82);
-const roles_guard_1 = __webpack_require__(78);
+const jwt_auth_guard_1 = __webpack_require__(83);
+const roles_guard_1 = __webpack_require__(79);
 let VendorsController = class VendorsController {
     constructor(vendeurRepo) {
         this.vendeurRepo = vendeurRepo;
@@ -5081,7 +5126,7 @@ exports.VendorsController = VendorsController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -5099,7 +5144,7 @@ exports.JwtAuthGuard = JwtAuthGuard = tslib_1.__decorate([
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -5245,7 +5290,7 @@ const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
 const microservices_1 = __webpack_require__(3);
 const app_module_1 = __webpack_require__(4);
-const swagger_config_1 = __webpack_require__(83);
+const swagger_config_1 = __webpack_require__(84);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors({
