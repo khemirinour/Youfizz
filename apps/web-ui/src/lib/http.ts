@@ -73,6 +73,9 @@ export const post = <T = unknown>(url: string, data?: unknown) =>
 export const put = <T = unknown>(url: string, data?: unknown) =>
 	http().put<T>(url, data).then((r) => r.data);
 
+export const patch = <T = unknown>(url: string, data?: unknown) =>
+  http().patch<T>(url, data).then((r) => r.data);
+
 export const del = <T = unknown>(url: string) =>
 	http().delete<T>(url).then((r) => r.data);
 

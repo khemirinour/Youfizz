@@ -1,4 +1,4 @@
-import { get, del, put } from './http';
+import { get, del, put, patch, post } from './http';
 import type { AdminUser, UserRole } from '@/types/user';
 import type { Paginated } from '@/types/pagination';
 
@@ -15,11 +15,11 @@ export async function getUser(id: string): Promise<AdminUser> {
 }
 
 export async function updateUserRole(id: string, role: UserRole): Promise<AdminUser> {
-  return put<AdminUser>(`${AUTH_BASE}/users/${id}/role/${role}`, {});
+  return patch<AdminUser>(`${AUTH_BASE}/users/${id}/role/${role}`, {});
 }
 
 export async function setUserActive(id: string, isActive: boolean): Promise<AdminUser> {
-  return put<AdminUser>(`${AUTH_BASE}/users/${id}/active`, { isActive });
+  return patch<AdminUser>(`${AUTH_BASE}/users/${id}/active`, { isActive });
 }
 
 export async function deleteUser(id: string): Promise<{ message: string }> {
@@ -32,7 +32,7 @@ export async function listConfermateurs(): Promise<AdminUser[]> {
 }
 
 export async function assignVendeurToConfermateur(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
-  return put<{ message: string }>(`${AUTH_BASE}/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, {});
+  return post<{ message: string }>(`${AUTH_BASE}/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, {});
 }
 
 export async function unassignVendeurFromConfermateur(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
