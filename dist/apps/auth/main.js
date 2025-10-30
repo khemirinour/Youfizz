@@ -5248,6 +5248,18 @@ const app_module_1 = __webpack_require__(4);
 const swagger_config_1 = __webpack_require__(83);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.enableCors({
+        origin: [
+            'http://localhost:3000',
+            'http://localhost:3006',
+            'http://127.0.0.1:3000',
+            'http://localhost:4200',
+            'http://127.0.0.1:4200',
+        ],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
+    });
     app.connectMicroservice({
         transport: microservices_1.Transport.TCP,
         options: { port: 4001 },

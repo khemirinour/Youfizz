@@ -77,10 +77,12 @@ const SignUp = () => {
       setTimeout(() => {
         router.push("/signin");
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Account creation failed';
+      const description = Array.isArray(message) ? message.join(', ') : message;
       toast({
         title: t('toast.error'),
-        description: t('toast.accountFailed'),
+        description,
         variant: "destructive",
       });
     }

@@ -52,18 +52,19 @@ const SignIn = () => {
 
     try {
       await login(formData.email, formData.password);
-      
+
       toast({
         title: t('toast.success'),
         description: t('toast.signInSuccess'),
       });
 
-      // Navigate to home or dashboard after successful login
       router.push("/");
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Sign in failed';
+      const description = Array.isArray(message) ? message.join(', ') : message;
       toast({
         title: t('toast.error'),
-        description: t('toast.signInFailed'),
+        description,
         variant: "destructive",
       });
     }
