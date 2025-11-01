@@ -1,4 +1,7 @@
 import { post } from './http';
+import axios from 'axios';
+
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 // DTOs based on backend contracts
 export interface LoginPayload {
@@ -46,6 +49,26 @@ export async function apiLogout(refreshToken: string) {
 
 export async function apiLogoutAll(userId: string) {
 	return post<{ message: string }>('/api/logout-all', { userId });
+}
+
+export interface RefreshTokenPayload {
+	refreshToken: string;
+}
+
+export async function apiRefreshToken(refreshToken: string) {
+	// Use axios directly without interceptor to avoid circular dependency
+	// Refresh endpoint doesn't require Authorization header
+	const response = await axios.post<AuthResponse>(
+		`${baseURL}/api/auth/refresh`,
+		{ refreshToken },
+		{
+			withCredentials: true,
+			headers: {
+				'Content-Type': 'application/json',
+			},
+		}
+	);
+	return response.data;
 }
 
 // Password reset endpoints

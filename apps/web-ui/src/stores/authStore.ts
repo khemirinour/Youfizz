@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { apiLogin, apiRegister, apiLogout, apiLogoutAll, type AuthResponse, type RegisterPayload } from '@/lib/auth.api';
+import { apiLogin, apiRegister, apiLogout, apiLogoutAll, apiRefreshToken, type AuthResponse, type RegisterPayload } from '@/lib/auth.api';
 
 export interface User {
   id: string;
@@ -22,6 +22,7 @@ interface AuthActions {
   register: (userData: Omit<User, 'id'> & { password: string }) => Promise<void>;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
+  refreshToken: () => Promise<boolean>;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -124,6 +125,44 @@ export const useAuthStore = create<AuthStore>()(
             window.localStorage.removeItem('refreshToken');
           }
           set({ user: null, isAuthenticated: false, error: null });
+        }
+      },
+
+      refreshToken: async () => {
+        try {
+          if (typeof window === 'undefined') return false;
+          const refreshToken = window.localStorage.getItem('refreshToken');
+          if (!refreshToken) return false;
+
+          const res: AuthResponse = await apiRefreshToken(refreshToken);
+          
+          // Update tokens in localStorage
+          window.localStorage.setItem('token', res.accessToken);
+          window.localStorage.setItem('refreshToken', res.refreshToken);
+
+          // Update user data if provided
+          if (res.user) {
+            set({
+              user: {
+                id: res.user.id,
+                email: res.user.email,
+                firstName: res.user.firstName ?? '',
+                lastName: res.user.lastName ?? '',
+                role: (res.user.role as User['role']) || 'vendeur',
+              },
+              isAuthenticated: true,
+            });
+          }
+
+          return true;
+        } catch (error) {
+          // Refresh failed, clear tokens
+          if (typeof window !== 'undefined') {
+            window.localStorage.removeItem('token');
+            window.localStorage.removeItem('refreshToken');
+          }
+          set({ user: null, isAuthenticated: false });
+          return false;
         }
       },
 

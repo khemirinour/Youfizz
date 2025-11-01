@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
+import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
@@ -73,7 +73,7 @@ const AdminDashboard = () => {
   return (
     <div className="min-h-screen px-4 py-12">
       <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
-      <LanguageSwitcher />
+      <Header />
 
       <div className="relative z-10 max-w-6xl mx-auto space-y-8 animate-fade-in">
         <div className="flex items-center justify-between">
@@ -115,10 +115,10 @@ const AdminDashboard = () => {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ALL">All</SelectItem>
-                    <SelectItem value="ADMIN">ADMIN</SelectItem>
-                    <SelectItem value="VENDEUR">VENDEUR</SelectItem>
-                    <SelectItem value="CONFERMATEUR">CONFERMATEUR</SelectItem>
-                    <SelectItem value="GUEST">GUEST</SelectItem>
+                    <SelectItem value="admin">ADMIN</SelectItem>
+                    <SelectItem value="vendeur">VENDEUR</SelectItem>
+                    <SelectItem value="confermateur">CONFERMATEUR</SelectItem>
+                    <SelectItem value="guest">GUEST</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

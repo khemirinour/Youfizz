@@ -10,6 +10,10 @@ const nextConfig = {
   // Use this to set Nx-specific options
   // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
+  // Configure images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
   // Configure path aliases
   webpack: (config) => {
     config.resolve.alias = {

@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
 import { useAuthStore } from "@/stores/authStore";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import Header from "@/components/Header";
 
 const heroImage = "/hero-space.jpg";
 
@@ -46,7 +46,7 @@ const Index = () => {
       {/* Radial gradient overlay */}
       <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
       
-      <LanguageSwitcher />
+      <Header />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6">
