@@ -1,4 +1,4 @@
-export type UserRole = 'ADMIN' | 'VENDEUR' | 'CONFERMATEUR' | 'GUEST';
+export type UserRole = 'admin' | 'vendeur' | 'confermateur' | 'guest';
 
 export interface AdminUser {
   id: string;
@@ -7,6 +7,8 @@ export interface AdminUser {
   lastName: string;
   role: UserRole;
   isActive?: boolean;
+  nbrCmdConf?: number;
+  vendeurs?: Array<{ id: string; firstName: string; lastName: string }>;
 }
 
 

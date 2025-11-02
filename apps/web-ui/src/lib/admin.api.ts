@@ -39,4 +39,7 @@ export async function unassignVendeurFromConfermateur(confermateurId: string, ve
   return del<{ message: string }>(`${AUTH_BASE}/confermateurs/${confermateurId}/vendeurs/${vendeurId}`);
 }
 
+export async function incrementVendeurNbrCmdConf(userId: string, amount?: number): Promise<{ id: string; idUser: string; nbrCmdConf: number }> {
+  return patch<{ id: string; idUser: string; nbrCmdConf: number }>(`${AUTH_BASE}/users/${userId}/vendeur/nbr-cmd-conf`, { amount });
+}
 

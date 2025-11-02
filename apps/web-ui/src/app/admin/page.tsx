@@ -6,8 +6,11 @@ import { useAuthStore } from '@/stores/authStore';
 import Header from '@/components/Header';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getUsers, updateUserRole, setUserActive, deleteUser } from '@/lib/admin.api';
+import { getUsers, updateUserRole, setUserActive, deleteUser, incrementVendeurNbrCmdConf } from '@/lib/admin.api';
 import type { AdminUser, UserRole } from '@/types/user';
 
 const AdminDashboard = () => {
@@ -21,6 +24,9 @@ const AdminDashboard = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
+  const [incrementDialogOpen, setIncrementDialogOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+  const [incrementAmount, setIncrementAmount] = useState<string>('1');
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -149,6 +155,8 @@ const AdminDashboard = () => {
                   <th className="py-2 pr-4">Name</th>
                   <th className="py-2 pr-4">Email</th>
                   <th className="py-2 pr-4">Role</th>
+                  <th className="py-2 pr-4">Cmd Conf</th>
+                  <th className="py-2 pr-4">Associated Vendeurs</th>
                   <th className="py-2 pr-4">Active</th>
                   <th className="py-2 pr-4 text-right">Actions</th>
                 </tr>
@@ -178,6 +186,34 @@ const AdminDashboard = () => {
                       </Select>
                     </td>
                     <td className="py-3 pr-4">
+                      {u.role === 'vendeur' ? (
+                        <span className="text-sm font-medium">{u.nbrCmdConf ?? 0}</span>
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
+                      {u.role === 'confermateur' ? (
+                        u.vendeurs && u.vendeurs.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {u.vendeurs.map((v) => (
+                              <span 
+                                key={v.id} 
+                                className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-primary/10 text-primary border border-primary/20"
+                                title={`${v.firstName} ${v.lastName}`}
+                              >
+                                {v.firstName} {v.lastName}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-muted-foreground">No vendeurs</span>
+                        )
+                      ) : (
+                        <span className="text-sm text-muted-foreground">—</span>
+                      )}
+                    </td>
+                    <td className="py-3 pr-4">
                       <Button variant={u.isActive ? 'outline' : 'hero'} size="sm" onClick={async () => {
                         try {
                           const updated = await setUserActive(u.id, !u.isActive);
@@ -189,16 +225,32 @@ const AdminDashboard = () => {
                       }}>{u.isActive ? 'Active' : 'Inactive'}</Button>
                     </td>
                     <td className="py-3 pr-0 text-right">
-                      <Button variant="destructive" size="sm" onClick={async () => {
-                        if (!confirm('Delete this user?')) return;
-                        try {
-                          await deleteUser(u.id);
-                          setUsers(prev => prev.filter(x => x.id !== u.id));
-                          toast({ title: 'Success', description: 'User deleted' });
-                        } catch (e: any) {
-                          toast({ title: 'Error', description: e?.message || 'Failed to delete user', variant: 'destructive' });
-                        }
-                      }}>Delete</Button>
+                      <div className="flex items-center gap-2 justify-end">
+                        {u.role === 'vendeur' && (
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              setSelectedUser(u);
+                              setIncrementAmount('1');
+                              setIncrementDialogOpen(true);
+                            }}
+                            title="Increment nbrCmdConf"
+                          >
+                            Increment
+                          </Button>
+                        )}
+                        <Button variant="destructive" size="sm" onClick={async () => {
+                          if (!confirm('Delete this user?')) return;
+                          try {
+                            await deleteUser(u.id);
+                            setUsers(prev => prev.filter(x => x.id !== u.id));
+                            toast({ title: 'Success', description: 'User deleted' });
+                          } catch (e: any) {
+                            toast({ title: 'Error', description: e?.message || 'Failed to delete user', variant: 'destructive' });
+                          }
+                        }}>Delete</Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -210,6 +262,87 @@ const AdminDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Increment Dialog */}
+      <Dialog open={incrementDialogOpen} onOpenChange={setIncrementDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Increment nbrCmdConf</DialogTitle>
+            <DialogDescription>
+              Enter the amount to increment for {selectedUser?.firstName} {selectedUser?.lastName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="current-value">Current nbrCmdConf</Label>
+              <Input
+                id="current-value"
+                value={selectedUser?.nbrCmdConf ?? 0}
+                disabled
+                className="bg-muted"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="increment-amount">Increment Amount</Label>
+              <Input
+                id="increment-amount"
+                type="number"
+                min="1"
+                value={incrementAmount}
+                onChange={(e) => setIncrementAmount(e.target.value)}
+                placeholder="Enter amount"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIncrementDialogOpen(false);
+                setSelectedUser(null);
+                setIncrementAmount('1');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={async () => {
+                if (!selectedUser) return;
+                const amount = parseInt(incrementAmount, 10);
+                if (isNaN(amount) || amount < 1) {
+                  toast({
+                    title: 'Error',
+                    description: 'Please enter a valid positive number',
+                    variant: 'destructive',
+                  });
+                  return;
+                }
+                try {
+                  const result = await incrementVendeurNbrCmdConf(selectedUser.id, amount);
+                  setUsers(prev => prev.map(x =>
+                    x.id === selectedUser.id ? { ...x, nbrCmdConf: result.nbrCmdConf } : x
+                  ));
+                  toast({
+                    title: 'Success',
+                    description: `nbrCmdConf incremented by ${amount} to ${result.nbrCmdConf}`,
+                  });
+                  setIncrementDialogOpen(false);
+                  setSelectedUser(null);
+                  setIncrementAmount('1');
+                } catch (e: any) {
+                  toast({
+                    title: 'Error',
+                    description: e?.message || 'Failed to increment nbrCmdConf',
+                    variant: 'destructive',
+                  });
+                }
+              }}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

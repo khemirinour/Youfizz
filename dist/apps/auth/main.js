@@ -175,6 +175,10 @@ let AppController = class AppController {
     async deleteUser(id) {
         return this.authService.deleteUser(id);
     }
+    async incrementVendeurNbrCmdConf(id, body) {
+        const amount = body?.amount ?? 1;
+        return this.authService.incrementVendeurNbrCmdConf(id, amount);
+    }
     // Vendeur: manage confermateurs associations
     async getConfermateursForVendeur(vendeurId) {
         return this.authService.getConfermateursForVendeur(vendeurId);
@@ -567,6 +571,42 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [String]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "deleteUser", null);
+tslib_1.__decorate([
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    (0, common_1.Patch)('users/:id/vendeur/nbr-cmd-conf'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: increment vendeur nbrCmdConf',
+        description: 'Increment the nbrCmdConf value for a vendeur by user ID. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Vendeur nbrCmdConf incremented successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                id: { type: 'string', format: 'uuid', description: 'Vendeur ID' },
+                idUser: { type: 'string', format: 'uuid', description: 'User ID' },
+                nbrCmdConf: { type: 'number', description: 'Updated nbrCmdConf value' }
+            },
+            example: {
+                id: '123e4567-e89b-12d3-a456-426614174000',
+                idUser: '123e4567-e89b-12d3-a456-426614174001',
+                nbrCmdConf: 11
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID or vendeur not found for this user'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Body)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "incrementVendeurNbrCmdConf", null);
 tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.VENDEUR, user_entity_1.UserRole.ADMIN),
@@ -1069,7 +1109,51 @@ let AuthService = class AuthService {
             skip: (page - 1) * limit,
             take: limit,
         });
-        return { items: items.map(u => this.toUserResponseDto(u)), total, page, limit };
+        const userDtos = items.map(u => this.toUserResponseDto(u));
+        // Fetch vendeur data for VENDEUR users
+        const vendeurUserIds = items.filter(u => u.role === user_entity_1.UserRole.VENDEUR).map(u => u.id);
+        if (vendeurUserIds.length > 0) {
+            const vendeurs = await this.vendeurRepo
+                .createQueryBuilder('vendeur')
+                .where('vendeur.idUser IN (:...ids)', { ids: vendeurUserIds })
+                .getMany();
+            const vendeurMap = new Map(vendeurs.map(v => [v.idUser, v.nbrCmdConf]));
+            userDtos.forEach(dto => {
+                if (dto.role === user_entity_1.UserRole.VENDEUR) {
+                    dto.nbrCmdConf = vendeurMap.get(dto.id) ?? 0;
+                }
+            });
+        }
+        // Fetch associated vendeurs for CONFERMATEUR users
+        const confermateurUserIds = items.filter(u => u.role === user_entity_1.UserRole.CONFERMATEUR).map(u => u.id);
+        if (confermateurUserIds.length > 0) {
+            const confermateurs = await this.confermateurRepo
+                .createQueryBuilder('confermateur')
+                .leftJoinAndSelect('confermateur.vendeurs', 'vendeur')
+                .leftJoinAndSelect('vendeur.user', 'user')
+                .where('confermateur.idUser IN (:...ids)', { ids: confermateurUserIds })
+                .getMany();
+            const confermateurVendeursMap = new Map();
+            confermateurs.forEach(conf => {
+                const vendeurUsers = (conf.vendeurs || []).map(v => ({
+                    id: v.user?.id || '',
+                    firstName: v.user?.firstName || '',
+                    lastName: v.user?.lastName || '',
+                })).filter(v => v.id); // Filter out any invalid entries
+                if (vendeurUsers.length > 0) {
+                    confermateurVendeursMap.set(conf.idUser, vendeurUsers);
+                }
+            });
+            userDtos.forEach(dto => {
+                if (dto.role === user_entity_1.UserRole.CONFERMATEUR) {
+                    const vendeurs = confermateurVendeursMap.get(dto.id);
+                    if (vendeurs && vendeurs.length > 0) {
+                        dto.vendeurs = vendeurs;
+                    }
+                }
+            });
+        }
+        return { items: userDtos, total, page, limit };
     }
     async findOne(id) {
         const user = await this.userRepo.findOne({ where: { id } });
@@ -1135,6 +1219,19 @@ let AuthService = class AuthService {
             }
         }
         return { message: 'User deleted' };
+    }
+    async incrementVendeurNbrCmdConf(userId, amount = 1) {
+        const vendeur = await this.vendeurRepo.findOne({ where: { idUser: userId } });
+        if (!vendeur) {
+            throw new common_1.BadRequestException('Vendeur not found for this user');
+        }
+        const newValue = (vendeur.nbrCmdConf ?? 0) + amount;
+        await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: newValue });
+        return {
+            id: vendeur.id,
+            idUser: vendeur.idUser,
+            nbrCmdConf: newValue,
+        };
     }
     // Confermateur management for vendeurs
     async findConfermateurs() {

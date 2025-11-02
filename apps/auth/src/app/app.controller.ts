@@ -381,6 +381,43 @@ export class AppController {
     return this.authService.deleteUser(id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('users/:id/vendeur/nbr-cmd-conf')
+  @ApiOperation({ 
+    summary: 'Admin: increment vendeur nbrCmdConf',
+    description: 'Increment the nbrCmdConf value for a vendeur by user ID. Admin only.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'Vendeur nbrCmdConf incremented successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid', description: 'Vendeur ID' },
+        idUser: { type: 'string', format: 'uuid', description: 'User ID' },
+        nbrCmdConf: { type: 'number', description: 'Updated nbrCmdConf value' }
+      },
+      example: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        idUser: '123e4567-e89b-12d3-a456-426614174001',
+        nbrCmdConf: 11
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Invalid user ID or vendeur not found for this user'
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async incrementVendeurNbrCmdConf(
+    @Param('id') id: string,
+    @Body() body: { amount?: number }
+  ) {
+    const amount = body?.amount ?? 1;
+    return this.authService.incrementVendeurNbrCmdConf(id, amount);
+  }
+
   // Vendeur: manage confermateurs associations
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDEUR, UserRole.ADMIN)

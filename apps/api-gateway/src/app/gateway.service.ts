@@ -25,6 +25,7 @@ export class GatewayService {
     { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
     { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
     { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'auth', path: '/users/:id/vendeur/nbr-cmd-conf', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
     { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
     
     // Article service endpoints
