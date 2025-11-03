@@ -1137,13 +1137,17 @@ let AuthService = class AuthService {
         return users.map(u => this.toUserResponseDto(u));
     }
     async findAllPaginated(params) {
-        const { role, page, limit } = params;
+        const { role } = params;
+        const page = Number(params.page);
+        const limit = Number(params.limit);
+        const pageNum = Number.isFinite(page) && page > 0 ? page : 1;
+        const limitNum = Number.isFinite(limit) && limit > 0 ? limit : 10;
         const where = role ? { role } : {};
         const [items, total] = await this.userRepo.findAndCount({
             where,
             order: { createdAt: 'DESC' },
-            skip: (page - 1) * limit,
-            take: limit,
+            skip: (pageNum - 1) * limitNum,
+            take: limitNum,
         });
         const userDtos = items.map(u => this.toUserResponseDto(u));
         // Fetch vendeur data for VENDEUR users
@@ -1189,7 +1193,7 @@ let AuthService = class AuthService {
                 }
             });
         }
-        return { items: userDtos, total, page, limit };
+        return { items: userDtos, total, page: pageNum, limit: limitNum };
     }
     async findOne(id) {
         const user = await this.userRepo.findOne({ where: { id } });

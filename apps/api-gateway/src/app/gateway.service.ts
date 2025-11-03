@@ -22,43 +22,43 @@ export class GatewayService {
     { service: 'auth', path: '/refresh', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/logout', method: 'POST', requiresAuth: true },
     { service: 'auth', path: '/logout-all', method: 'POST', requiresAuth: true },
-    { service: 'auth', path: '/users', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'auth', path: '/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/roles', method: 'GET', requiresAuth: true },
-    { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/users/:id/vendeur/nbr-cmd-conf', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/vendeurs/:vendeurId/confermateurs', method: 'GET', requiresAuth: true, roles: ['VENDEUR', 'ADMIN'] },
+    { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/users/:id/vendeur/nbr-cmd-conf', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/vendeurs/:vendeurId/confermateurs', method: 'GET', requiresAuth: true, roles: ['vendeur', 'admin'] },
     { service: 'auth', path: '/confermateurs', method: 'GET', requiresAuth: true },
-    { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'POST', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'POST', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/password-reset/request', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/confirm', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/reset', method: 'POST', requiresAuth: false },
-    { service: 'auth', path: '/stats/users', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'auth', path: '/stats/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
     // Article service endpoints
     { service: 'article', path: '/articles', method: 'GET', requiresAuth: false },
-    { service: 'article', path: '/articles', method: 'POST', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
+    { service: 'article', path: '/articles', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/articles/:id', method: 'GET', requiresAuth: false },
     { service: 'article', path: '/articles/vendor/:vendorId', method: 'GET', requiresAuth: false },
-    { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-    { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-    { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-    { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
     // CMD service endpoints
-    { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-    { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
-    { service: 'cmd', path: '/orders/:id/confirm', method: 'PATCH', requiresAuth: true, roles: ['VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/orders/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/orders/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-    { service: 'cmd', path: '/stats/orders', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
+    { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    { service: 'cmd', path: '/orders/:id/confirm', method: 'PATCH', requiresAuth: true, roles: ['vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/stats/orders', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
     // User service endpoints
     { service: 'user', path: '/profile', method: 'GET', requiresAuth: true },
@@ -139,10 +139,11 @@ export class GatewayService {
     headers: Record<string, string>,
     user?: any,
   ): Promise<any> {
-    const endpoint = this.findEndpoint(path, method);
+    const [pathname, queryString] = path.split('?');
+    const endpoint = this.findEndpoint(pathname, method);
     
     if (!endpoint) {
-      throw new HttpException(`Endpoint not found: ${method} ${path}`, HttpStatus.NOT_FOUND);
+      throw new HttpException(`Endpoint not found: ${method} ${pathname}`, HttpStatus.NOT_FOUND);
     }
 
     // Check authentication requirements
@@ -150,14 +151,15 @@ export class GatewayService {
       throw new HttpException('Authentication required', HttpStatus.UNAUTHORIZED);
     }
 
+    
     // Check role requirements
     if (endpoint.roles && user && !endpoint.roles.includes(user.role)) {
-      throw new HttpException('Insufficient permissions', HttpStatus.FORBIDDEN);
+        throw new HttpException('Insufficient permissions', HttpStatus.FORBIDDEN);
     }
 
     const serviceUrl = this.getServiceUrl(endpoint.service);
-    const fullUrl = `${serviceUrl}/api${path}`;
-    
+    const fullUrl = `${serviceUrl}/api${pathname}`;
+
     const sanitized = this.sanitizeHeaders(headers);
 
     const config: AxiosRequestConfig = {
@@ -170,6 +172,11 @@ export class GatewayService {
       },
       timeout: 30000,
     };
+
+    if (queryString) {
+      const params = Object.fromEntries(new URLSearchParams(queryString) as any);
+      (config as any).params = params;
+    }
 
     if (body && ['POST', 'PUT', 'PATCH'].includes(method)) {
       config.data = body;

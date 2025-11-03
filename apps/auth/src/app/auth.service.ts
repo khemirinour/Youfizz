@@ -289,14 +289,18 @@ export class AuthService {
     return users.map(u => this.toUserResponseDto(u));
   }
 
-  async findAllPaginated(params: { role?: UserRole; page: number; limit: number; }): Promise<{ items: (UserResponseDto & { nbrCmdConf?: number; vendeurs?: Array<{ id: string; firstName: string; lastName: string }> })[]; total: number; page: number; limit: number; }> {
-    const { role, page, limit } = params;
+  async findAllPaginated(params: { role?: UserRole; page: number | string; limit: number | string; }): Promise<{ items: (UserResponseDto & { nbrCmdConf?: number; vendeurs?: Array<{ id: string; firstName: string; lastName: string }> })[]; total: number; page: number; limit: number; }> {
+    const { role } = params;
+    const page = Number(params.page);
+    const limit = Number(params.limit);
+    const pageNum = Number.isFinite(page) && page > 0 ? page : 1;
+    const limitNum = Number.isFinite(limit) && limit > 0 ? limit : 10;
     const where = role ? { role } as any : {};
     const [items, total] = await this.userRepo.findAndCount({
       where,
       order: { createdAt: 'DESC' },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
     });
     const userDtos = items.map(u => this.toUserResponseDto(u));
     // Fetch vendeur data for VENDEUR users
@@ -344,7 +348,7 @@ export class AuthService {
         }
       });
     }
-    return { items: userDtos, total, page, limit };
+    return { items: userDtos, total, page: pageNum, limit: limitNum };
   }
 
   async findOne(id: string): Promise<UserResponseDto> {

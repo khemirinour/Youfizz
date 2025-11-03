@@ -109,7 +109,9 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getUsers(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/users', 'GET', null, headers, req.user);
+    const qs = new URLSearchParams(query as any).toString();
+    const path = qs ? `/users?${qs}` : '/users';
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user);
   }
 
   @ApiTags('auth')
