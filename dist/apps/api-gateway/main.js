@@ -1156,7 +1156,15 @@ let GatewayService = GatewayService_1 = class GatewayService {
             throw new common_1.HttpException('Insufficient permissions', common_1.HttpStatus.FORBIDDEN);
         }
         const serviceUrl = this.getServiceUrl(endpoint.service);
-        const fullUrl = `${serviceUrl}/api${pathname}`;
+        // Add special handling for stats endpoints
+        let forwardedPath = pathname;
+        if (endpoint.service === 'cmd' && pathname === '/stats/orders') {
+            forwardedPath = '/orders/stats/orders';
+        }
+        else if (endpoint.service === 'article' && pathname === '/stats/articles') {
+            forwardedPath = '/articles/stats/articles';
+        }
+        const fullUrl = `${serviceUrl}/api${forwardedPath}`;
         const sanitized = this.sanitizeHeaders(headers);
         const config = {
             method: method.toLowerCase(),
@@ -1167,6 +1175,10 @@ let GatewayService = GatewayService_1 = class GatewayService {
                 'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
             },
             timeout: 30000,
+            validateStatus: (status) => {
+                // Treat 2xx and 3xx (including 304 Not Modified) as success
+                return status >= 200 && status < 400;
+            },
         };
         if (queryString) {
             const params = Object.fromEntries(new URLSearchParams(queryString));
@@ -1181,8 +1193,9 @@ let GatewayService = GatewayService_1 = class GatewayService {
             return response.data; // Return only the data, not the full Axios response
         }
         catch (error) {
-            this.logger.error(`Error forwarding request to ${endpoint.service}:`, error?.message || 'Unknown error');
+            this.logger.error(`Error forwarding ${method} ${path} to ${endpoint.service} service:`, error?.message || 'Unknown error');
             if (error?.response) {
+                this.logger.error(`Response status: ${error.response.status}, URL: ${fullUrl}`);
                 throw new common_1.HttpException(error.response.data || 'Service error', error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
             }
             throw new common_1.HttpException('Service unavailable', common_1.HttpStatus.SERVICE_UNAVAILABLE);

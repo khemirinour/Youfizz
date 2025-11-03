@@ -3057,7 +3057,9 @@ let RolesGuard = class RolesGuard {
         const user = request.user;
         if (!user?.role)
             return false;
-        return requiredRoles.includes(user.role);
+        return requiredRoles.some(requiredRole => requiredRole === user.role ||
+            requiredRole === user.role?.toUpperCase() ||
+            requiredRole.toUpperCase() === user.role?.toUpperCase());
     }
 };
 exports.RolesGuard = RolesGuard;

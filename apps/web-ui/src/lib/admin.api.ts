@@ -4,6 +4,7 @@ import type { Paginated } from '@/types/pagination';
 
 // Base path for auth service from gateway
 const AUTH_BASE = '/api/auth';
+const STATS_BASE = '/api';
 
 export async function getUsers(params?: { role?: UserRole; page?: number; limit?: number }): Promise<Paginated<AdminUser>> {
   const q = { role: params?.role, page: params?.page ?? 1, limit: params?.limit ?? 10 };
@@ -71,14 +72,14 @@ export interface ArticleStats {
 }
 
 export async function getUserStats(): Promise<UserStats> {
-  return get<UserStats>(`${AUTH_BASE}/stats/users`);
+  return get<UserStats>(`${STATS_BASE}/stats/users`);
 }
 
 export async function getOrderStats(): Promise<OrderStats> {
-  return get<OrderStats>(`/api/stats/orders`);
+  return get<OrderStats>(`${STATS_BASE}/stats/orders`);
 }
 
 export async function getArticleStats(): Promise<ArticleStats> {
-  return get<ArticleStats>(`/api/stats/articles`);
+  return get<ArticleStats>(`${STATS_BASE}/stats/articles`);
 }
 

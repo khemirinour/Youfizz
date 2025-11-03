@@ -158,7 +158,14 @@ export class GatewayService {
     }
 
     const serviceUrl = this.getServiceUrl(endpoint.service);
-    const fullUrl = `${serviceUrl}/api${pathname}`;
+    // Add special handling for stats endpoints
+    let forwardedPath = pathname;
+    if (endpoint.service === 'cmd' && pathname === '/stats/orders') {
+      forwardedPath = '/orders/stats/orders';
+    } else if (endpoint.service === 'article' && pathname === '/stats/articles') {
+      forwardedPath = '/articles/stats/articles';
+    }
+    const fullUrl = `${serviceUrl}/api${forwardedPath}`;
 
     const sanitized = this.sanitizeHeaders(headers);
 
@@ -171,6 +178,10 @@ export class GatewayService {
         'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
       },
       timeout: 30000,
+      validateStatus: (status) => {
+        // Treat 2xx and 3xx (including 304 Not Modified) as success
+        return status >= 200 && status < 400;
+      },
     };
 
     if (queryString) {
@@ -187,9 +198,15 @@ export class GatewayService {
       const response = await firstValueFrom(this.httpService.request(config));
       return response.data; // Return only the data, not the full Axios response
     } catch (error: any) {
-      this.logger.error(`Error forwarding request to ${endpoint.service}:`, error?.message || 'Unknown error');
+      this.logger.error(
+        `Error forwarding ${method} ${path} to ${endpoint.service} service:`,
+        error?.message || 'Unknown error'
+      );
       
       if (error?.response) {
+        this.logger.error(
+          `Response status: ${error.response.status}, URL: ${fullUrl}`
+        );
         throw new HttpException(
           error.response.data || 'Service error',
           error.response.status || HttpStatus.INTERNAL_SERVER_ERROR,
