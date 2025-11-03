@@ -104,4 +104,38 @@ export class AppController {
   deactivate(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.appService.setActive(id, false);
   }
+
+  @Get('stats/orders')
+  @ApiOperation({ 
+    summary: 'Admin: Get order statistics',
+    description: 'Returns comprehensive statistics about orders including total count, breakdown by status, paid/unpaid counts, active/inactive counts, and total revenue.'
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN')
+  @ApiOkResponse({ 
+    description: 'Order statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: 'Total number of orders' },
+        byStatus: { 
+          type: 'object', 
+          description: 'Orders count by status',
+          additionalProperties: { type: 'number' },
+          example: { PENDING: 10, CONFIRMED: 5, SHIPPED: 3, DELIVERED: 20, CANCELLED: 2 }
+        },
+        paid: { type: 'number', description: 'Number of paid orders' },
+        unpaid: { type: 'number', description: 'Number of unpaid orders' },
+        active: { type: 'number', description: 'Number of active orders' },
+        inactive: { type: 'number', description: 'Number of inactive orders' },
+        totalRevenue: { type: 'number', description: 'Total revenue from all orders' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async getOrderStats() {
+    return this.appService.getOrderStats();
+  }
 }

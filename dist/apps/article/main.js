@@ -114,6 +114,9 @@ let AppController = class AppController {
     deactivate(id) {
         return this.appService.setActive(id, false);
     }
+    async getArticleStats() {
+        return this.appService.getArticleStats();
+    }
 };
 exports.AppController = AppController;
 tslib_1.__decorate([
@@ -225,12 +228,44 @@ tslib_1.__decorate([
     (0, swagger_1.ApiOkResponse)({ description: 'Article deactivated', type: article_response_dto_1.ArticleResponseDto }),
     (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
     (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role' }),
-    (0, swagger_1.ApiOperation)({ summary: 'Set article hidden/inactive' }),
     tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String]),
     tslib_1.__metadata("design:returntype", void 0)
 ], AppController.prototype, "deactivate", null);
+tslib_1.__decorate([
+    (0, common_1.Get)('stats/articles'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: Get article statistics',
+        description: 'Returns comprehensive statistics about articles including total count, breakdown by status, active/inactive counts, and total stock quantity.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('admin'),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Article statistics retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                total: { type: 'number', description: 'Total number of articles' },
+                byStatus: {
+                    type: 'object',
+                    description: 'Articles count by status',
+                    additionalProperties: { type: 'number' },
+                    example: { DRAFT: 5, PUBLISHED: 20, ARCHIVED: 3 }
+                },
+                active: { type: 'number', description: 'Number of active articles' },
+                inactive: { type: 'number', description: 'Number of inactive articles' },
+                totalStock: { type: 'number', description: 'Total stock quantity across all articles' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", []),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getArticleStats", null);
 exports.AppController = AppController = tslib_1.__decorate([
     (0, swagger_1.ApiTags)('articles'),
     (0, common_1.Controller)('articles'),
@@ -303,6 +338,36 @@ let AppService = class AppService {
     async setActive(id, active) {
         await this.articleRepository.update({ id }, { isActive: active });
         return this.findOne(id);
+    }
+    async getArticleStats() {
+        const [total, byStatus, activeCount, inactiveCount] = await Promise.all([
+            this.articleRepository.count(),
+            this.articleRepository
+                .createQueryBuilder('article')
+                .select('article.status', 'status')
+                .addSelect('COUNT(*)', 'count')
+                .groupBy('article.status')
+                .getRawMany(),
+            this.articleRepository.count({ where: { isActive: true } }),
+            this.articleRepository.count({ where: { isActive: false } }),
+        ]);
+        const byStatusMap = {};
+        byStatus.forEach((item) => {
+            byStatusMap[item.status] = parseInt(item.count, 10);
+        });
+        // Calculate total stock quantity
+        const stockResult = await this.articleRepository
+            .createQueryBuilder('article')
+            .select('SUM(article.stock)', 'total')
+            .getRawOne();
+        const totalStock = stockResult?.total ? parseInt(stockResult.total, 10) : 0;
+        return {
+            total,
+            byStatus: byStatusMap,
+            active: activeCount,
+            inactive: inactiveCount,
+            totalStock,
+        };
     }
 };
 exports.AppService = AppService;

@@ -10,8 +10,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { getUsers, updateUserRole, setUserActive, deleteUser, incrementVendeurNbrCmdConf } from '@/lib/admin.api';
+import { getUsers, updateUserRole, setUserActive, deleteUser, incrementVendeurNbrCmdConf, getUserStats, getOrderStats, getArticleStats } from '@/lib/admin.api';
 import type { AdminUser, UserRole } from '@/types/user';
+import type { UserStats, OrderStats, ArticleStats } from '@/lib/admin.api';
 
 const AdminDashboard = () => {
   const router = useRouter();
@@ -28,6 +29,10 @@ const AdminDashboard = () => {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [incrementAmount, setIncrementAmount] = useState<string>('1');
   const [activeTab, setActiveTab] = useState<'users' | 'stats'>('users');
+  const [statsLoading, setStatsLoading] = useState(false);
+  const [userStats, setUserStats] = useState<UserStats | null>(null);
+  const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
+  const [articleStats, setArticleStats] = useState<ArticleStats | null>(null);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -75,6 +80,29 @@ const AdminDashboard = () => {
     return { total: totalCount, byRole };
   }, [users, total]);
 
+  // Fetch statistics when stats tab is active
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'admin' || activeTab !== 'stats') return;
+    const fetchStats = async () => {
+      try {
+        setStatsLoading(true);
+        const [userStatsData, orderStatsData, articleStatsData] = await Promise.all([
+          getUserStats(),
+          getOrderStats(),
+          getArticleStats(),
+        ]);
+        setUserStats(userStatsData);
+        setOrderStats(orderStatsData);
+        setArticleStats(articleStatsData);
+      } catch (e: any) {
+        toast({ title: 'Error', description: e?.message || 'Failed to load statistics', variant: 'destructive' });
+      } finally {
+        setStatsLoading(false);
+      }
+    };
+    fetchStats();
+  }, [hydrated, isAuthenticated, user?.role, activeTab, toast]);
+
   if (!hydrated || !isAuthenticated || user?.role !== 'admin') return null;
 
   return (
@@ -85,36 +113,132 @@ const AdminDashboard = () => {
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Stats Section */}
         {activeTab === 'stats' && (
-          <div className="space-y-6">
+          <div className="space-y-8">
             <div>
               <h2 className="text-2xl font-bold mb-2">Statistics</h2>
-              <p className="text-muted-foreground">Overview of system statistics and user metrics</p>
+              <p className="text-muted-foreground">Comprehensive overview of system statistics and metrics</p>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="card-glass rounded-xl p-6">
-                <p className="text-sm text-muted-foreground">Total Users</p>
-                <p className="text-3xl font-semibold mt-2">{stats.total}</p>
+
+            {statsLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Loading statistics...</p>
               </div>
-              <div className="card-glass rounded-xl p-6">
-                <p className="text-sm text-muted-foreground mb-3">Users by Role</p>
-                <div className="space-y-2">
-                  {Object.entries(stats.byRole).map(([role, count]) => (
-                    <div key={role} className="flex items-center justify-between">
-                      <span className="text-sm font-medium capitalize">{role}</span>
-                      <span className="text-lg font-semibold">{count}</span>
+            ) : (
+              <>
+                {/* User Statistics */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">User Statistics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Total Users</p>
+                      <p className="text-3xl font-semibold mt-2">{userStats?.total ?? 0}</p>
                     </div>
-                  ))}
-                  {Object.keys(stats.byRole).length === 0 && (
-                    <span className="text-sm text-muted-foreground">No data</span>
-                  )}
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Active Users</p>
+                      <p className="text-3xl font-semibold mt-2">{userStats?.active ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Inactive Users</p>
+                      <p className="text-3xl font-semibold mt-2">{userStats?.inactive ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Vendeurs with Cmd</p>
+                      <p className="text-3xl font-semibold mt-2">{userStats?.vendeursWithCmdConf ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="card-glass rounded-xl p-6">
+                    <p className="text-sm text-muted-foreground mb-4">Users by Role</p>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {userStats?.byRole && Object.entries(userStats.byRole).map(([role, count]) => (
+                        <div key={role} className="flex flex-col">
+                          <span className="text-xs text-muted-foreground uppercase">{role}</span>
+                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="card-glass rounded-xl p-6">
-                <p className="text-sm text-muted-foreground">Status</p>
-                <p className="text-3xl font-semibold mt-2">{loading ? 'Loading…' : 'Ready'}</p>
-                <p className="text-xs text-muted-foreground mt-2">System operational</p>
-              </div>
-            </div>
+
+                {/* Order Statistics */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Order Statistics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Total Orders</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.total ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Paid Orders</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.paid ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Unpaid Orders</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.unpaid ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Total Revenue</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.totalRevenue ? orderStats.totalRevenue.toFixed(2) : '0.00'}</p>
+                      <p className="text-xs text-muted-foreground mt-1">TND</p>
+                    </div>
+                  </div>
+                  <div className="card-glass rounded-xl p-6">
+                    <p className="text-sm text-muted-foreground mb-4">Orders by Status</p>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                      {orderStats?.byStatus && Object.entries(orderStats.byStatus).map(([status, count]) => (
+                        <div key={status} className="flex flex-col">
+                          <span className="text-xs text-muted-foreground capitalize">{status.toLowerCase()}</span>
+                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Active Orders</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.active ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Inactive Orders</p>
+                      <p className="text-3xl font-semibold mt-2">{orderStats?.inactive ?? 0}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Article Statistics */}
+                <div className="space-y-4">
+                  <h3 className="text-xl font-semibold">Article Statistics</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Total Articles</p>
+                      <p className="text-3xl font-semibold mt-2">{articleStats?.total ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Active Articles</p>
+                      <p className="text-3xl font-semibold mt-2">{articleStats?.active ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Inactive Articles</p>
+                      <p className="text-3xl font-semibold mt-2">{articleStats?.inactive ?? 0}</p>
+                    </div>
+                    <div className="card-glass rounded-xl p-6">
+                      <p className="text-sm text-muted-foreground">Total Stock</p>
+                      <p className="text-3xl font-semibold mt-2">{articleStats?.totalStock ?? 0}</p>
+                    </div>
+                  </div>
+                  <div className="card-glass rounded-xl p-6">
+                    <p className="text-sm text-muted-foreground mb-4">Articles by Status</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {articleStats?.byStatus && Object.entries(articleStats.byStatus).map(([status, count]) => (
+                        <div key={status} className="flex flex-col">
+                          <span className="text-xs text-muted-foreground capitalize">{status.toLowerCase()}</span>
+                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         )}
 

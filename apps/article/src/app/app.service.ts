@@ -60,6 +60,40 @@ export class AppService {
     await this.articleRepository.update({ id }, { isActive: active });
     return this.findOne(id);
   }
+
+  async getArticleStats() {
+    const [total, byStatus, activeCount, inactiveCount] = await Promise.all([
+      this.articleRepository.count(),
+      this.articleRepository
+        .createQueryBuilder('article')
+        .select('article.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('article.status')
+        .getRawMany(),
+      this.articleRepository.count({ where: { isActive: true } }),
+      this.articleRepository.count({ where: { isActive: false } }),
+    ]);
+
+    const byStatusMap: Record<string, number> = {};
+    byStatus.forEach((item: any) => {
+      byStatusMap[item.status] = parseInt(item.count, 10);
+    });
+
+    // Calculate total stock quantity
+    const stockResult = await this.articleRepository
+      .createQueryBuilder('article')
+      .select('SUM(article.stock)', 'total')
+      .getRawOne();
+    const totalStock = stockResult?.total ? parseInt(stockResult.total, 10) : 0;
+
+    return {
+      total,
+      byStatus: byStatusMap,
+      active: activeCount,
+      inactive: inactiveCount,
+      totalStock,
+    };
+  }
 }
 
 

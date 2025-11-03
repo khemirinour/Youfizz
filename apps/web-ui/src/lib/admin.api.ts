@@ -3,7 +3,7 @@ import type { AdminUser, UserRole } from '@/types/user';
 import type { Paginated } from '@/types/pagination';
 
 // Base path for auth service from gateway
-const AUTH_BASE = '/api';
+const AUTH_BASE = '/api/auth';
 
 export async function getUsers(params?: { role?: UserRole; page?: number; limit?: number }): Promise<Paginated<AdminUser>> {
   const q = { role: params?.role, page: params?.page ?? 1, limit: params?.limit ?? 10 };
@@ -41,5 +41,44 @@ export async function unassignVendeurFromConfermateur(confermateurId: string, ve
 
 export async function incrementVendeurNbrCmdConf(userId: string, amount?: number): Promise<{ id: string; idUser: string; nbrCmdConf: number }> {
   return patch<{ id: string; idUser: string; nbrCmdConf: number }>(`${AUTH_BASE}/users/${userId}/vendeur/nbr-cmd-conf`, { amount });
+}
+
+// Statistics endpoints
+export interface UserStats {
+  total: number;
+  byRole: Record<string, number>;
+  active: number;
+  inactive: number;
+  vendeursWithCmdConf: number;
+}
+
+export interface OrderStats {
+  total: number;
+  byStatus: Record<string, number>;
+  paid: number;
+  unpaid: number;
+  active: number;
+  inactive: number;
+  totalRevenue: number;
+}
+
+export interface ArticleStats {
+  total: number;
+  byStatus: Record<string, number>;
+  active: number;
+  inactive: number;
+  totalStock: number;
+}
+
+export async function getUserStats(): Promise<UserStats> {
+  return get<UserStats>(`${AUTH_BASE}/stats/users`);
+}
+
+export async function getOrderStats(): Promise<OrderStats> {
+  return get<OrderStats>(`/api/stats/orders`);
+}
+
+export async function getArticleStats(): Promise<ArticleStats> {
+  return get<ArticleStats>(`/api/stats/articles`);
 }
 

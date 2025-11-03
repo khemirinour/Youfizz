@@ -1,7 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
 
 let httpInstance: AxiosInstance | null = null;
 let isRefreshing = false;

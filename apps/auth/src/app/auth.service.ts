@@ -402,6 +402,39 @@ export class AuthService {
     return this.toUserResponseDto(user);
   }
 
+  async getUserStats() {
+    const [total, byRole, activeCount, inactiveCount] = await Promise.all([
+      this.userRepo.count(),
+      this.userRepo
+        .createQueryBuilder('user')
+        .select('user.role', 'role')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('user.role')
+        .getRawMany(),
+      this.userRepo.count({ where: { isActive: true } }),
+      this.userRepo.count({ where: { isActive: false } }),
+    ]);
+
+    const byRoleMap: Record<string, number> = {};
+    byRole.forEach((item: any) => {
+      byRoleMap[item.role] = parseInt(item.count, 10);
+    });
+
+    // Count vendeurs with nbrCmdConf > 0
+    const vendeursWithCmdConf = await this.vendeurRepo
+      .createQueryBuilder('vendeur')
+      .where('vendeur.nbrCmdConf > 0')
+      .getCount();
+
+    return {
+      total,
+      byRole: byRoleMap,
+      active: activeCount,
+      inactive: inactiveCount,
+      vendeursWithCmdConf,
+    };
+  }
+
   async deleteUser(id: string): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) {

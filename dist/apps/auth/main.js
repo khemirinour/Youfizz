@@ -191,6 +191,9 @@ let AppController = class AppController {
     async assignVendeurToConfermateur(confermateurId, vendeurId) {
         return this.authService.assignVendeurToConfermateur(confermateurId, vendeurId);
     }
+    async getUserStats() {
+        return this.authService.getUserStats();
+    }
     async unassignVendeurFromConfermateur(confermateurId, vendeurId) {
         return this.authService.unassignVendeurFromConfermateur(confermateurId, vendeurId);
     }
@@ -674,6 +677,39 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [String, String]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "assignVendeurToConfermateur", null);
+tslib_1.__decorate([
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    (0, common_1.Get)('stats/users'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: Get user statistics',
+        description: 'Returns comprehensive statistics about users including total count, breakdown by role, active/inactive counts, and vendeurs with confirmed commands.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User statistics retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                total: { type: 'number', description: 'Total number of users' },
+                byRole: {
+                    type: 'object',
+                    description: 'Users count by role',
+                    additionalProperties: { type: 'number' },
+                    example: { admin: 5, vendeur: 10, confermateur: 3, guest: 20 }
+                },
+                active: { type: 'number', description: 'Number of active users' },
+                inactive: { type: 'number', description: 'Number of inactive users' },
+                vendeursWithCmdConf: { type: 'number', description: 'Number of vendeurs with nbrCmdConf > 0' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", []),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getUserStats", null);
 tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
@@ -1201,6 +1237,35 @@ let AuthService = class AuthService {
         user.isActive = isActive;
         await this.userRepo.save(user);
         return this.toUserResponseDto(user);
+    }
+    async getUserStats() {
+        const [total, byRole, activeCount, inactiveCount] = await Promise.all([
+            this.userRepo.count(),
+            this.userRepo
+                .createQueryBuilder('user')
+                .select('user.role', 'role')
+                .addSelect('COUNT(*)', 'count')
+                .groupBy('user.role')
+                .getRawMany(),
+            this.userRepo.count({ where: { isActive: true } }),
+            this.userRepo.count({ where: { isActive: false } }),
+        ]);
+        const byRoleMap = {};
+        byRole.forEach((item) => {
+            byRoleMap[item.role] = parseInt(item.count, 10);
+        });
+        // Count vendeurs with nbrCmdConf > 0
+        const vendeursWithCmdConf = await this.vendeurRepo
+            .createQueryBuilder('vendeur')
+            .where('vendeur.nbrCmdConf > 0')
+            .getCount();
+        return {
+            total,
+            byRole: byRoleMap,
+            active: activeCount,
+            inactive: inactiveCount,
+            vendeursWithCmdConf,
+        };
     }
     async deleteUser(id) {
         const user = await this.userRepo.findOne({ where: { id } });

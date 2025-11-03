@@ -487,6 +487,38 @@ export class AppController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
+  @Get('stats/users')
+  @ApiOperation({ 
+    summary: 'Admin: Get user statistics',
+    description: 'Returns comprehensive statistics about users including total count, breakdown by role, active/inactive counts, and vendeurs with confirmed commands.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'User statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: 'Total number of users' },
+        byRole: { 
+          type: 'object', 
+          description: 'Users count by role',
+          additionalProperties: { type: 'number' },
+          example: { admin: 5, vendeur: 10, confermateur: 3, guest: 20 }
+        },
+        active: { type: 'number', description: 'Number of active users' },
+        inactive: { type: 'number', description: 'Number of inactive users' },
+        vendeursWithCmdConf: { type: 'number', description: 'Number of vendeurs with nbrCmdConf > 0' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async getUserStats() {
+    return this.authService.getUserStats();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
   @Delete('confermateurs/:confermateurId/vendeurs/:vendeurId')
   @ApiOperation({ 
     summary: 'Unassign vendeur from confermateur',
