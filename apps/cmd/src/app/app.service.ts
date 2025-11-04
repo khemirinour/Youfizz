@@ -95,4 +95,42 @@ export class AppService {
     await this.repo.update({ id }, { status: OrderStatus.CONFIRMED, isActive: true });
     return this.findOne(id);
   }
+
+  async getOrderStats() {
+    const [total, byStatus, paidCount, unpaidCount, activeCount, inactiveCount] = await Promise.all([
+      this.repo.count(),
+      this.repo
+        .createQueryBuilder('order')
+        .select('order.status', 'status')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('order.status')
+        .getRawMany(),
+      this.repo.count({ where: { isPaid: true } }),
+      this.repo.count({ where: { isPaid: false } }),
+      this.repo.count({ where: { isActive: true } }),
+      this.repo.count({ where: { isActive: false } }),
+    ]);
+
+    const byStatusMap: Record<string, number> = {};
+    byStatus.forEach((item: any) => {
+      byStatusMap[item.status] = parseInt(item.count, 10);
+    });
+
+    // Calculate total revenue (sum of all order totals)
+    const revenueResult = await this.repo
+      .createQueryBuilder('order')
+      .select('SUM(order.total::numeric)', 'total')
+      .getRawOne();
+    const totalRevenue = revenueResult?.total ? parseFloat(revenueResult.total) : 0;
+
+    return {
+      total,
+      byStatus: byStatusMap,
+      paid: paidCount,
+      unpaid: unpaidCount,
+      active: activeCount,
+      inactive: inactiveCount,
+      totalRevenue,
+    };
+  }
 }

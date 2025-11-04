@@ -289,6 +289,68 @@ export class AuthService {
     return users.map(u => this.toUserResponseDto(u));
   }
 
+  async findAllPaginated(params: { role?: UserRole; page: number | string; limit: number | string; }): Promise<{ items: (UserResponseDto & { nbrCmdConf?: number; vendeurs?: Array<{ id: string; firstName: string; lastName: string }> })[]; total: number; page: number; limit: number; }> {
+    const { role } = params;
+    const page = Number(params.page);
+    const limit = Number(params.limit);
+    const pageNum = Number.isFinite(page) && page > 0 ? page : 1;
+    const limitNum = Number.isFinite(limit) && limit > 0 ? limit : 10;
+    const where = role ? { role } as any : {};
+    const [items, total] = await this.userRepo.findAndCount({
+      where,
+      order: { createdAt: 'DESC' },
+      skip: (pageNum - 1) * limitNum,
+      take: limitNum,
+    });
+    const userDtos = items.map(u => this.toUserResponseDto(u));
+    // Fetch vendeur data for VENDEUR users
+    const vendeurUserIds = items.filter(u => u.role === UserRole.VENDEUR).map(u => u.id);
+    if (vendeurUserIds.length > 0) {
+      const vendeurs = await this.vendeurRepo
+        .createQueryBuilder('vendeur')
+        .where('vendeur.idUser IN (:...ids)', { ids: vendeurUserIds })
+        .getMany();
+      const vendeurMap = new Map(vendeurs.map(v => [v.idUser, v.nbrCmdConf]));
+      userDtos.forEach(dto => {
+        if (dto.role === UserRole.VENDEUR) {
+          (dto as any).nbrCmdConf = vendeurMap.get(dto.id) ?? 0;
+        }
+      });
+    }
+    // Fetch associated vendeurs for CONFERMATEUR users
+    const confermateurUserIds = items.filter(u => u.role === UserRole.CONFERMATEUR).map(u => u.id);
+    if (confermateurUserIds.length > 0) {
+      const confermateurs = await this.confermateurRepo
+        .createQueryBuilder('confermateur')
+        .leftJoinAndSelect('confermateur.vendeurs', 'vendeur')
+        .leftJoinAndSelect('vendeur.user', 'user')
+        .where('confermateur.idUser IN (:...ids)', { ids: confermateurUserIds })
+        .getMany();
+      
+      const confermateurVendeursMap = new Map<string, Array<{ id: string; firstName: string; lastName: string }>>();
+      confermateurs.forEach(conf => {
+        const vendeurUsers = (conf.vendeurs || []).map(v => ({
+          id: v.user?.id || '',
+          firstName: v.user?.firstName || '',
+          lastName: v.user?.lastName || '',
+        })).filter(v => v.id); // Filter out any invalid entries
+        if (vendeurUsers.length > 0) {
+          confermateurVendeursMap.set(conf.idUser, vendeurUsers);
+        }
+      });
+      
+      userDtos.forEach(dto => {
+        if (dto.role === UserRole.CONFERMATEUR) {
+          const vendeurs = confermateurVendeursMap.get(dto.id);
+          if (vendeurs && vendeurs.length > 0) {
+            (dto as any).vendeurs = vendeurs;
+          }
+        }
+      });
+    }
+    return { items: userDtos, total, page: pageNum, limit: limitNum };
+  }
+
   async findOne(id: string): Promise<UserResponseDto> {
     const user = await this.userRepo.findOne({ where: { id } });
 
@@ -344,6 +406,39 @@ export class AuthService {
     return this.toUserResponseDto(user);
   }
 
+  async getUserStats() {
+    const [total, byRole, activeCount, inactiveCount] = await Promise.all([
+      this.userRepo.count(),
+      this.userRepo
+        .createQueryBuilder('user')
+        .select('user.role', 'role')
+        .addSelect('COUNT(*)', 'count')
+        .groupBy('user.role')
+        .getRawMany(),
+      this.userRepo.count({ where: { isActive: true } }),
+      this.userRepo.count({ where: { isActive: false } }),
+    ]);
+
+    const byRoleMap: Record<string, number> = {};
+    byRole.forEach((item: any) => {
+      byRoleMap[item.role] = parseInt(item.count, 10);
+    });
+
+    // Count vendeurs with nbrCmdConf > 0
+    const vendeursWithCmdConf = await this.vendeurRepo
+      .createQueryBuilder('vendeur')
+      .where('vendeur.nbrCmdConf > 0')
+      .getCount();
+
+    return {
+      total,
+      byRole: byRoleMap,
+      active: activeCount,
+      inactive: inactiveCount,
+      vendeursWithCmdConf,
+    };
+  }
+
   async deleteUser(id: string): Promise<{ message: string }> {
     const user = await this.userRepo.findOne({ where: { id } });
     if (!user) {
@@ -361,6 +456,20 @@ export class AuthService {
       }
     }
     return { message: 'User deleted' };
+  }
+
+  async incrementVendeurNbrCmdConf(userId: string, amount: number = 1): Promise<{ id: string; idUser: string; nbrCmdConf: number }> {
+    const vendeur = await this.vendeurRepo.findOne({ where: { idUser: userId } });
+    if (!vendeur) {
+      throw new BadRequestException('Vendeur not found for this user');
+    }
+    const newValue = (vendeur.nbrCmdConf ?? 0) + amount;
+    await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: newValue });
+    return {
+      id: vendeur.id,
+      idUser: vendeur.idUser,
+      nbrCmdConf: newValue,
+    };
   }
 
   // Confermateur management for vendeurs

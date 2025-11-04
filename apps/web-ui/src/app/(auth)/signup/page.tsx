@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuthStore } from "@/stores/authStore";
+import Logo from "@/components/Logo";
 
 const SignUp = () => {
   const router = useRouter();
@@ -77,10 +78,12 @@ const SignUp = () => {
       setTimeout(() => {
         router.push("/signin");
       }, 1000);
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Account creation failed';
+      const description = Array.isArray(message) ? message.join(', ') : message;
       toast({
         title: t('toast.error'),
-        description: t('toast.accountFailed'),
+        description,
         variant: "destructive",
       });
     }
@@ -92,19 +95,26 @@ const SignUp = () => {
       <LanguageSwitcher />
       
       <div className="w-full max-w-md relative z-10 animate-fade-in">
-        {/* Logo/Back button */}
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Logo height={70} width={220} />
+        </div>
+        
+        {/* Title section */}
         <div className="text-center mb-8">
-          <button
-            onClick={() => router.push("/")}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {t('signUp.backHome')}
-          </button>
           <h1 className="text-4xl font-bold mb-2">
-            {t('signUp.title').split(' ')[0]} <span className="text-gradient">{t('signUp.title').split(' ').slice(1).join(' ')}</span>
+            {(() => {
+              const parts = t('signUp.title').split(' ');
+              if (parts.length > 1) {
+                const [first, ...rest] = parts;
+                return (
+                  <>
+                    {first} <span className="text-gradient">{rest.join(' ')}</span>
+                  </>
+                );
+              }
+              return t('signUp.title');
+            })()}
           </h1>
           <p className="text-muted-foreground">{t('signUp.subtitle')}</p>
         </div>

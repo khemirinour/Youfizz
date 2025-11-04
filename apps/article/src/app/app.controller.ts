@@ -113,9 +113,40 @@ export class AppController {
   @ApiOkResponse({ description: 'Article deactivated', type: ArticleResponseDto })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
-  @ApiOperation({ summary: 'Set article hidden/inactive' })
   deactivate(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.appService.setActive(id, false);
+  }
+
+  @Get('stats/articles')
+  @ApiOperation({ 
+    summary: 'Admin: Get article statistics',
+    description: 'Returns comprehensive statistics about articles including total count, breakdown by status, active/inactive counts, and total stock quantity.'
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
+  @ApiOkResponse({ 
+    description: 'Article statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: 'Total number of articles' },
+        byStatus: { 
+          type: 'object', 
+          description: 'Articles count by status',
+          additionalProperties: { type: 'number' },
+          example: { DRAFT: 5, PUBLISHED: 20, ARCHIVED: 3 }
+        },
+        active: { type: 'number', description: 'Number of active articles' },
+        inactive: { type: 'number', description: 'Number of inactive articles' },
+        totalStock: { type: 'number', description: 'Total stock quantity across all articles' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async getArticleStats() {
+    return this.appService.getArticleStats();
   }
 }
 

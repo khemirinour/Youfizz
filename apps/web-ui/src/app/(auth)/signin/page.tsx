@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuthStore } from "@/stores/authStore";
+import Logo from "@/components/Logo";
 
 const SignIn = () => {
   const router = useRouter();
@@ -52,18 +53,19 @@ const SignIn = () => {
 
     try {
       await login(formData.email, formData.password);
-      
+
       toast({
         title: t('toast.success'),
         description: t('toast.signInSuccess'),
       });
 
-      // Navigate to home or dashboard after successful login
       router.push("/");
-    } catch (error) {
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Sign in failed';
+      const description = Array.isArray(message) ? message.join(', ') : message;
       toast({
         title: t('toast.error'),
-        description: t('toast.signInFailed'),
+        description,
         variant: "destructive",
       });
     }
@@ -75,19 +77,26 @@ const SignIn = () => {
       <LanguageSwitcher />
       
       <div className="w-full max-w-md relative z-10 animate-fade-in">
-        {/* Logo/Back button */}
+        {/* Logo */}
+        <div className="flex justify-center mb-6">
+          <Logo height={70} width={220} />
+        </div>
+        
+        {/* Title section */}
         <div className="text-center mb-8">
-          <button
-            onClick={() => router.push("/")}
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            {t('signIn.backHome')}
-          </button>
           <h1 className="text-4xl font-bold mb-2">
-            {t('signIn.title').split(' ')[0]} <span className="text-gradient">{t('signIn.title').split(' ').slice(1).join(' ') || 'Back'}</span>
+            {(() => {
+              const parts = t('signIn.title').split(' ');
+              if (parts.length > 1) {
+                const [first, ...rest] = parts;
+                return (
+                  <>
+                    {first} <span className="text-gradient">{rest.join(' ')}</span>
+                  </>
+                );
+              }
+              return t('signIn.title');
+            })()}
           </h1>
           <p className="text-muted-foreground">{t('signIn.subtitle')}</p>
         </div>

@@ -86,7 +86,7 @@ module.exports = require("@nestjs/throttler");
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
 const tslib_1 = __webpack_require__(5);
@@ -112,7 +112,7 @@ let AppController = class AppController {
             service: 'api-gateway',
         };
     }
-    // Auth service routes
+    // ==================== Auth Service Routes ====================
     async register(body, headers) {
         return this.gatewayService.forwardRequest('/register', 'POST', body, headers);
     }
@@ -125,10 +125,54 @@ let AppController = class AppController {
     async logout(body, headers, req) {
         return this.gatewayService.forwardRequest('/logout', 'POST', body, headers, req.user);
     }
-    async getUsers(query, headers, req) {
-        return this.gatewayService.forwardRequest('/users', 'GET', null, headers, req.user);
+    async logoutAll(body, headers, req) {
+        return this.gatewayService.forwardRequest('/logout-all', 'POST', body, headers, req.user);
     }
-    // Article service routes
+    async getUsers(query, headers, req) {
+        const qs = new URLSearchParams(query).toString();
+        const path = qs ? `/users?${qs}` : '/users';
+        return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user);
+    }
+    async getUser(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/users/${id}`, 'GET', null, headers, req.user);
+    }
+    async getRoles(headers, req) {
+        return this.gatewayService.forwardRequest('/roles', 'GET', null, headers, req.user);
+    }
+    async updateUserRole(id, role, headers, req) {
+        return this.gatewayService.forwardRequest(`/users/${id}/role/${role}`, 'PATCH', null, headers, req.user);
+    }
+    async updateUserActive(id, body, headers, req) {
+        return this.gatewayService.forwardRequest(`/users/${id}/active`, 'PATCH', body, headers, req.user);
+    }
+    async incrementVendeurNbrCmdConf(id, body, headers, req) {
+        return this.gatewayService.forwardRequest(`/users/${id}/vendeur/nbr-cmd-conf`, 'PATCH', body, headers, req.user);
+    }
+    async deleteUser(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/users/${id}`, 'DELETE', null, headers, req.user);
+    }
+    async getVendeurConfermateurs(vendeurId, headers, req) {
+        return this.gatewayService.forwardRequest(`/vendeurs/${vendeurId}/confermateurs`, 'GET', null, headers, req.user);
+    }
+    async getConfermateurs(headers, req) {
+        return this.gatewayService.forwardRequest('/confermateurs', 'GET', null, headers, req.user);
+    }
+    async assignVendeurToConfermateur(confermateurId, vendeurId, headers, req) {
+        return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'POST', null, headers, req.user);
+    }
+    async unassignVendeurFromConfermateur(confermateurId, vendeurId, headers, req) {
+        return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'DELETE', null, headers, req.user);
+    }
+    async requestPasswordReset(body, headers) {
+        return this.gatewayService.forwardRequest('/password-reset/request', 'POST', body, headers);
+    }
+    async confirmPasswordResetToken(body, headers) {
+        return this.gatewayService.forwardRequest('/password-reset/confirm', 'POST', body, headers);
+    }
+    async resetPassword(body, headers) {
+        return this.gatewayService.forwardRequest('/password-reset/reset', 'POST', body, headers);
+    }
+    // ==================== Article Service Routes ====================
     async getArticles(query, headers) {
         return this.gatewayService.forwardRequest('/articles', 'GET', null, headers);
     }
@@ -138,13 +182,22 @@ let AppController = class AppController {
     async getArticle(id, headers) {
         return this.gatewayService.forwardRequest(`/articles/${id}`, 'GET', null, headers);
     }
+    async getArticlesByVendor(vendorId, headers) {
+        return this.gatewayService.forwardRequest(`/articles/vendor/${vendorId}`, 'GET', null, headers);
+    }
     async updateArticle(id, body, headers, req) {
         return this.gatewayService.forwardRequest(`/articles/${id}`, 'PUT', body, headers, req.user);
     }
     async deleteArticle(id, headers, req) {
         return this.gatewayService.forwardRequest(`/articles/${id}`, 'DELETE', null, headers, req.user);
     }
-    // CMD service routes
+    async activateArticle(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/articles/${id}/activate`, 'PATCH', null, headers, req.user);
+    }
+    async deactivateArticle(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/articles/${id}/deactivate`, 'PATCH', null, headers, req.user);
+    }
+    // ==================== Order Service Routes ====================
     async getOrders(query, headers, req) {
         return this.gatewayService.forwardRequest('/orders', 'GET', null, headers, req.user);
     }
@@ -160,19 +213,38 @@ let AppController = class AppController {
     async deleteOrder(id, headers, req) {
         return this.gatewayService.forwardRequest(`/orders/${id}`, 'DELETE', null, headers, req.user);
     }
-    // User service routes
+    async confirmOrder(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', null, headers, req.user);
+    }
+    async activateOrder(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/orders/${id}/activate`, 'PATCH', null, headers, req.user);
+    }
+    async deactivateOrder(id, headers, req) {
+        return this.gatewayService.forwardRequest(`/orders/${id}/deactivate`, 'PATCH', null, headers, req.user);
+    }
+    // ==================== User Profile Routes ====================
     async getProfile(headers, req) {
         return this.gatewayService.forwardRequest('/profile', 'GET', null, headers, req.user);
     }
     async updateProfile(body, headers, req) {
         return this.gatewayService.forwardRequest('/profile', 'PUT', body, headers, req.user);
     }
-    // Notification service routes
+    // ==================== Notification Routes ====================
     async getNotifications(query, headers, req) {
         return this.gatewayService.forwardRequest('/notifications', 'GET', null, headers, req.user);
     }
     async markNotificationRead(id, headers, req) {
         return this.gatewayService.forwardRequest(`/notifications/${id}/read`, 'PATCH', null, headers, req.user);
+    }
+    // ==================== Statistics Routes ====================
+    async getUserStats(headers, req) {
+        return this.gatewayService.forwardRequest('/stats/users', 'GET', null, headers, req.user);
+    }
+    async getOrderStats(headers, req) {
+        return this.gatewayService.forwardRequest('/stats/orders', 'GET', null, headers, req.user);
+    }
+    async getArticleStats(headers, req) {
+        return this.gatewayService.forwardRequest('/stats/articles', 'GET', null, headers, req.user);
     }
 };
 exports.AppController = AppController;
@@ -186,15 +258,24 @@ tslib_1.__decorate([
 ], AppController.prototype, "getData", null);
 tslib_1.__decorate([
     (0, common_1.Get)('health'),
-    (0, swagger_1.ApiOperation)({ summary: 'Health check' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Health check', description: 'Check API Gateway service health status' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Service health status' }),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", []),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "healthCheck", null);
 tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Post)('auth/register'),
     (0, throttler_1.Throttle)({ short: { limit: 5, ttl: 60000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Register a new user',
+        description: 'Creates a new user account. Rate limited to 5 requests per minute.'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'User successfully registered' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Bad request - validation errors' }),
+    (0, swagger_1.ApiResponse)({ status: 409, description: 'User already exists' }),
+    (0, swagger_1.ApiBody)({ description: 'User registration data', schema: { type: 'object' } }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__metadata("design:type", Function),
@@ -202,8 +283,16 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "register", null);
 tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Post)('auth/login'),
     (0, throttler_1.Throttle)({ short: { limit: 10, ttl: 60000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'User login',
+        description: 'Authenticate user and receive access/refresh tokens. Rate limited to 10 requests per minute.'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Login successful' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid credentials' }),
+    (0, swagger_1.ApiBody)({ description: 'Login credentials', schema: { type: 'object' } }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__metadata("design:type", Function),
@@ -211,7 +300,12 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "login", null);
 tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Post)('auth/refresh'),
+    (0, swagger_1.ApiOperation)({ summary: 'Refresh access token', description: 'Get a new access token using a valid refresh token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Token refreshed successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid refresh token' }),
+    (0, swagger_1.ApiBody)({ description: 'Refresh token data', schema: { type: 'object' } }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__metadata("design:type", Function),
@@ -219,9 +313,13 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "refresh", null);
 tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
     (0, common_1.Post)('auth/logout'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Logout user', description: 'Invalidate current session and refresh token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Logout successful' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
@@ -230,165 +328,672 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "logout", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('auth/users'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Post)('auth/logout-all'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Query)()),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Logout from all devices', description: 'Invalidate all refresh tokens for the user' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Logged out from all devices' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Body)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [Object, typeof (_h = typeof Record !== "undefined" && Record) === "function" ? _h : Object, typeof (_j = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _j : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getUsers", null);
+], AppController.prototype, "logoutAll", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('articles'),
-    tslib_1.__param(0, (0, common_1.Query)()),
-    tslib_1.__param(1, (0, common_1.Headers)()),
-    tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_k = typeof Record !== "undefined" && Record) === "function" ? _k : Object]),
-    tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getArticles", null);
-tslib_1.__decorate([
-    (0, common_1.Post)('articles'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Get)('auth/users'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Body)()),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'List all users (Admin only)',
+        description: 'Get paginated list of all users. Returns additional data based on role (nbrCmdConf for VENDEUR, associated vendeurs for CONFERMATEUR).'
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'role', required: false, description: 'Filter by user role' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, type: Number, description: 'Page number (default: 1)' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 10)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Users retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_l = typeof Record !== "undefined" && Record) === "function" ? _l : Object, typeof (_m = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _m : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_k = typeof Record !== "undefined" && Record) === "function" ? _k : Object, typeof (_l = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _l : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "createArticle", null);
+], AppController.prototype, "getUsers", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('articles/:id'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Get)('auth/users/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user by ID (Admin only)', description: 'Retrieve detailed information about a specific user' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'User ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'User retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'User not found' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_o = typeof Record !== "undefined" && Record) === "function" ? _o : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_m = typeof Record !== "undefined" && Record) === "function" ? _m : Object, typeof (_o = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _o : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getArticle", null);
+], AppController.prototype, "getUser", null);
 tslib_1.__decorate([
-    (0, common_1.Put)('articles/:id'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Get)('auth/roles'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available roles', description: 'Retrieve list of all available user roles' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Roles retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_p = typeof Record !== "undefined" && Record) === "function" ? _p : Object, typeof (_q = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _q : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getRoles", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Patch)('auth/users/:id/role/:role'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update user role (Admin only)', description: 'Change the role of a user' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'User ID' }),
+    (0, swagger_1.ApiParam)({ name: 'role', description: 'New role (admin, vendeur, confermateur, guest)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'User role updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Param)('role')),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, String, typeof (_r = typeof Record !== "undefined" && Record) === "function" ? _r : Object, typeof (_s = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _s : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "updateUserRole", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Patch)('auth/users/:id/active'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update user active status (Admin only)', description: 'Activate or deactivate a user account' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'User ID' }),
+    (0, swagger_1.ApiBody)({ description: 'Active status', schema: { type: 'object', properties: { isActive: { type: 'boolean' } } } }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'User status updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Body)()),
     tslib_1.__param(2, (0, common_1.Headers)()),
     tslib_1.__param(3, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_p = typeof Record !== "undefined" && Record) === "function" ? _p : Object, typeof (_q = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _q : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_t = typeof Record !== "undefined" && Record) === "function" ? _t : Object, typeof (_u = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _u : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "updateArticle", null);
+], AppController.prototype, "updateUserActive", null);
 tslib_1.__decorate([
-    (0, common_1.Delete)('articles/:id'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Patch)('auth/users/:id/vendeur/nbr-cmd-conf'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Increment vendeur nbrCmdConf (Admin only)',
+        description: 'Increment the number of confirmed commands for a vendeur by a specified amount'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'User ID (must be a vendeur)' }),
+    (0, swagger_1.ApiBody)({
+        description: 'Increment amount',
+        schema: { type: 'object', properties: { amount: { type: 'number', default: 1 } } }
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'nbrCmdConf incremented successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
-    tslib_1.__param(1, (0, common_1.Headers)()),
-    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__param(1, (0, common_1.Body)()),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_r = typeof Record !== "undefined" && Record) === "function" ? _r : Object, typeof (_s = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _s : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_v = typeof Record !== "undefined" && Record) === "function" ? _v : Object, typeof (_w = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _w : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "deleteArticle", null);
+], AppController.prototype, "incrementVendeurNbrCmdConf", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('orders'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Delete)('auth/users/:id'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Query)()),
-    tslib_1.__param(1, (0, common_1.Headers)()),
-    tslib_1.__param(2, (0, common_1.Req)()),
-    tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_t = typeof Record !== "undefined" && Record) === "function" ? _t : Object, typeof (_u = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _u : Object]),
-    tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getOrders", null);
-tslib_1.__decorate([
-    (0, common_1.Post)('orders'),
-    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Body)()),
-    tslib_1.__param(1, (0, common_1.Headers)()),
-    tslib_1.__param(2, (0, common_1.Req)()),
-    tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_v = typeof Record !== "undefined" && Record) === "function" ? _v : Object, typeof (_w = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _w : Object]),
-    tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "createOrder", null);
-tslib_1.__decorate([
-    (0, common_1.Get)('orders/:id'),
-    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete user (Admin only)', description: 'Permanently delete a user account' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'User ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'User deleted successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
     tslib_1.__metadata("design:paramtypes", [String, typeof (_x = typeof Record !== "undefined" && Record) === "function" ? _x : Object, typeof (_y = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _y : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getOrder", null);
+], AppController.prototype, "deleteUser", null);
 tslib_1.__decorate([
-    (0, common_1.Put)('orders/:id'),
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Get)('auth/vendeurs/:vendeurId/confermateurs'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get confermateurs for a vendeur', description: 'Retrieve list of confermateurs associated with a vendeur' }),
+    (0, swagger_1.ApiParam)({ name: 'vendeurId', description: 'Vendeur ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Confermateurs retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Param)('vendeurId')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_z = typeof Record !== "undefined" && Record) === "function" ? _z : Object, typeof (_0 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _0 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getVendeurConfermateurs", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Get)('auth/confermateurs'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'List all confermateurs', description: 'Get list of all confermateurs in the system' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Confermateurs retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_1 = typeof Record !== "undefined" && Record) === "function" ? _1 : Object, typeof (_2 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _2 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getConfermateurs", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Post)('auth/confermateurs/:confermateurId/vendeurs/:vendeurId'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Assign vendeur to confermateur (Admin only)', description: 'Create an assignment relationship between a confermateur and a vendeur' }),
+    (0, swagger_1.ApiParam)({ name: 'confermateurId', description: 'Confermateur ID' }),
+    (0, swagger_1.ApiParam)({ name: 'vendeurId', description: 'Vendeur ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Vendeur assigned successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Param)('confermateurId')),
+    tslib_1.__param(1, (0, common_1.Param)('vendeurId')),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, String, typeof (_3 = typeof Record !== "undefined" && Record) === "function" ? _3 : Object, typeof (_4 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _4 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "assignVendeurToConfermateur", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Delete)('auth/confermateurs/:confermateurId/vendeurs/:vendeurId'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Unassign vendeur from confermateur (Admin only)', description: 'Remove assignment relationship between a confermateur and a vendeur' }),
+    (0, swagger_1.ApiParam)({ name: 'confermateurId', description: 'Confermateur ID' }),
+    (0, swagger_1.ApiParam)({ name: 'vendeurId', description: 'Vendeur ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Vendeur unassigned successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Param)('confermateurId')),
+    tslib_1.__param(1, (0, common_1.Param)('vendeurId')),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, String, typeof (_5 = typeof Record !== "undefined" && Record) === "function" ? _5 : Object, typeof (_6 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _6 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "unassignVendeurFromConfermateur", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Post)('auth/password-reset/request'),
+    (0, throttler_1.Throttle)({ short: { limit: 3, ttl: 300000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Request password reset',
+        description: 'Send password reset email to user. Rate limited to 3 requests per 5 minutes.'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Password reset email sent (if account exists)' }),
+    (0, swagger_1.ApiBody)({ description: 'Email address', schema: { type: 'object', properties: { email: { type: 'string' } } } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_7 = typeof Record !== "undefined" && Record) === "function" ? _7 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "requestPasswordReset", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Post)('auth/password-reset/confirm'),
+    (0, throttler_1.Throttle)({ short: { limit: 10, ttl: 60000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Confirm password reset token',
+        description: 'Verify if password reset token is valid. Rate limited to 10 requests per minute.'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Token validation result' }),
+    (0, swagger_1.ApiBody)({ description: 'Reset token', schema: { type: 'object', properties: { token: { type: 'string' } } } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_8 = typeof Record !== "undefined" && Record) === "function" ? _8 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "confirmPasswordResetToken", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('auth'),
+    (0, common_1.Post)('auth/password-reset/reset'),
+    (0, throttler_1.Throttle)({ short: { limit: 5, ttl: 300000 } }),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Reset password',
+        description: 'Reset user password using valid reset token. Rate limited to 5 requests per 5 minutes.'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Password reset successfully' }),
+    (0, swagger_1.ApiBody)({ description: 'Reset token and new password', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_9 = typeof Record !== "undefined" && Record) === "function" ? _9 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "resetPassword", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Get)('articles'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'List articles',
+        description: 'Get paginated list of articles with optional filters (search, category, vendor, status, visibility)'
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false, description: 'Search by title' }),
+    (0, swagger_1.ApiQuery)({ name: 'categoryId', required: false, description: 'Filter by category ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'vendorId', required: false, description: 'Filter by vendor ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'status', required: false, enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], description: 'Filter by status' }),
+    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' }),
+    (0, swagger_1.ApiQuery)({ name: 'offset', required: false, type: Number, description: 'Offset for pagination (default: 0)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Articles retrieved successfully' }),
+    tslib_1.__param(0, (0, common_1.Query)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_10 = typeof Record !== "undefined" && Record) === "function" ? _10 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getArticles", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Post)('articles'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create article', description: 'Create a new article. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Article created successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    (0, swagger_1.ApiBody)({ description: 'Article data', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_11 = typeof Record !== "undefined" && Record) === "function" ? _11 : Object, typeof (_12 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _12 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "createArticle", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Get)('articles/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get article by ID', description: 'Retrieve detailed information about a specific article' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Article not found' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_13 = typeof Record !== "undefined" && Record) === "function" ? _13 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getArticle", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Get)('articles/vendor/:vendorId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get articles by vendor ID', description: 'Retrieve all articles belonging to a specific vendor' }),
+    (0, swagger_1.ApiParam)({ name: 'vendorId', description: 'Vendor ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Articles retrieved successfully' }),
+    tslib_1.__param(0, (0, common_1.Param)('vendorId')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_14 = typeof Record !== "undefined" && Record) === "function" ? _14 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getArticlesByVendor", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Put)('articles/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update article', description: 'Update an existing article. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Article not found' }),
+    (0, swagger_1.ApiBody)({ description: 'Updated article data', schema: { type: 'object' } }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Body)()),
     tslib_1.__param(2, (0, common_1.Headers)()),
     tslib_1.__param(3, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_z = typeof Record !== "undefined" && Record) === "function" ? _z : Object, typeof (_0 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _0 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_15 = typeof Record !== "undefined" && Record) === "function" ? _15 : Object, typeof (_16 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _16 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "updateOrder", null);
+], AppController.prototype, "updateArticle", null);
 tslib_1.__decorate([
-    (0, common_1.Delete)('orders/:id'),
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Delete)('articles/:id'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete article (Admin only)', description: 'Permanently delete an article' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article deleted successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_1 = typeof Record !== "undefined" && Record) === "function" ? _1 : Object, typeof (_2 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _2 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_17 = typeof Record !== "undefined" && Record) === "function" ? _17 : Object, typeof (_18 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _18 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "deleteOrder", null);
+], AppController.prototype, "deleteArticle", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('profile'),
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Patch)('articles/:id/activate'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Headers)()),
-    tslib_1.__param(1, (0, common_1.Req)()),
-    tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_3 = typeof Record !== "undefined" && Record) === "function" ? _3 : Object, typeof (_4 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _4 : Object]),
-    tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getProfile", null);
-tslib_1.__decorate([
-    (0, common_1.Put)('profile'),
-    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
-    tslib_1.__param(0, (0, common_1.Body)()),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Activate article', description: 'Make an article visible/active. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article activated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_5 = typeof Record !== "undefined" && Record) === "function" ? _5 : Object, typeof (_6 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _6 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_19 = typeof Record !== "undefined" && Record) === "function" ? _19 : Object, typeof (_20 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _20 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "updateProfile", null);
+], AppController.prototype, "activateArticle", null);
 tslib_1.__decorate([
-    (0, common_1.Get)('notifications'),
+    (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Patch)('articles/:id/deactivate'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Deactivate article', description: 'Hide/deactivate an article. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article deactivated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_21 = typeof Record !== "undefined" && Record) === "function" ? _21 : Object, typeof (_22 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _22 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "deactivateArticle", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Get)('orders'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'List orders',
+        description: 'Get paginated list of orders. Accessible by ADMIN, VENDEUR, or CONFERMATEUR roles.'
+    }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false, description: 'Search by order number' }),
+    (0, swagger_1.ApiQuery)({ name: 'status', required: false, enum: ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'], description: 'Filter by status' }),
+    (0, swagger_1.ApiQuery)({ name: 'vendorId', required: false, description: 'Filter by vendor ID' }),
+    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' }),
+    (0, swagger_1.ApiQuery)({ name: 'offset', required: false, type: Number, description: 'Offset for pagination (default: 0)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Orders retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
     tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_7 = typeof Record !== "undefined" && Record) === "function" ? _7 : Object, typeof (_8 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _8 : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_23 = typeof Record !== "undefined" && Record) === "function" ? _23 : Object, typeof (_24 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _24 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
-], AppController.prototype, "getNotifications", null);
+], AppController.prototype, "getOrders", null);
 tslib_1.__decorate([
-    (0, common_1.Patch)('notifications/:id/read'),
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Post)('orders'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
-    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create order', description: 'Create a new order. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Order created successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    (0, swagger_1.ApiBody)({ description: 'Order data', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_25 = typeof Record !== "undefined" && Record) === "function" ? _25 : Object, typeof (_26 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _26 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "createOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Get)('orders/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get order by ID', description: 'Retrieve detailed information about a specific order' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Order not found' }),
     tslib_1.__param(0, (0, common_1.Param)('id')),
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_9 = typeof Record !== "undefined" && Record) === "function" ? _9 : Object, typeof (_10 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _10 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_27 = typeof Record !== "undefined" && Record) === "function" ? _27 : Object, typeof (_28 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _28 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Put)('orders/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update order', description: 'Update an existing order. Requires ADMIN, VENDEUR, or CONFERMATEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Order not found' }),
+    (0, swagger_1.ApiBody)({ description: 'Updated order data', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Body)()),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_29 = typeof Record !== "undefined" && Record) === "function" ? _29 : Object, typeof (_30 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _30 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "updateOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Delete)('orders/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete order (Admin only)', description: 'Permanently delete an order' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order deleted successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_31 = typeof Record !== "undefined" && Record) === "function" ? _31 : Object, typeof (_32 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _32 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "deleteOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Patch)('orders/:id/confirm'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Confirm order',
+        description: 'Confirm an order (consumes vendeur confirmation quota). Requires VENDEUR or CONFERMATEUR role.'
+    }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order confirmed successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires VENDEUR or CONFERMATEUR role, or no remaining confirmations' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Order not found' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_33 = typeof Record !== "undefined" && Record) === "function" ? _33 : Object, typeof (_34 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _34 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "confirmOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Patch)('orders/:id/activate'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Activate order', description: 'Activate an order. Requires ADMIN, VENDEUR, or CONFERMATEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order activated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_35 = typeof Record !== "undefined" && Record) === "function" ? _35 : Object, typeof (_36 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _36 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "activateOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('orders'),
+    (0, common_1.Patch)('orders/:id/deactivate'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Deactivate order', description: 'Deactivate an order. Requires ADMIN, VENDEUR, or CONFERMATEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Order ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order deactivated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_37 = typeof Record !== "undefined" && Record) === "function" ? _37 : Object, typeof (_38 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _38 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "deactivateOrder", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('profile'),
+    (0, common_1.Get)('profile'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get user profile', description: 'Retrieve authenticated user profile information' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Profile retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_39 = typeof Record !== "undefined" && Record) === "function" ? _39 : Object, typeof (_40 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _40 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getProfile", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('profile'),
+    (0, common_1.Put)('profile'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update user profile', description: 'Update authenticated user profile information' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Profile updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiBody)({ description: 'Updated profile data', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Body)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_41 = typeof Record !== "undefined" && Record) === "function" ? _41 : Object, typeof (_42 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _42 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "updateProfile", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('notifications'),
+    (0, common_1.Get)('notifications'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get notifications', description: 'Retrieve notifications for authenticated user' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, type: Number, description: 'Items per page' }),
+    (0, swagger_1.ApiQuery)({ name: 'offset', required: false, type: Number, description: 'Offset for pagination' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Notifications retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    tslib_1.__param(0, (0, common_1.Query)()),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_43 = typeof Record !== "undefined" && Record) === "function" ? _43 : Object, typeof (_44 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _44 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getNotifications", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('notifications'),
+    (0, common_1.Patch)('notifications/:id/read'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Mark notification as read', description: 'Mark a notification as read for authenticated user' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Notification ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Notification marked as read' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Notification not found' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Headers)()),
+    tslib_1.__param(2, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_45 = typeof Record !== "undefined" && Record) === "function" ? _45 : Object, typeof (_46 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _46 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "markNotificationRead", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('statistics'),
+    (0, common_1.Get)('stats/users'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get user statistics (Admin only)',
+        description: 'Retrieve comprehensive user statistics including total count, breakdown by role, active/inactive counts, and vendeurs with confirmed commands'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'User statistics retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_47 = typeof Record !== "undefined" && Record) === "function" ? _47 : Object, typeof (_48 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _48 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getUserStats", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('statistics'),
+    (0, common_1.Get)('stats/orders'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get order statistics (Admin only)',
+        description: 'Retrieve comprehensive order statistics including total count, breakdown by status, paid/unpaid counts, active/inactive counts, and total revenue'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Order statistics retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_49 = typeof Record !== "undefined" && Record) === "function" ? _49 : Object, typeof (_50 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _50 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getOrderStats", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('statistics'),
+    (0, common_1.Get)('stats/articles'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Get article statistics (Admin only)',
+        description: 'Retrieve comprehensive article statistics including total count, breakdown by status, active/inactive counts, and total stock quantity'
+    }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article statistics retrieved successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Admin role required' }),
+    tslib_1.__param(0, (0, common_1.Headers)()),
+    tslib_1.__param(1, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [typeof (_51 = typeof Record !== "undefined" && Record) === "function" ? _51 : Object, typeof (_52 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _52 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getArticleStats", null);
 exports.AppController = AppController = tslib_1.__decorate([
     (0, swagger_1.ApiTags)('api-gateway'),
     (0, common_1.Controller)(),
@@ -441,23 +1046,42 @@ let GatewayService = GatewayService_1 = class GatewayService {
             { service: 'auth', path: '/login', method: 'POST', requiresAuth: false },
             { service: 'auth', path: '/refresh', method: 'POST', requiresAuth: false },
             { service: 'auth', path: '/logout', method: 'POST', requiresAuth: true },
-            { service: 'auth', path: '/users', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
-            { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['ADMIN'] },
-            { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
-            { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['ADMIN'] },
-            { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
+            { service: 'auth', path: '/logout-all', method: 'POST', requiresAuth: true },
+            { service: 'auth', path: '/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/roles', method: 'GET', requiresAuth: true },
+            { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/users/:id/vendeur/nbr-cmd-conf', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/vendeurs/:vendeurId/confermateurs', method: 'GET', requiresAuth: true, roles: ['vendeur', 'admin'] },
+            { service: 'auth', path: '/confermateurs', method: 'GET', requiresAuth: true },
+            { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'POST', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+            { service: 'auth', path: '/password-reset/request', method: 'POST', requiresAuth: false },
+            { service: 'auth', path: '/password-reset/confirm', method: 'POST', requiresAuth: false },
+            { service: 'auth', path: '/password-reset/reset', method: 'POST', requiresAuth: false },
+            { service: 'auth', path: '/stats/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
             // Article service endpoints
             { service: 'article', path: '/articles', method: 'GET', requiresAuth: false },
-            { service: 'article', path: '/articles', method: 'POST', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
+            { service: 'article', path: '/articles', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
             { service: 'article', path: '/articles/:id', method: 'GET', requiresAuth: false },
-            { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-            { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
+            { service: 'article', path: '/articles/vendor/:vendorId', method: 'GET', requiresAuth: false },
+            { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur'] },
+            { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+            { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+            { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+            { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['admin'] },
             // CMD service endpoints
-            { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-            { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: true, roles: ['ADMIN', 'VENDEUR'] },
-            { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-            { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['ADMIN', 'VENDEUR', 'CONFERMATEUR'] },
-            { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['ADMIN'] },
+            { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+            { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+            { service: 'cmd', path: '/orders/:id/confirm', method: 'PATCH', requiresAuth: true, roles: ['vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/orders/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/orders/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+            { service: 'cmd', path: '/stats/orders', method: 'GET', requiresAuth: true, roles: ['admin'] },
             // User service endpoints
             { service: 'user', path: '/profile', method: 'GET', requiresAuth: true },
             { service: 'user', path: '/profile', method: 'PUT', requiresAuth: true },
@@ -496,10 +1120,32 @@ let GatewayService = GatewayService_1 = class GatewayService {
             return part.startsWith(':') || part === pathParts[index];
         });
     }
+    sanitizeHeaders(headers = {}) {
+        const blocked = new Set([
+            'host',
+            'content-length',
+            'transfer-encoding',
+            'connection',
+            'accept-encoding',
+            'content-encoding',
+        ]);
+        const result = {};
+        for (const [key, value] of Object.entries(headers)) {
+            const lowerKey = key.toLowerCase();
+            if (!blocked.has(lowerKey) && value !== undefined && value !== null) {
+                result[key] = value;
+            }
+        }
+        if (!result['Content-Type'] && !result['content-type']) {
+            result['Content-Type'] = 'application/json';
+        }
+        return result;
+    }
     async forwardRequest(path, method, body, headers, user) {
-        const endpoint = this.findEndpoint(path, method);
+        const [pathname, queryString] = path.split('?');
+        const endpoint = this.findEndpoint(pathname, method);
         if (!endpoint) {
-            throw new common_1.HttpException(`Endpoint not found: ${method} ${path}`, common_1.HttpStatus.NOT_FOUND);
+            throw new common_1.HttpException(`Endpoint not found: ${method} ${pathname}`, common_1.HttpStatus.NOT_FOUND);
         }
         // Check authentication requirements
         if (endpoint.requiresAuth && !user) {
@@ -510,29 +1156,46 @@ let GatewayService = GatewayService_1 = class GatewayService {
             throw new common_1.HttpException('Insufficient permissions', common_1.HttpStatus.FORBIDDEN);
         }
         const serviceUrl = this.getServiceUrl(endpoint.service);
-        const fullUrl = `${serviceUrl}${path}`;
+        // Add special handling for stats endpoints
+        let forwardedPath = pathname;
+        if (endpoint.service === 'cmd' && pathname === '/stats/orders') {
+            forwardedPath = '/orders/stats/orders';
+        }
+        else if (endpoint.service === 'article' && pathname === '/stats/articles') {
+            forwardedPath = '/articles/stats/articles';
+        }
+        const fullUrl = `${serviceUrl}/api${forwardedPath}`;
+        const sanitized = this.sanitizeHeaders(headers);
         const config = {
             method: method.toLowerCase(),
             url: fullUrl,
             headers: {
-                ...headers,
-                'x-user-id': user?.userId,
-                'x-user-role': user?.role,
+                ...sanitized,
+                ...(user ? { 'x-user-id': user.userId, 'x-user-role': user.role } : {}),
                 'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
             },
             timeout: 30000,
+            // validateStatus: (status) => {
+            //   // Treat 2xx and 3xx (including 304 Not Modified) as success
+            //   return status >= 200 && status < 400;
+            // },
         };
+        if (queryString) {
+            const params = Object.fromEntries(new URLSearchParams(queryString));
+            config.params = params;
+        }
         if (body && ['POST', 'PUT', 'PATCH'].includes(method)) {
             config.data = body;
         }
         try {
             this.logger.log(`Forwarding ${method} ${path} to ${endpoint.service} service`);
             const response = await (0, rxjs_1.firstValueFrom)(this.httpService.request(config));
-            return response;
+            return response.data; // Return only the data, not the full Axios response
         }
         catch (error) {
-            this.logger.error(`Error forwarding request to ${endpoint.service}:`, error.message);
-            if (error.response) {
+            this.logger.error(`Error forwarding ${method} ${path} to ${endpoint.service} service:`, error?.message || 'Unknown error');
+            if (error?.response) {
+                this.logger.error(`Response status: ${error.response.status}, URL: ${fullUrl}`);
                 throw new common_1.HttpException(error.response.data || 'Service error', error.response.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
             }
             throw new common_1.HttpException('Service unavailable', common_1.HttpStatus.SERVICE_UNAVAILABLE);
@@ -2927,13 +3590,38 @@ const swagger_1 = __webpack_require__(3);
 const app_module_1 = __webpack_require__(4);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.enableCors({
+        origin: [
+            'http://localhost:3000',
+            'http://localhost:3006',
+            'http://127.0.0.1:3000',
+            'http://localhost:4200',
+            'http://127.0.0.1:4200',
+        ],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
+    });
     const globalPrefix = 'api';
     app.setGlobalPrefix(globalPrefix);
     const config = new swagger_1.DocumentBuilder()
-        .setTitle('API Gateway')
-        .setDescription('API Gateway API')
+        .setTitle('You Fizz API Gateway')
+        .setDescription('Central API Gateway for You Fizz microservices architecture. Provides unified access to all backend services including authentication, articles, orders, users, notifications, and statistics.')
         .setVersion('1.0')
-        .addTag('api')
+        .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        name: 'JWT',
+        description: 'Enter JWT token',
+        in: 'header',
+    }, 'JWT-auth')
+        .addTag('auth', 'Authentication and user management endpoints')
+        .addTag('articles', 'Article management endpoints')
+        .addTag('orders', 'Order/Command management endpoints')
+        .addTag('profile', 'User profile endpoints')
+        .addTag('notifications', 'Notification endpoints')
+        .addTag('statistics', 'Statistics and analytics endpoints')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api-docs', app, document);

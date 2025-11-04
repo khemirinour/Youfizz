@@ -38,15 +38,15 @@ const jwt_1 = __webpack_require__(26);
 const passport_1 = __webpack_require__(27);
 const shared_2 = __webpack_require__(15);
 const typeorm_1 = __webpack_require__(13);
-const rate_limiting_config_1 = __webpack_require__(79);
+const rate_limiting_config_1 = __webpack_require__(80);
 const user_entity_1 = __webpack_require__(60);
 const refresh_token_entity_1 = __webpack_require__(63);
 const password_reset_token_entity_1 = __webpack_require__(65);
 const vendeur_entity_1 = __webpack_require__(62);
 const confermateur_entity_1 = __webpack_require__(64);
-const seed_service_1 = __webpack_require__(80);
+const seed_service_1 = __webpack_require__(81);
 const notification_client_1 = __webpack_require__(59);
-const vendors_controller_1 = __webpack_require__(81);
+const vendors_controller_1 = __webpack_require__(82);
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -113,9 +113,10 @@ const password_reset_response_dto_1 = __webpack_require__(74);
 const confirm_password_reset_dto_1 = __webpack_require__(75);
 const password_reset_confirmation_response_dto_1 = __webpack_require__(76);
 const user_entity_1 = __webpack_require__(60);
+const list_users_query_1 = __webpack_require__(77);
 const shared_1 = __webpack_require__(15);
-const roles_decorator_1 = __webpack_require__(77);
-const roles_guard_1 = __webpack_require__(78);
+const roles_decorator_1 = __webpack_require__(78);
+const roles_guard_1 = __webpack_require__(79);
 let AppController = class AppController {
     constructor(appService, authService) {
         this.appService = appService;
@@ -146,11 +147,9 @@ let AppController = class AppController {
     async logoutAll(body) {
         return this.authService.logoutAll(body.userId);
     }
-    async findAll(role) {
-        if (role) {
-            return this.authService.findByRole(role);
-        }
-        return this.authService.findAll();
+    async findAll(query) {
+        const { role, page, limit } = query;
+        return this.authService.findAllPaginated({ role, page, limit });
     }
     async findOne(id) {
         return this.authService.findOne(id);
@@ -176,6 +175,10 @@ let AppController = class AppController {
     async deleteUser(id) {
         return this.authService.deleteUser(id);
     }
+    async incrementVendeurNbrCmdConf(id, body) {
+        const amount = body?.amount ?? 1;
+        return this.authService.incrementVendeurNbrCmdConf(id, amount);
+    }
     // Vendeur: manage confermateurs associations
     async getConfermateursForVendeur(vendeurId) {
         return this.authService.getConfermateursForVendeur(vendeurId);
@@ -187,6 +190,9 @@ let AppController = class AppController {
     // Admin: manage assignment between confermateur and vendeur
     async assignVendeurToConfermateur(confermateurId, vendeurId) {
         return this.authService.assignVendeurToConfermateur(confermateurId, vendeurId);
+    }
+    async getUserStats() {
+        return this.authService.getUserStats();
     }
     async unassignVendeurFromConfermateur(confermateurId, vendeurId) {
         return this.authService.unassignVendeurFromConfermateur(confermateurId, vendeurId);
@@ -411,21 +417,18 @@ tslib_1.__decorate([
         description: 'Retrieve list of all users. Admin only. Can filter by role.'
     }),
     (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiQuery)({
-        name: 'role',
-        required: false,
-        enum: user_entity_1.UserRole,
-        description: 'Filter users by role'
-    }),
+    (0, swagger_1.ApiQuery)({ name: 'role', required: false, enum: user_entity_1.UserRole, description: 'Filter users by role' }),
+    (0, swagger_1.ApiQuery)({ name: 'page', required: false, schema: { type: 'number', default: 1 } }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, schema: { type: 'number', default: 10 } }),
     (0, swagger_1.ApiOkResponse)({
         description: 'List of users',
         type: [user_response_dto_1.UserResponseDto]
     }),
     (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
     (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
-    tslib_1.__param(0, (0, common_1.Query)('role')),
+    tslib_1.__param(0, (0, common_1.Query)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_m = typeof user_entity_1.UserRole !== "undefined" && user_entity_1.UserRole) === "function" ? _m : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_m = typeof list_users_query_1.ListUsersQuery !== "undefined" && list_users_query_1.ListUsersQuery) === "function" ? _m : Object]),
     tslib_1.__metadata("design:returntype", typeof (_o = typeof Promise !== "undefined" && Promise) === "function" ? _o : Object)
 ], AppController.prototype, "findAll", null);
 tslib_1.__decorate([
@@ -573,6 +576,42 @@ tslib_1.__decorate([
 ], AppController.prototype, "deleteUser", null);
 tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    (0, common_1.Patch)('users/:id/vendeur/nbr-cmd-conf'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: increment vendeur nbrCmdConf',
+        description: 'Increment the nbrCmdConf value for a vendeur by user ID. Admin only.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Vendeur nbrCmdConf incremented successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                id: { type: 'string', format: 'uuid', description: 'Vendeur ID' },
+                idUser: { type: 'string', format: 'uuid', description: 'User ID' },
+                nbrCmdConf: { type: 'number', description: 'Updated nbrCmdConf value' }
+            },
+            example: {
+                id: '123e4567-e89b-12d3-a456-426614174000',
+                idUser: '123e4567-e89b-12d3-a456-426614174001',
+                nbrCmdConf: 11
+            }
+        }
+    }),
+    (0, swagger_1.ApiBadRequestResponse)({
+        description: 'Invalid user ID or vendeur not found for this user'
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Body)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "incrementVendeurNbrCmdConf", null);
+tslib_1.__decorate([
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.VENDEUR, user_entity_1.UserRole.ADMIN),
     (0, common_1.Get)('vendeurs/:vendeurId/confermateurs'),
     (0, swagger_1.ApiOperation)({
@@ -638,6 +677,39 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [String, String]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "assignVendeurToConfermateur", null);
+tslib_1.__decorate([
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
+    (0, common_1.Get)('stats/users'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: Get user statistics',
+        description: 'Returns comprehensive statistics about users including total count, breakdown by role, active/inactive counts, and vendeurs with confirmed commands.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'User statistics retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                total: { type: 'number', description: 'Total number of users' },
+                byRole: {
+                    type: 'object',
+                    description: 'Users count by role',
+                    additionalProperties: { type: 'number' },
+                    example: { admin: 5, vendeur: 10, confermateur: 3, guest: 20 }
+                },
+                active: { type: 'number', description: 'Number of active users' },
+                inactive: { type: 'number', description: 'Number of inactive users' },
+                vendeursWithCmdConf: { type: 'number', description: 'Number of vendeurs with nbrCmdConf > 0' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", []),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getUserStats", null);
 tslib_1.__decorate([
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
     (0, roles_decorator_1.Roles)(user_entity_1.UserRole.ADMIN),
@@ -1064,6 +1136,65 @@ let AuthService = class AuthService {
         const users = await this.userRepo.find();
         return users.map(u => this.toUserResponseDto(u));
     }
+    async findAllPaginated(params) {
+        const { role } = params;
+        const page = Number(params.page);
+        const limit = Number(params.limit);
+        const pageNum = Number.isFinite(page) && page > 0 ? page : 1;
+        const limitNum = Number.isFinite(limit) && limit > 0 ? limit : 10;
+        const where = role ? { role } : {};
+        const [items, total] = await this.userRepo.findAndCount({
+            where,
+            order: { createdAt: 'DESC' },
+            skip: (pageNum - 1) * limitNum,
+            take: limitNum,
+        });
+        const userDtos = items.map(u => this.toUserResponseDto(u));
+        // Fetch vendeur data for VENDEUR users
+        const vendeurUserIds = items.filter(u => u.role === user_entity_1.UserRole.VENDEUR).map(u => u.id);
+        if (vendeurUserIds.length > 0) {
+            const vendeurs = await this.vendeurRepo
+                .createQueryBuilder('vendeur')
+                .where('vendeur.idUser IN (:...ids)', { ids: vendeurUserIds })
+                .getMany();
+            const vendeurMap = new Map(vendeurs.map(v => [v.idUser, v.nbrCmdConf]));
+            userDtos.forEach(dto => {
+                if (dto.role === user_entity_1.UserRole.VENDEUR) {
+                    dto.nbrCmdConf = vendeurMap.get(dto.id) ?? 0;
+                }
+            });
+        }
+        // Fetch associated vendeurs for CONFERMATEUR users
+        const confermateurUserIds = items.filter(u => u.role === user_entity_1.UserRole.CONFERMATEUR).map(u => u.id);
+        if (confermateurUserIds.length > 0) {
+            const confermateurs = await this.confermateurRepo
+                .createQueryBuilder('confermateur')
+                .leftJoinAndSelect('confermateur.vendeurs', 'vendeur')
+                .leftJoinAndSelect('vendeur.user', 'user')
+                .where('confermateur.idUser IN (:...ids)', { ids: confermateurUserIds })
+                .getMany();
+            const confermateurVendeursMap = new Map();
+            confermateurs.forEach(conf => {
+                const vendeurUsers = (conf.vendeurs || []).map(v => ({
+                    id: v.user?.id || '',
+                    firstName: v.user?.firstName || '',
+                    lastName: v.user?.lastName || '',
+                })).filter(v => v.id); // Filter out any invalid entries
+                if (vendeurUsers.length > 0) {
+                    confermateurVendeursMap.set(conf.idUser, vendeurUsers);
+                }
+            });
+            userDtos.forEach(dto => {
+                if (dto.role === user_entity_1.UserRole.CONFERMATEUR) {
+                    const vendeurs = confermateurVendeursMap.get(dto.id);
+                    if (vendeurs && vendeurs.length > 0) {
+                        dto.vendeurs = vendeurs;
+                    }
+                }
+            });
+        }
+        return { items: userDtos, total, page: pageNum, limit: limitNum };
+    }
     async findOne(id) {
         const user = await this.userRepo.findOne({ where: { id } });
         if (!user) {
@@ -1111,6 +1242,35 @@ let AuthService = class AuthService {
         await this.userRepo.save(user);
         return this.toUserResponseDto(user);
     }
+    async getUserStats() {
+        const [total, byRole, activeCount, inactiveCount] = await Promise.all([
+            this.userRepo.count(),
+            this.userRepo
+                .createQueryBuilder('user')
+                .select('user.role', 'role')
+                .addSelect('COUNT(*)', 'count')
+                .groupBy('user.role')
+                .getRawMany(),
+            this.userRepo.count({ where: { isActive: true } }),
+            this.userRepo.count({ where: { isActive: false } }),
+        ]);
+        const byRoleMap = {};
+        byRole.forEach((item) => {
+            byRoleMap[item.role] = parseInt(item.count, 10);
+        });
+        // Count vendeurs with nbrCmdConf > 0
+        const vendeursWithCmdConf = await this.vendeurRepo
+            .createQueryBuilder('vendeur')
+            .where('vendeur.nbrCmdConf > 0')
+            .getCount();
+        return {
+            total,
+            byRole: byRoleMap,
+            active: activeCount,
+            inactive: inactiveCount,
+            vendeursWithCmdConf,
+        };
+    }
     async deleteUser(id) {
         const user = await this.userRepo.findOne({ where: { id } });
         if (!user) {
@@ -1128,6 +1288,19 @@ let AuthService = class AuthService {
             }
         }
         return { message: 'User deleted' };
+    }
+    async incrementVendeurNbrCmdConf(userId, amount = 1) {
+        const vendeur = await this.vendeurRepo.findOne({ where: { idUser: userId } });
+        if (!vendeur) {
+            throw new common_1.BadRequestException('Vendeur not found for this user');
+        }
+        const newValue = (vendeur.nbrCmdConf ?? 0) + amount;
+        await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: newValue });
+        return {
+            id: vendeur.id,
+            idUser: vendeur.idUser,
+            nbrCmdConf: newValue,
+        };
     }
     // Confermateur management for vendeurs
     async findConfermateurs() {
@@ -4707,6 +4880,44 @@ tslib_1.__decorate([
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
+var _a;
+Object.defineProperty(exports, "__esModule", ({ value: true }));
+exports.ListUsersQuery = void 0;
+const tslib_1 = __webpack_require__(5);
+const class_validator_1 = __webpack_require__(41);
+const class_transformer_1 = __webpack_require__(61);
+const user_entity_1 = __webpack_require__(60);
+class ListUsersQuery {
+    constructor() {
+        this.page = 1;
+        this.limit = 10;
+    }
+}
+exports.ListUsersQuery = ListUsersQuery;
+tslib_1.__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsEnum)(user_entity_1.UserRole),
+    tslib_1.__metadata("design:type", typeof (_a = typeof user_entity_1.UserRole !== "undefined" && user_entity_1.UserRole) === "function" ? _a : Object)
+], ListUsersQuery.prototype, "role", void 0);
+tslib_1.__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    tslib_1.__metadata("design:type", Object)
+], ListUsersQuery.prototype, "page", void 0);
+tslib_1.__decorate([
+    (0, class_transformer_1.Type)(() => Number),
+    (0, class_validator_1.IsInt)(),
+    (0, class_validator_1.Min)(1),
+    tslib_1.__metadata("design:type", Object)
+], ListUsersQuery.prototype, "limit", void 0);
+
+
+/***/ }),
+/* 78 */
+/***/ ((__unused_webpack_module, exports, __webpack_require__) => {
+
+
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.Roles = exports.ROLES_KEY = void 0;
 const common_1 = __webpack_require__(1);
@@ -4716,7 +4927,7 @@ exports.Roles = Roles;
 
 
 /***/ }),
-/* 78 */
+/* 79 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4726,7 +4937,7 @@ exports.RolesGuard = void 0;
 const tslib_1 = __webpack_require__(5);
 const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
-const roles_decorator_1 = __webpack_require__(77);
+const roles_decorator_1 = __webpack_require__(78);
 let RolesGuard = class RolesGuard {
     constructor(reflector) {
         this.reflector = reflector;
@@ -4754,7 +4965,7 @@ exports.RolesGuard = RolesGuard = tslib_1.__decorate([
 
 
 /***/ }),
-/* 79 */
+/* 80 */
 /***/ ((__unused_webpack_module, exports) => {
 
 
@@ -4837,7 +5048,7 @@ exports.getRateLimitingConfig = getRateLimitingConfig;
 
 
 /***/ }),
-/* 80 */
+/* 81 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4881,7 +5092,7 @@ exports.SeedService = SeedService = tslib_1.__decorate([
 
 
 /***/ }),
-/* 81 */
+/* 82 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -4894,8 +5105,8 @@ const swagger_1 = __webpack_require__(9);
 const typeorm_1 = __webpack_require__(13);
 const typeorm_2 = __webpack_require__(14);
 const vendeur_entity_1 = __webpack_require__(62);
-const jwt_auth_guard_1 = __webpack_require__(82);
-const roles_guard_1 = __webpack_require__(78);
+const jwt_auth_guard_1 = __webpack_require__(83);
+const roles_guard_1 = __webpack_require__(79);
 let VendorsController = class VendorsController {
     constructor(vendeurRepo) {
         this.vendeurRepo = vendeurRepo;
@@ -5081,7 +5292,7 @@ exports.VendorsController = VendorsController = tslib_1.__decorate([
 
 
 /***/ }),
-/* 82 */
+/* 83 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -5099,7 +5310,7 @@ exports.JwtAuthGuard = JwtAuthGuard = tslib_1.__decorate([
 
 
 /***/ }),
-/* 83 */
+/* 84 */
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
@@ -5245,9 +5456,21 @@ const common_1 = __webpack_require__(1);
 const core_1 = __webpack_require__(2);
 const microservices_1 = __webpack_require__(3);
 const app_module_1 = __webpack_require__(4);
-const swagger_config_1 = __webpack_require__(83);
+const swagger_config_1 = __webpack_require__(84);
 async function bootstrap() {
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
+    app.enableCors({
+        origin: [
+            'http://localhost:3000',
+            'http://localhost:3006',
+            'http://127.0.0.1:3000',
+            'http://localhost:4200',
+            'http://127.0.0.1:4200',
+        ],
+        methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+        allowedHeaders: ['Content-Type', 'Authorization'],
+        credentials: true,
+    });
     app.connectMicroservice({
         transport: microservices_1.Transport.TCP,
         options: { port: 4001 },

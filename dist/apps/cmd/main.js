@@ -124,6 +124,9 @@ let AppController = class AppController {
     deactivate(id) {
         return this.appService.setActive(id, false);
     }
+    async getOrderStats() {
+        return this.appService.getOrderStats();
+    }
 };
 exports.AppController = AppController;
 tslib_1.__decorate([
@@ -226,6 +229,41 @@ tslib_1.__decorate([
     tslib_1.__metadata("design:paramtypes", [String]),
     tslib_1.__metadata("design:returntype", void 0)
 ], AppController.prototype, "deactivate", null);
+tslib_1.__decorate([
+    (0, common_1.Get)('stats/orders'),
+    (0, swagger_1.ApiOperation)({
+        summary: 'Admin: Get order statistics',
+        description: 'Returns comprehensive statistics about orders including total count, breakdown by status, paid/unpaid counts, active/inactive counts, and total revenue.'
+    }),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard, roles_guard_1.RolesGuard),
+    (0, roles_decorator_1.Roles)('ADMIN'),
+    (0, swagger_1.ApiOkResponse)({
+        description: 'Order statistics retrieved successfully',
+        schema: {
+            type: 'object',
+            properties: {
+                total: { type: 'number', description: 'Total number of orders' },
+                byStatus: {
+                    type: 'object',
+                    description: 'Orders count by status',
+                    additionalProperties: { type: 'number' },
+                    example: { PENDING: 10, CONFIRMED: 5, SHIPPED: 3, DELIVERED: 20, CANCELLED: 2 }
+                },
+                paid: { type: 'number', description: 'Number of paid orders' },
+                unpaid: { type: 'number', description: 'Number of unpaid orders' },
+                active: { type: 'number', description: 'Number of active orders' },
+                inactive: { type: 'number', description: 'Number of inactive orders' },
+                totalRevenue: { type: 'number', description: 'Total revenue from all orders' }
+            }
+        }
+    }),
+    (0, swagger_1.ApiUnauthorizedResponse)({ description: 'Missing or invalid token' }),
+    (0, swagger_1.ApiForbiddenResponse)({ description: 'Insufficient role - Admin required' }),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", []),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "getOrderStats", null);
 exports.AppController = AppController = tslib_1.__decorate([
     (0, swagger_1.ApiTags)('orders'),
     (0, common_1.Controller)('orders'),
@@ -337,6 +375,40 @@ let AppService = class AppService {
         }
         await this.repo.update({ id }, { status: order_entity_1.OrderStatus.CONFIRMED, isActive: true });
         return this.findOne(id);
+    }
+    async getOrderStats() {
+        const [total, byStatus, paidCount, unpaidCount, activeCount, inactiveCount] = await Promise.all([
+            this.repo.count(),
+            this.repo
+                .createQueryBuilder('order')
+                .select('order.status', 'status')
+                .addSelect('COUNT(*)', 'count')
+                .groupBy('order.status')
+                .getRawMany(),
+            this.repo.count({ where: { isPaid: true } }),
+            this.repo.count({ where: { isPaid: false } }),
+            this.repo.count({ where: { isActive: true } }),
+            this.repo.count({ where: { isActive: false } }),
+        ]);
+        const byStatusMap = {};
+        byStatus.forEach((item) => {
+            byStatusMap[item.status] = parseInt(item.count, 10);
+        });
+        // Calculate total revenue (sum of all order totals)
+        const revenueResult = await this.repo
+            .createQueryBuilder('order')
+            .select('SUM(order.total::numeric)', 'total')
+            .getRawOne();
+        const totalRevenue = revenueResult?.total ? parseFloat(revenueResult.total) : 0;
+        return {
+            total,
+            byStatus: byStatusMap,
+            paid: paidCount,
+            unpaid: unpaidCount,
+            active: activeCount,
+            inactive: inactiveCount,
+            totalRevenue,
+        };
     }
 };
 exports.AppService = AppService;
@@ -2985,7 +3057,9 @@ let RolesGuard = class RolesGuard {
         const user = request.user;
         if (!user?.role)
             return false;
-        return requiredRoles.includes(user.role);
+        return requiredRoles.some(requiredRole => requiredRole === user.role ||
+            requiredRole === user.role?.toUpperCase() ||
+            requiredRole.toUpperCase() === user.role?.toUpperCase());
     }
 };
 exports.RolesGuard = RolesGuard;

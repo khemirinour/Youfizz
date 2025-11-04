@@ -4,13 +4,15 @@ import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "react-i18next";
 import { useState, useEffect } from "react";
-import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useAuthStore } from "@/stores/authStore";
+import Header from "@/components/Header";
 
 const heroImage = "/hero-space.jpg";
 
 const Index = () => {
   const router = useRouter();
   const { t, ready } = useTranslation();
+  const { isAuthenticated, logout } = useAuthStore();
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -44,7 +46,7 @@ const Index = () => {
       {/* Radial gradient overlay */}
       <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
       
-      <LanguageSwitcher />
+      <Header />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-6">
@@ -64,22 +66,35 @@ const Index = () => {
 
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
-            <Button
-              variant="hero"
-              size="xl"
-              onClick={() => router.push("/signin")}
-              className="w-full sm:w-auto"
-            >
-              {t('home.signIn')}
-            </Button>
-            <Button
-              variant="outline"
-              size="xl"
-              onClick={() => router.push("/signup")}
-              className="w-full sm:w-auto"
-            >
-              {t('home.signUp')}
-            </Button>
+            {!isAuthenticated ? (
+              <>
+                <Button
+                  variant="hero"
+                  size="xl"
+                  onClick={() => router.push("/signin")}
+                  className="w-full sm:w-auto"
+                >
+                  {t('home.signIn')}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="xl"
+                  onClick={() => router.push("/signup")}
+                  className="w-full sm:w-auto"
+                >
+                  {t('home.signUp')}
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="outline"
+                size="xl"
+                onClick={() => logout()}
+                className="w-full sm:w-auto"
+              >
+                Sign out
+              </Button>
+            )}
           </div>
 
           {/* Features */}

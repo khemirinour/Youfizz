@@ -15,6 +15,8 @@ import { PasswordResetResponseDto } from '../dto/password-reset-response.dto';
 import { ConfirmPasswordResetDto } from '../dto/confirm-password-reset.dto';
 import { PasswordResetConfirmationResponseDto } from '../dto/password-reset-confirmation-response.dto';
 import { UserRole } from '../entities/user.entity';
+import { ListUsersQuery } from '../dto/list-users.query';
+import { Paginated } from '../dto/paginated.dto';
 import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
@@ -224,23 +226,18 @@ export class AppController {
     description: 'Retrieve list of all users. Admin only. Can filter by role.'
   })
   @ApiBearerAuth()
-  @ApiQuery({ 
-    name: 'role', 
-    required: false, 
-    enum: UserRole,
-    description: 'Filter users by role'
-  })
+  @ApiQuery({ name: 'role', required: false, enum: UserRole, description: 'Filter users by role' })
+  @ApiQuery({ name: 'page', required: false, schema: { type: 'number', default: 1 } })
+  @ApiQuery({ name: 'limit', required: false, schema: { type: 'number', default: 10 } })
   @ApiOkResponse({ 
     description: 'List of users', 
     type: [UserResponseDto]
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
-  async findAll(@Query('role') role?: UserRole): Promise<UserResponseDto[]> {
-    if (role) {
-      return this.authService.findByRole(role);
-    }
-    return this.authService.findAll();
+  async findAll(@Query() query: ListUsersQuery): Promise<Paginated<UserResponseDto>> {
+    const { role, page, limit } = query;
+    return this.authService.findAllPaginated({ role, page, limit });
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -384,6 +381,43 @@ export class AppController {
     return this.authService.deleteUser(id);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Patch('users/:id/vendeur/nbr-cmd-conf')
+  @ApiOperation({ 
+    summary: 'Admin: increment vendeur nbrCmdConf',
+    description: 'Increment the nbrCmdConf value for a vendeur by user ID. Admin only.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'Vendeur nbrCmdConf incremented successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        id: { type: 'string', format: 'uuid', description: 'Vendeur ID' },
+        idUser: { type: 'string', format: 'uuid', description: 'User ID' },
+        nbrCmdConf: { type: 'number', description: 'Updated nbrCmdConf value' }
+      },
+      example: {
+        id: '123e4567-e89b-12d3-a456-426614174000',
+        idUser: '123e4567-e89b-12d3-a456-426614174001',
+        nbrCmdConf: 11
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Invalid user ID or vendeur not found for this user'
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async incrementVendeurNbrCmdConf(
+    @Param('id') id: string,
+    @Body() body: { amount?: number }
+  ) {
+    const amount = body?.amount ?? 1;
+    return this.authService.incrementVendeurNbrCmdConf(id, amount);
+  }
+
   // Vendeur: manage confermateurs associations
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDEUR, UserRole.ADMIN)
@@ -449,6 +483,38 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
   ) {
     return this.authService.assignVendeurToConfermateur(confermateurId, vendeurId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('stats/users')
+  @ApiOperation({ 
+    summary: 'Admin: Get user statistics',
+    description: 'Returns comprehensive statistics about users including total count, breakdown by role, active/inactive counts, and vendeurs with confirmed commands.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'User statistics retrieved successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        total: { type: 'number', description: 'Total number of users' },
+        byRole: { 
+          type: 'object', 
+          description: 'Users count by role',
+          additionalProperties: { type: 'number' },
+          example: { admin: 5, vendeur: 10, confermateur: 3, guest: 20 }
+        },
+        active: { type: 'number', description: 'Number of active users' },
+        inactive: { type: 'number', description: 'Number of inactive users' },
+        vendeursWithCmdConf: { type: 'number', description: 'Number of vendeurs with nbrCmdConf > 0' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
+  async getUserStats() {
+    return this.authService.getUserStats();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
