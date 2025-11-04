@@ -178,10 +178,10 @@ export class GatewayService {
         'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
       },
       timeout: 30000,
-      validateStatus: (status) => {
-        // Treat 2xx and 3xx (including 304 Not Modified) as success
-        return status >= 200 && status < 400;
-      },
+      // validateStatus: (status) => {
+      //   // Treat 2xx and 3xx (including 304 Not Modified) as success
+      //   return status >= 200 && status < 400;
+      // },
     };
 
     if (queryString) {

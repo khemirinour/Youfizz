@@ -12,6 +12,7 @@ export interface User {
 
 interface AuthState {
   user: User | null;
+  vendorId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -35,6 +36,7 @@ export const useAuthStore = create<AuthStore>()(
     (set, get) => ({
       // Initial state
       user: null,
+      vendorId: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -48,6 +50,9 @@ export const useAuthStore = create<AuthStore>()(
           if (typeof window !== 'undefined') {
             window.localStorage.setItem('token', res.accessToken);
             window.localStorage.setItem('refreshToken', res.refreshToken);
+            if (res.vendorId) {
+              window.localStorage.setItem('vendorId', res.vendorId);
+            }
           }
 
           set({
@@ -58,6 +63,7 @@ export const useAuthStore = create<AuthStore>()(
               lastName: res.user.lastName ?? '',
               role: (res.user.role as User['role']) || 'vendeur',
             },
+            vendorId: res.vendorId || null,
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -108,8 +114,9 @@ export const useAuthStore = create<AuthStore>()(
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
+            window.localStorage.removeItem('vendorId');
           }
-          set({ user: null, isAuthenticated: false, error: null });
+          set({ user: null, vendorId: null, isAuthenticated: false, error: null });
         }
       },
 
@@ -123,8 +130,9 @@ export const useAuthStore = create<AuthStore>()(
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
+            window.localStorage.removeItem('vendorId');
           }
-          set({ user: null, isAuthenticated: false, error: null });
+          set({ user: null, vendorId: null, isAuthenticated: false, error: null });
         }
       },
 
@@ -139,6 +147,9 @@ export const useAuthStore = create<AuthStore>()(
           // Update tokens in localStorage
           window.localStorage.setItem('token', res.accessToken);
           window.localStorage.setItem('refreshToken', res.refreshToken);
+          if (res.vendorId) {
+            window.localStorage.setItem('vendorId', res.vendorId);
+          }
 
           // Update user data if provided
           if (res.user) {
@@ -150,6 +161,7 @@ export const useAuthStore = create<AuthStore>()(
                 lastName: res.user.lastName ?? '',
                 role: (res.user.role as User['role']) || 'vendeur',
               },
+              vendorId: res.vendorId || null,
               isAuthenticated: true,
             });
           }
@@ -160,8 +172,9 @@ export const useAuthStore = create<AuthStore>()(
           if (typeof window !== 'undefined') {
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
+            window.localStorage.removeItem('vendorId');
           }
-          set({ user: null, isAuthenticated: false });
+          set({ user: null, vendorId: null, isAuthenticated: false });
           return false;
         }
       },
@@ -182,6 +195,7 @@ export const useAuthStore = create<AuthStore>()(
       name: 'auth-storage',
       partialize: (state) => ({
         user: state.user,
+        vendorId: state.vendorId,
         isAuthenticated: state.isAuthenticated
       })
     }

@@ -7,7 +7,11 @@ const AUTH_BASE = '/api/auth';
 const STATS_BASE = '/api';
 
 export async function getUsers(params?: { role?: UserRole; page?: number; limit?: number }): Promise<Paginated<AdminUser>> {
-  const q = { role: params?.role, page: params?.page ?? 1, limit: params?.limit ?? 10 };
+  const q: any = { page: params?.page ?? 1, limit: params?.limit ?? 10 };
+  // Only include role in query if it's explicitly provided and not undefined
+  if (params?.role !== undefined && params?.role !== null) {
+    q.role = params.role;
+  }
   return get<Paginated<AdminUser>>(`${AUTH_BASE}/users`, q);
 }
 

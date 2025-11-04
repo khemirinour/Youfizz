@@ -56,12 +56,15 @@ const AdminDashboard = () => {
     const fetchUsers = async () => {
       try {
         setLoading(true);
+        const roleParam = roleFilter === 'ALL' ? undefined : roleFilter;
+        console.log('Fetching users with role filter:', roleParam); // Debug log
         const res = await getUsers({
-          role: roleFilter === 'ALL' ? undefined : roleFilter,
+          role: roleParam,
           page,
           limit: pageSize,
         });
-        setUsers(res.items);
+        console.log('Received users:', res.items); // Debug log
+        setUsers(res.items || []);
         setTotal(res.total);
       } catch (e: any) {
         toast({ title: 'Error', description: e?.message || 'Failed to load users', variant: 'destructive' });
@@ -76,7 +79,7 @@ const AdminDashboard = () => {
   const stats = useMemo(() => {
     const totalCount = total;
     const byRole: Record<string, number> = {};
-    users.forEach(u => { byRole[u.role] = (byRole[u.role] || 0) + 1; });
+    (users || []).forEach(u => { byRole[u.role] = (byRole[u.role] || 0) + 1; });
     return { total: totalCount, byRole };
   }, [users, total]);
 
