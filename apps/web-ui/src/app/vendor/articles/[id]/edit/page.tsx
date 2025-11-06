@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
-import { getArticleById, updateArticle, type UpdateArticleDto } from '@/lib/articles.api';
+import { getArticleById, updateArticle, type UpdateArticleDto, activateArticle, deactivateArticle } from '@/lib/articles.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,9 +31,9 @@ const EditArticlePage = () => {
     stock: 0,
     sku: '',
     status: 'DRAFT',
-    isActive: false,
     categoryId: '',
   });
+  const [makeActive, setMakeActive] = useState(false);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -53,34 +53,42 @@ const EditArticlePage = () => {
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !params.id) return;
+    let cancelled = false;
     const fetchArticle = async () => {
       try {
         setLoading(true);
         const data = await getArticleById(params.id);
-        setArticle(data);
-        setFormData({
-          title: data.title || '',
-          description: data.description || '',
-          price: data.price || '',
-          stock: data.stock || 0,
-          sku: data.sku || '',
-          status: data.status || 'DRAFT',
-          isActive: data.isActive ?? false,
-          categoryId: data.categoryId || '',
-        });
+        if (!cancelled) {
+          setArticle(data);
+          setFormData({
+            title: data.title || '',
+            description: data.description || '',
+            price: data.price || '',
+            stock: data.stock || 0,
+            sku: data.sku || '',
+            status: data.status || 'DRAFT',
+            categoryId: data.categoryId || '',
+          });
+          setMakeActive(data.isActive ?? false);
+        }
       } catch (e: any) {
-        toast({
-          title: 'Error',
-          description: e?.response?.data?.message || e?.message || 'Failed to load article',
-          variant: 'destructive',
-        });
-        router.push('/vendor/articles');
+        if (!cancelled) {
+          toast({
+            title: 'Error',
+            description: e?.response?.data?.message || e?.message || 'Failed to load article',
+            variant: 'destructive',
+          });
+          router.push('/vendor/articles');
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     };
     fetchArticle();
-  }, [hydrated, isAuthenticated, user?.role, params.id, router, toast]);
+    return () => { cancelled = true; };
+  }, [hydrated, isAuthenticated, user?.role, params.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -93,7 +101,12 @@ const EditArticlePage = () => {
         stock: formData.stock || 0,
         price: formData.price || '0',
       };
-      await updateArticle(params.id, dataToSend);
+      const updated = await updateArticle(params.id, dataToSend);
+      if (makeActive && updated?.id) {
+        await activateArticle(updated.id);
+      } else if (!makeActive && updated?.id) {
+        await deactivateArticle(updated.id);
+      }
       toast({ title: 'Success', description: 'Article updated successfully' });
       router.push('/vendor/articles');
     } catch (e: any) {
@@ -230,11 +243,11 @@ const EditArticlePage = () => {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                id="makeActive"
+                checked={makeActive}
+                onCheckedChange={setMakeActive}
               />
-              <Label htmlFor="isActive">Active (Visible)</Label>
+              <Label htmlFor="makeActive">Active (Visible)</Label>
             </div>
 
             <div className="space-y-2">

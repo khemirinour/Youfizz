@@ -44,6 +44,7 @@ export class GatewayService {
     { service: 'article', path: '/articles/:id', method: 'GET', requiresAuth: false },
     { service: 'article', path: '/articles/vendor/:vendorId', method: 'GET', requiresAuth: false },
     { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
