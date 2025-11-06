@@ -623,6 +623,8 @@ exports.AppConfigModule = AppConfigModule = tslib_1.__decorate([
                     app_config_1.userServiceConfig,
                     app_config_1.notificationServiceConfig,
                     app_config_1.apiGatewayConfig,
+                    app_config_1.articleServiceConfig,
+                    app_config_1.cmdServiceConfig,
                 ],
                 envFilePath: ['.env.local', '.env'],
             }),
@@ -638,7 +640,7 @@ exports.AppConfigModule = AppConfigModule = tslib_1.__decorate([
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.apiGatewayConfig = exports.notificationServiceConfig = exports.userServiceConfig = exports.authServiceConfig = exports.serviceConfig = exports.rateLimitConfig = exports.redisConfig = exports.emailConfig = exports.databaseConfig = void 0;
+exports.apiGatewayConfig = exports.cmdServiceConfig = exports.articleServiceConfig = exports.notificationServiceConfig = exports.userServiceConfig = exports.authServiceConfig = exports.serviceConfig = exports.rateLimitConfig = exports.redisConfig = exports.emailConfig = exports.databaseConfig = void 0;
 const config_1 = __webpack_require__(12);
 exports.databaseConfig = (0, config_1.registerAs)('database', () => ({
     host: process.env.DB_HOST || 'localhost',
@@ -722,6 +724,14 @@ exports.userServiceConfig = (0, config_1.registerAs)('userService', () => ({
 exports.notificationServiceConfig = (0, config_1.registerAs)('notificationService', () => ({
     port: parseInt(process.env.NOTIFICATION_SERVICE_PORT || '3003', 10),
     microservicePort: parseInt(process.env.NOTIFICATION_MICROSERVICE_PORT || '3003', 10),
+}));
+exports.articleServiceConfig = (0, config_1.registerAs)('articleService', () => ({
+    port: parseInt(process.env.ARTICLE_SERVICE_PORT || '3004', 10),
+    microservicePort: parseInt(process.env.ARTICLE_MICROSERVICE_PORT || '4004', 10),
+}));
+exports.cmdServiceConfig = (0, config_1.registerAs)('cmdService', () => ({
+    port: parseInt(process.env.CMD_SERVICE_PORT || '3005', 10),
+    microservicePort: parseInt(process.env.CMD_MICROSERVICE_PORT || '4005', 10),
 }));
 exports.apiGatewayConfig = (0, config_1.registerAs)('apiGateway', () => ({
     port: parseInt(process.env.API_GATEWAY_PORT || '3000', 10),

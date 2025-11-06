@@ -10,6 +10,8 @@ import {
   userServiceConfig,
   notificationServiceConfig,
   apiGatewayConfig,
+  articleServiceConfig,
+  cmdServiceConfig,
 } from './app.config';
 
 @Module({
@@ -26,6 +28,8 @@ import {
         userServiceConfig,
         notificationServiceConfig,
         apiGatewayConfig,
+        articleServiceConfig,
+        cmdServiceConfig,
       ],
       envFilePath: ['.env.local', '.env'],
     }),
