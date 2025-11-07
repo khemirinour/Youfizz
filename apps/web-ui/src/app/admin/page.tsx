@@ -73,7 +73,6 @@ const AdminDashboard = () => {
       }
     };
     fetchUsers();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, isAuthenticated, user?.role, roleFilter, page, pageSize]);
 
   const stats = useMemo(() => {
@@ -109,8 +108,7 @@ const AdminDashboard = () => {
   if (!hydrated || !isAuthenticated || user?.role !== 'admin') return null;
 
   return (
-    <div className="min-h-screen">
-      <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
+<div className="min-h-screen bg-black text-white">
       <AdminNavbar activeTab={activeTab} onTabChange={setActiveTab} />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
@@ -265,7 +263,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Users table */}
-            <div className="card-glass rounded-xl p-6">
+            <div className="card-glass rounded-xl p-6 bg-zinc-900 border border-neutral-800">
               <div className="flex items-center justify-between mb-4 gap-4">
                 <h2 className="text-lg font-semibold">Users</h2>
                 <div className="flex items-center gap-4">
@@ -304,25 +302,25 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead className="text-left text-muted-foreground">
+              <div className="overflow-x-auto rounded-lg border border-neutral-800/70">
+                <table className="w-full text-sm bg-zinc-950/40">
+                  <thead className="text-left text-muted-foreground bg-zinc-900/80 sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/70 border-b border-neutral-800/70">
                     <tr>
-                      <th className="py-2 pr-4">Name</th>
-                      <th className="py-2 pr-4">Email</th>
-                      <th className="py-2 pr-4">Role</th>
-                      <th className="py-2 pr-4">Cmd Conf</th>
-                      <th className="py-2 pr-4">Associated Vendeurs</th>
-                      <th className="py-2 pr-4">Active</th>
-                      <th className="py-2 pr-4 text-right">Actions</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Name</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Email</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Role</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Cmd Conf</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Associated Vendeurs</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Active</th>
+                      <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody>
+                  <tbody className="divide-y divide-neutral-800/60">
                     {users.map(u => (
-                      <tr key={u.id} className="border-t border-border">
-                        <td className="py-3 pr-4">{u.firstName} {u.lastName}</td>
-                        <td className="py-3 pr-4">{u.email}</td>
-                        <td className="py-3 pr-4">
+                      <tr key={u.id} className="odd:bg-transparent even:bg-zinc-900/30 hover:bg-zinc-800/50">
+                        <td className="px-4 py-3 pr-4 align-middle text-foreground max-w-[220px] truncate" title={`${u.firstName} ${u.lastName}`}>{u.firstName} {u.lastName}</td>
+                        <td className="px-4 py-3 pr-4 align-middle text-foreground max-w-[260px] truncate" title={u.email}>{u.email}</td>
+                        <td className="px-4 py-3 pr-4 align-middle">
                           <Select value={u.role} onValueChange={async (v) => {
                             try {
                               const updated = await updateUserRole(u.id, v as UserRole);
@@ -332,7 +330,7 @@ const AdminDashboard = () => {
                               toast({ title: 'Error', description: e?.message || 'Failed to update role', variant: 'destructive' });
                             }
                           }}>
-                            <SelectTrigger className="h-9 w-40"><SelectValue /></SelectTrigger>
+                            <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="ADMIN">ADMIN</SelectItem>
                               <SelectItem value="VENDEUR">VENDEUR</SelectItem>
@@ -341,14 +339,14 @@ const AdminDashboard = () => {
                             </SelectContent>
                           </Select>
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="px-4 py-3 pr-4 align-middle">
                           {u.role === 'vendeur' ? (
                             <span className="text-sm font-medium">{u.nbrCmdConf ?? 0}</span>
                           ) : (
                             <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="px-4 py-3 pr-4 align-middle">
                           {u.role === 'confermateur' ? (
                             u.vendeurs && u.vendeurs.length > 0 ? (
                               <div className="flex flex-wrap gap-1">
@@ -369,7 +367,7 @@ const AdminDashboard = () => {
                             <span className="text-sm text-muted-foreground">—</span>
                           )}
                         </td>
-                        <td className="py-3 pr-4">
+                        <td className="px-4 py-3 pr-4 align-middle">
                           <Button variant={u.isActive ? 'outline' : 'hero'} size="sm" onClick={async () => {
                             try {
                               const updated = await setUserActive(u.id, !u.isActive);
@@ -380,7 +378,7 @@ const AdminDashboard = () => {
                             }
                           }}>{u.isActive ? 'Active' : 'Inactive'}</Button>
                         </td>
-                        <td className="py-3 pr-0 text-right">
+                        <td className="px-4 py-3 pr-0 text-right align-middle whitespace-nowrap">
                           <div className="flex items-center gap-2 justify-end">
                             {u.role === 'vendeur' && (
                               <Button 
@@ -506,5 +504,3 @@ const AdminDashboard = () => {
 };
 
 export default AdminDashboard;
-
-
