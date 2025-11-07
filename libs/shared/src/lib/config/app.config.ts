@@ -137,7 +137,16 @@ export const notificationServiceConfig = registerAs('notificationService', () =>
   microservicePort: parseInt(process.env.NOTIFICATION_MICROSERVICE_PORT || '3003', 10),
 }));
 
+export const articleServiceConfig = registerAs('articleService', () => ({
+  port: parseInt(process.env.ARTICLE_SERVICE_PORT || '3004', 10),
+  microservicePort: parseInt(process.env.ARTICLE_MICROSERVICE_PORT || '4004', 10),
+}));
+
+export const cmdServiceConfig = registerAs('cmdService', () => ({
+  port: parseInt(process.env.CMD_SERVICE_PORT || '3005', 10),
+  microservicePort: parseInt(process.env.CMD_MICROSERVICE_PORT || '4005', 10),
+}));
+
 export const apiGatewayConfig = registerAs('apiGateway', () => ({
   port: parseInt(process.env.API_GATEWAY_PORT || '3000', 10),
 }));
-

@@ -86,7 +86,7 @@ module.exports = require("@nestjs/throttler");
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52;
+var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, _y, _z, _0, _1, _2, _3, _4, _5, _6, _7, _8, _9, _10, _11, _12, _13, _14, _15, _16, _17, _18, _19, _20, _21, _22, _23, _24, _25, _26, _27, _28, _29, _30, _31, _32, _33, _34, _35, _36, _37, _38, _39, _40, _41, _42, _43, _44, _45, _46, _47, _48, _49, _50, _51, _52, _53, _54;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
 const tslib_1 = __webpack_require__(5);
@@ -187,6 +187,9 @@ let AppController = class AppController {
     }
     async updateArticle(id, body, headers, req) {
         return this.gatewayService.forwardRequest(`/articles/${id}`, 'PUT', body, headers, req.user);
+    }
+    async patchArticle(id, body, headers, req) {
+        return this.gatewayService.forwardRequest(`/articles/${id}`, 'PATCH', body, headers, req.user);
     }
     async deleteArticle(id, headers, req) {
         return this.gatewayService.forwardRequest(`/articles/${id}`, 'DELETE', null, headers, req.user);
@@ -677,6 +680,26 @@ tslib_1.__decorate([
 ], AppController.prototype, "updateArticle", null);
 tslib_1.__decorate([
     (0, swagger_1.ApiTags)('articles'),
+    (0, common_1.Patch)('articles/:id'),
+    (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
+    (0, swagger_1.ApiBearerAuth)('JWT-auth'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update article', description: 'Update an existing article. Requires ADMIN or VENDEUR role.' }),
+    (0, swagger_1.ApiParam)({ name: 'id', description: 'Article ID' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Article updated successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Unauthorized' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' }),
+    (0, swagger_1.ApiResponse)({ status: 404, description: 'Article not found' }),
+    (0, swagger_1.ApiBody)({ description: 'Updated article data', schema: { type: 'object' } }),
+    tslib_1.__param(0, (0, common_1.Param)('id')),
+    tslib_1.__param(1, (0, common_1.Body)()),
+    tslib_1.__param(2, (0, common_1.Headers)()),
+    tslib_1.__param(3, (0, common_1.Req)()),
+    tslib_1.__metadata("design:type", Function),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_17 = typeof Record !== "undefined" && Record) === "function" ? _17 : Object, typeof (_18 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _18 : Object]),
+    tslib_1.__metadata("design:returntype", Promise)
+], AppController.prototype, "patchArticle", null);
+tslib_1.__decorate([
+    (0, swagger_1.ApiTags)('articles'),
     (0, common_1.Delete)('articles/:id'),
     (0, common_1.UseGuards)(shared_1.JwtAuthGuard),
     (0, swagger_1.ApiBearerAuth)('JWT-auth'),
@@ -689,7 +712,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_17 = typeof Record !== "undefined" && Record) === "function" ? _17 : Object, typeof (_18 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _18 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_19 = typeof Record !== "undefined" && Record) === "function" ? _19 : Object, typeof (_20 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _20 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "deleteArticle", null);
 tslib_1.__decorate([
@@ -706,7 +729,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_19 = typeof Record !== "undefined" && Record) === "function" ? _19 : Object, typeof (_20 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _20 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_21 = typeof Record !== "undefined" && Record) === "function" ? _21 : Object, typeof (_22 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _22 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "activateArticle", null);
 tslib_1.__decorate([
@@ -723,7 +746,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_21 = typeof Record !== "undefined" && Record) === "function" ? _21 : Object, typeof (_22 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _22 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_23 = typeof Record !== "undefined" && Record) === "function" ? _23 : Object, typeof (_24 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _24 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "deactivateArticle", null);
 tslib_1.__decorate([
@@ -747,7 +770,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_23 = typeof Record !== "undefined" && Record) === "function" ? _23 : Object, typeof (_24 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _24 : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_25 = typeof Record !== "undefined" && Record) === "function" ? _25 : Object, typeof (_26 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _26 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getOrders", null);
 tslib_1.__decorate([
@@ -764,7 +787,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_25 = typeof Record !== "undefined" && Record) === "function" ? _25 : Object, typeof (_26 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _26 : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_27 = typeof Record !== "undefined" && Record) === "function" ? _27 : Object, typeof (_28 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _28 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "createOrder", null);
 tslib_1.__decorate([
@@ -781,7 +804,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_27 = typeof Record !== "undefined" && Record) === "function" ? _27 : Object, typeof (_28 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _28 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_29 = typeof Record !== "undefined" && Record) === "function" ? _29 : Object, typeof (_30 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _30 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getOrder", null);
 tslib_1.__decorate([
@@ -801,7 +824,7 @@ tslib_1.__decorate([
     tslib_1.__param(2, (0, common_1.Headers)()),
     tslib_1.__param(3, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_29 = typeof Record !== "undefined" && Record) === "function" ? _29 : Object, typeof (_30 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _30 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, Object, typeof (_31 = typeof Record !== "undefined" && Record) === "function" ? _31 : Object, typeof (_32 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _32 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "updateOrder", null);
 tslib_1.__decorate([
@@ -818,7 +841,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_31 = typeof Record !== "undefined" && Record) === "function" ? _31 : Object, typeof (_32 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _32 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_33 = typeof Record !== "undefined" && Record) === "function" ? _33 : Object, typeof (_34 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _34 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "deleteOrder", null);
 tslib_1.__decorate([
@@ -839,7 +862,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_33 = typeof Record !== "undefined" && Record) === "function" ? _33 : Object, typeof (_34 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _34 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_35 = typeof Record !== "undefined" && Record) === "function" ? _35 : Object, typeof (_36 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _36 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "confirmOrder", null);
 tslib_1.__decorate([
@@ -856,7 +879,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_35 = typeof Record !== "undefined" && Record) === "function" ? _35 : Object, typeof (_36 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _36 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_37 = typeof Record !== "undefined" && Record) === "function" ? _37 : Object, typeof (_38 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _38 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "activateOrder", null);
 tslib_1.__decorate([
@@ -873,7 +896,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_37 = typeof Record !== "undefined" && Record) === "function" ? _37 : Object, typeof (_38 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _38 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_39 = typeof Record !== "undefined" && Record) === "function" ? _39 : Object, typeof (_40 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _40 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "deactivateOrder", null);
 tslib_1.__decorate([
@@ -887,7 +910,7 @@ tslib_1.__decorate([
     tslib_1.__param(0, (0, common_1.Headers)()),
     tslib_1.__param(1, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_39 = typeof Record !== "undefined" && Record) === "function" ? _39 : Object, typeof (_40 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _40 : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_41 = typeof Record !== "undefined" && Record) === "function" ? _41 : Object, typeof (_42 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _42 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getProfile", null);
 tslib_1.__decorate([
@@ -903,7 +926,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_41 = typeof Record !== "undefined" && Record) === "function" ? _41 : Object, typeof (_42 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _42 : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_43 = typeof Record !== "undefined" && Record) === "function" ? _43 : Object, typeof (_44 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _44 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "updateProfile", null);
 tslib_1.__decorate([
@@ -920,7 +943,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [Object, typeof (_43 = typeof Record !== "undefined" && Record) === "function" ? _43 : Object, typeof (_44 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _44 : Object]),
+    tslib_1.__metadata("design:paramtypes", [Object, typeof (_45 = typeof Record !== "undefined" && Record) === "function" ? _45 : Object, typeof (_46 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _46 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getNotifications", null);
 tslib_1.__decorate([
@@ -937,7 +960,7 @@ tslib_1.__decorate([
     tslib_1.__param(1, (0, common_1.Headers)()),
     tslib_1.__param(2, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_45 = typeof Record !== "undefined" && Record) === "function" ? _45 : Object, typeof (_46 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _46 : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_47 = typeof Record !== "undefined" && Record) === "function" ? _47 : Object, typeof (_48 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _48 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "markNotificationRead", null);
 tslib_1.__decorate([
@@ -955,7 +978,7 @@ tslib_1.__decorate([
     tslib_1.__param(0, (0, common_1.Headers)()),
     tslib_1.__param(1, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_47 = typeof Record !== "undefined" && Record) === "function" ? _47 : Object, typeof (_48 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _48 : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_49 = typeof Record !== "undefined" && Record) === "function" ? _49 : Object, typeof (_50 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _50 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getUserStats", null);
 tslib_1.__decorate([
@@ -973,7 +996,7 @@ tslib_1.__decorate([
     tslib_1.__param(0, (0, common_1.Headers)()),
     tslib_1.__param(1, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_49 = typeof Record !== "undefined" && Record) === "function" ? _49 : Object, typeof (_50 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _50 : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_51 = typeof Record !== "undefined" && Record) === "function" ? _51 : Object, typeof (_52 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _52 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getOrderStats", null);
 tslib_1.__decorate([
@@ -991,7 +1014,7 @@ tslib_1.__decorate([
     tslib_1.__param(0, (0, common_1.Headers)()),
     tslib_1.__param(1, (0, common_1.Req)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [typeof (_51 = typeof Record !== "undefined" && Record) === "function" ? _51 : Object, typeof (_52 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _52 : Object]),
+    tslib_1.__metadata("design:paramtypes", [typeof (_53 = typeof Record !== "undefined" && Record) === "function" ? _53 : Object, typeof (_54 = typeof express_1.Request !== "undefined" && express_1.Request) === "function" ? _54 : Object]),
     tslib_1.__metadata("design:returntype", Promise)
 ], AppController.prototype, "getArticleStats", null);
 exports.AppController = AppController = tslib_1.__decorate([
@@ -1068,6 +1091,7 @@ let GatewayService = GatewayService_1 = class GatewayService {
             { service: 'article', path: '/articles/:id', method: 'GET', requiresAuth: false },
             { service: 'article', path: '/articles/vendor/:vendorId', method: 'GET', requiresAuth: false },
             { service: 'article', path: '/articles/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur'] },
+            { service: 'article', path: '/articles/:id', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
             { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
             { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
             { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
@@ -1740,6 +1764,8 @@ exports.AppConfigModule = AppConfigModule = tslib_1.__decorate([
                     app_config_1.userServiceConfig,
                     app_config_1.notificationServiceConfig,
                     app_config_1.apiGatewayConfig,
+                    app_config_1.articleServiceConfig,
+                    app_config_1.cmdServiceConfig,
                 ],
                 envFilePath: ['.env.local', '.env'],
             }),
@@ -1755,7 +1781,7 @@ exports.AppConfigModule = AppConfigModule = tslib_1.__decorate([
 
 
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.apiGatewayConfig = exports.notificationServiceConfig = exports.userServiceConfig = exports.authServiceConfig = exports.serviceConfig = exports.rateLimitConfig = exports.redisConfig = exports.emailConfig = exports.databaseConfig = void 0;
+exports.apiGatewayConfig = exports.cmdServiceConfig = exports.articleServiceConfig = exports.notificationServiceConfig = exports.userServiceConfig = exports.authServiceConfig = exports.serviceConfig = exports.rateLimitConfig = exports.redisConfig = exports.emailConfig = exports.databaseConfig = void 0;
 const config_1 = __webpack_require__(11);
 exports.databaseConfig = (0, config_1.registerAs)('database', () => ({
     host: process.env.DB_HOST || 'localhost',
@@ -1839,6 +1865,14 @@ exports.userServiceConfig = (0, config_1.registerAs)('userService', () => ({
 exports.notificationServiceConfig = (0, config_1.registerAs)('notificationService', () => ({
     port: parseInt(process.env.NOTIFICATION_SERVICE_PORT || '3003', 10),
     microservicePort: parseInt(process.env.NOTIFICATION_MICROSERVICE_PORT || '3003', 10),
+}));
+exports.articleServiceConfig = (0, config_1.registerAs)('articleService', () => ({
+    port: parseInt(process.env.ARTICLE_SERVICE_PORT || '3004', 10),
+    microservicePort: parseInt(process.env.ARTICLE_MICROSERVICE_PORT || '4004', 10),
+}));
+exports.cmdServiceConfig = (0, config_1.registerAs)('cmdService', () => ({
+    port: parseInt(process.env.CMD_SERVICE_PORT || '3005', 10),
+    microservicePort: parseInt(process.env.CMD_MICROSERVICE_PORT || '4005', 10),
 }));
 exports.apiGatewayConfig = (0, config_1.registerAs)('apiGateway', () => ({
     port: parseInt(process.env.API_GATEWAY_PORT || '3000', 10),

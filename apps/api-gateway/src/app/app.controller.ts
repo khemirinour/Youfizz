@@ -357,6 +357,21 @@ export class AppController {
   }
 
   @ApiTags('articles')
+  @Patch('articles/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update article', description: 'Update an existing article. Requires ADMIN or VENDEUR role.' })
+  @ApiParam({ name: 'id', description: 'Article ID' })
+  @ApiResponse({ status: 200, description: 'Article updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
+  @ApiResponse({ status: 404, description: 'Article not found' })
+  @ApiBody({ description: 'Updated article data', schema: { type: 'object' } })
+  async patchArticle(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    return this.gatewayService.forwardRequest(`/articles/${id}`, 'PATCH', body, headers, req.user);
+  }
+
+  @ApiTags('articles')
   @Delete('articles/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')

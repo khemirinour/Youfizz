@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
-import { createArticle, type CreateArticleDto } from '@/lib/articles.api';
+import { createArticle, activateArticle, type CreateArticleDto } from '@/lib/articles.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,9 +27,9 @@ const NewArticlePage = () => {
     stock: 0,
     sku: '',
     status: 'DRAFT',
-    isActive: false,
     categoryId: '',
   });
+  const [makeActive, setMakeActive] = useState(false);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -55,10 +55,14 @@ const NewArticlePage = () => {
       setSubmitting(true);
       const dataToSend: CreateArticleDto = {
         ...formData,
+        vendorId: vendorId,
         stock: formData.stock || 0,
         price: formData.price || '0',
       };
-      await createArticle(dataToSend);
+      const created = await createArticle(dataToSend);
+      if (makeActive && created?.id) {
+        await activateArticle(created.id);
+      }
       toast({ title: 'Success', description: 'Article created successfully' });
       router.push('/vendor/articles');
     } catch (e: any) {
@@ -166,11 +170,11 @@ const NewArticlePage = () => {
 
             <div className="flex items-center space-x-2">
               <Switch
-                id="isActive"
-                checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                id="makeActive"
+                checked={makeActive}
+                onCheckedChange={setMakeActive}
               />
-              <Label htmlFor="isActive">Active (Visible)</Label>
+              <Label htmlFor="makeActive">Activate after create</Label>
             </div>
 
             <div className="space-y-2">
