@@ -63,7 +63,6 @@ All colors MUST be HSL.
   /* Glass morphism card */
   .card-glass {
     background: var(--glass-bg);
-    backdrop-filter: blur(16px);
     border: 1px solid var(--glass-border);
     box-shadow: var(--glass-shadow);
   }
