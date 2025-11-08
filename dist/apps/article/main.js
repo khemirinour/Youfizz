@@ -65,7 +65,7 @@ module.exports = require("tslib");
 /***/ ((__unused_webpack_module, exports, __webpack_require__) => {
 
 
-var _a, _b, _c, _d;
+var _a, _b, _c, _d, _e;
 Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.AppController = void 0;
 const tslib_1 = __webpack_require__(6);
@@ -99,8 +99,8 @@ let AppController = class AppController {
     get(id) {
         return this.appService.findOne(id);
     }
-    getByVendor(vendorId) {
-        return this.appService.findByVendor(vendorId);
+    getByVendor(vendorId, query) {
+        return this.appService.findByVendor(vendorId, query);
     }
     update(id, dto) {
         return this.appService.update(id, dto);
@@ -168,11 +168,17 @@ tslib_1.__decorate([
 ], AppController.prototype, "get", null);
 tslib_1.__decorate([
     (0, common_1.Get)('vendor/:vendorId'),
-    (0, swagger_1.ApiOperation)({ summary: 'Get articles by vendor id' }),
-    (0, swagger_1.ApiOkResponse)({ description: 'Articles retrieved', type: [article_response_dto_1.ArticleResponseDto] }),
+    (0, swagger_1.ApiOperation)({ summary: 'Get articles by vendor id with pagination and filters' }),
+    (0, swagger_1.ApiQuery)({ name: 'search', required: false, description: 'Search by title' }),
+    (0, swagger_1.ApiQuery)({ name: 'status', required: false, enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'] }),
+    (0, swagger_1.ApiQuery)({ name: 'isActive', required: false, description: 'true for active, false for inactive' }),
+    (0, swagger_1.ApiQuery)({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } }),
+    (0, swagger_1.ApiQuery)({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } }),
+    (0, swagger_1.ApiOkResponse)({ description: 'Paginated articles retrieved', type: [article_response_dto_1.ArticleResponseDto] }),
     tslib_1.__param(0, (0, common_1.Param)('vendorId', new common_1.ParseUUIDPipe())),
+    tslib_1.__param(1, (0, common_1.Query)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_d = typeof query_articles_dto_1.QueryArticlesDto !== "undefined" && query_articles_dto_1.QueryArticlesDto) === "function" ? _d : Object]),
     tslib_1.__metadata("design:returntype", void 0)
 ], AppController.prototype, "getByVendor", null);
 tslib_1.__decorate([
@@ -187,7 +193,7 @@ tslib_1.__decorate([
     tslib_1.__param(0, (0, common_1.Param)('id', new common_1.ParseUUIDPipe())),
     tslib_1.__param(1, (0, common_1.Body)()),
     tslib_1.__metadata("design:type", Function),
-    tslib_1.__metadata("design:paramtypes", [String, typeof (_d = typeof update_article_dto_1.UpdateArticleDto !== "undefined" && update_article_dto_1.UpdateArticleDto) === "function" ? _d : Object]),
+    tslib_1.__metadata("design:paramtypes", [String, typeof (_e = typeof update_article_dto_1.UpdateArticleDto !== "undefined" && update_article_dto_1.UpdateArticleDto) === "function" ? _e : Object]),
     tslib_1.__metadata("design:returntype", void 0)
 ], AppController.prototype, "update", null);
 tslib_1.__decorate([
@@ -293,7 +299,7 @@ let AppService = class AppService {
     getData() {
         return { message: 'Article Service' };
     }
-    findAll(query) {
+    async findAll(query) {
         const where = {};
         if (query.categoryId)
             where.categoryId = query.categoryId;
@@ -305,18 +311,34 @@ let AppService = class AppService {
             where.title = (0, typeorm_2.ILike)(`%${query.search}%`);
         if (typeof query.isActive === 'boolean')
             where.isActive = query.isActive;
-        return this.articleRepository.find({
+        const [items, total] = await this.articleRepository.findAndCount({
             where,
             take: query.limit,
             skip: query.offset,
             order: { title: 'ASC' },
         });
+        return { items, total };
     }
     findOne(id) {
         return this.articleRepository.findOne({ where: { id } });
     }
-    findByVendor(vendorId) {
-        return this.articleRepository.find({ where: { vendorId } });
+    async findByVendor(vendorId, query) {
+        const where = { vendorId }; // Always filter by vendorId
+        if (query.status)
+            where.status = query.status;
+        if (query.search)
+            where.title = (0, typeorm_2.ILike)(`%${query.search}%`);
+        if (typeof query.isActive === 'boolean')
+            where.isActive = query.isActive;
+        console.log("where", where);
+        console.log("query", query);
+        const [items, total] = await this.articleRepository.findAndCount({
+            where,
+            take: query.limit,
+            skip: query.offset,
+            order: { title: 'ASC' },
+        });
+        return { items, total };
     }
     async create(data) {
         try {

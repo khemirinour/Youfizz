@@ -334,11 +334,36 @@ export class AppController {
 
   @ApiTags('articles')
   @Get('articles/vendor/:vendorId')
-  @ApiOperation({ summary: 'Get articles by vendor ID', description: 'Retrieve all articles belonging to a specific vendor' })
+  @ApiOperation({ 
+    summary: 'Get articles by vendor ID', 
+    description: 'Retrieve paginated articles belonging to a specific vendor with optional filters' 
+  })
   @ApiParam({ name: 'vendorId', description: 'Vendor ID' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search by title' })
+  @ApiQuery({ name: 'status', required: false, enum: ['DRAFT','PUBLISHED','ARCHIVED'] })
+  @ApiQuery({ name: 'isActive', required: false, description: 'true for active, false for inactive' })
+  @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
+  @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
   @ApiResponse({ status: 200, description: 'Articles retrieved successfully' })
-  async getArticlesByVendor(@Param('vendorId') vendorId: string, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest(`/articles/vendor/${vendorId}`, 'GET', null, headers);
+  async getArticlesByVendor(
+    @Param('vendorId') vendorId: string, 
+    @Query() query: Record<string, any>,
+    @Headers() headers: Record<string, string>
+  ) {
+    // Build path with query parameters
+    const queryParams = new URLSearchParams();
+    if (query.search) queryParams.set('search', query.search);
+    if (query.status) queryParams.set('status', query.status);
+    if (query.isActive !== undefined) queryParams.set('isActive', query.isActive);
+    if (query.limit) queryParams.set('limit', query.limit.toString());
+    if (query.offset) queryParams.set('offset', query.offset.toString());
+    
+    const queryString = queryParams.toString();
+    const path = queryString 
+      ? `/articles/vendor/${vendorId}?${queryString}`
+      : `/articles/vendor/${vendorId}`;
+
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers);
   }
 
   @ApiTags('articles')

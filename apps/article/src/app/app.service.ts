@@ -15,26 +15,41 @@ export class AppService {
     return { message: 'Article Service' };
   }
 
-  findAll(query: QueryArticlesDto) {
+  async findAll(query: QueryArticlesDto) {
     const where: any = {};
     if (query.categoryId) where.categoryId = query.categoryId;
     if (query.vendorId) where.vendorId = query.vendorId;
     if (query.status) where.status = query.status;
     if (query.search) where.title = ILike(`%${query.search}%`);
     if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
-    return this.articleRepository.find({
+    const [items, total] = await this.articleRepository.findAndCount({
       where,
       take: query.limit,
       skip: query.offset,
       order: { title: 'ASC' },
     });
+    return { items, total };
   }
 
   findOne(id: string) {
     return this.articleRepository.findOne({ where: { id } });
   }
-  findByVendor(vendorId: string) {
-    return this.articleRepository.find({ where: { vendorId } });
+  async findByVendor(vendorId: string, query: QueryArticlesDto) {
+    const where: any = { vendorId }; // Always filter by vendorId
+    
+    if (query.status) where.status = query.status;
+    if (query.search) where.title = ILike(`%${query.search}%`);
+    if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
+    console.log("where", where);
+    console.log("query", query);
+
+    const [items, total] = await this.articleRepository.findAndCount({
+      where,
+      take: query.limit,
+      skip: query.offset,
+      order: { title: 'ASC' },
+    });
+    return { items, total };
   }
 
   async create(data: Partial<Article>) {
