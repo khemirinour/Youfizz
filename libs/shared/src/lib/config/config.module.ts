@@ -4,6 +4,7 @@ import {
   databaseConfig,
   emailConfig,
   redisConfig,
+  minioConfig,
   rateLimitConfig,
   serviceConfig,
   authServiceConfig,
@@ -12,6 +13,7 @@ import {
   apiGatewayConfig,
   articleServiceConfig,
   cmdServiceConfig,
+  uploadServiceConfig,
 } from './app.config';
 
 @Module({
@@ -22,6 +24,7 @@ import {
         databaseConfig,
         emailConfig,
         redisConfig,
+        minioConfig,
         rateLimitConfig,
         serviceConfig,
         authServiceConfig,
@@ -30,6 +33,7 @@ import {
         apiGatewayConfig,
         articleServiceConfig,
         cmdServiceConfig,
+        uploadServiceConfig,
       ],
       envFilePath: ['.env.local', '.env'],
     }),

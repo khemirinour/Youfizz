@@ -1,27 +1,27 @@
-FROM node:18-alpine
+# FROM node:18-alpine
 
-WORKDIR /app
+# WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
-COPY nx.json ./
-COPY tsconfig.base.json ./
+# # Copy package files
+# COPY package*.json ./
+# COPY nx.json ./
+# COPY tsconfig.base.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# # Install dependencies
+# RUN npm ci --only=production
 
-# Copy source code
-COPY . .
+# # Copy source code
+# COPY . .
 
-# Build the application
-RUN npx nx build article
+# # Build the application
+# RUN npx nx build article
 
-# Expose port
-EXPOSE 3003
+# # Expose port
+# EXPOSE 3003
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:3003/health || exit 1
+# # Health check
+# HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+#   CMD curl -f http://localhost:3003/health || exit 1
 
-# Start the application
-CMD ["node", "dist/apps/article/main.js"]
+# # Start the application
+# CMD ["node", "dist/apps/article/main.js"]
