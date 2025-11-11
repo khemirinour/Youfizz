@@ -29,6 +29,15 @@ export interface RedisConfig {
   db: number;
 }
 
+export interface MinIOConfig {
+  endpoint: string;
+  port: number;
+  useSSL: boolean;
+  accessKey: string;
+  secretKey: string;
+  bucketName: string;
+}
+
 export interface RateLimitConfig {
   short: { ttl: number; limit: number };
   medium: { ttl: number; limit: number };
@@ -72,6 +81,15 @@ export const redisConfig = registerAs('redis', (): RedisConfig => ({
   port: parseInt(process.env.REDIS_PORT || '6379', 10),
   password: process.env.REDIS_PASSWORD,
   db: parseInt(process.env.REDIS_DB || '0', 10),
+}));
+
+export const minioConfig = registerAs('minio', (): MinIOConfig => ({
+  endpoint: process.env.MINIO_ENDPOINT || 'localhost',
+  port: parseInt(process.env.MINIO_PORT || '9000', 10),
+  useSSL: process.env.MINIO_USE_SSL === 'true',
+  accessKey: process.env.MINIO_ACCESS_KEY || 'minioadmin',
+  secretKey: process.env.MINIO_SECRET_KEY || 'minioadmin',
+  bucketName: process.env.MINIO_BUCKET_NAME || 'youfizz-uploads',
 }));
 
 export const rateLimitConfig = registerAs('rateLimit', (): RateLimitConfig => {
@@ -145,6 +163,11 @@ export const articleServiceConfig = registerAs('articleService', () => ({
 export const cmdServiceConfig = registerAs('cmdService', () => ({
   port: parseInt(process.env.CMD_SERVICE_PORT || '3005', 10),
   microservicePort: parseInt(process.env.CMD_MICROSERVICE_PORT || '4005', 10),
+}));
+
+export const uploadServiceConfig = registerAs('uploadService', () => ({
+  port: parseInt(process.env.UPLOAD_SERVICE_PORT || '3006', 10),
+  microservicePort: parseInt(process.env.UPLOAD_MICROSERVICE_PORT || '4006', 10),
 }));
 
 export const apiGatewayConfig = registerAs('apiGateway', () => ({

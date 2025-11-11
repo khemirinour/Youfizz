@@ -42,6 +42,11 @@ export interface QueryArticlesParams {
   offset?: number;
 }
 
+export interface PaginatedArticlesResponse {
+  items: Article[];
+  total: number;
+}
+
 export async function getArticles(params?: QueryArticlesParams) {
   return get<Article[]>('/api/articles', params);
 }
@@ -51,7 +56,7 @@ export async function getArticleById(id: string) {
 }
 
 export async function getArticlesByVendor(vendorId: string, params?: Omit<QueryArticlesParams, 'vendorId'>) {
-  return get<Article[]>(`/api/articles/vendor/${vendorId}`, params);
+  return get<PaginatedArticlesResponse>(`/api/articles/vendor/${vendorId}`, params);
 }
 
 export async function createArticle(data: CreateArticleDto) {

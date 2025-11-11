@@ -8,3 +8,6 @@ out
 node_modules/
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
+
+# Build outputs
+dist/

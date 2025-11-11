@@ -64,6 +64,7 @@
     "@types/pg": "^8.15.5",
     "@types/react": "18.3.1",
     "@types/react-dom": "18.3.0",
+    "@types/uuid": "^9.0.8",
     "@vitejs/plugin-react": "^4.2.0",
     "@vitejs/plugin-react-swc": "^3.11.0",
     "@vitest/ui": "^3.0.0",
@@ -175,8 +176,10 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "typeorm": "^0.3.27",
+    "uuid": "^9.0.1",
     "vaul": "^0.9.9",
     "zod": "^3.25.76",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "minio": "^7.1.3"
   }
 }

@@ -59,10 +59,18 @@ export class AppController {
   }
 
   @Get('vendor/:vendorId')
-  @ApiOperation({ summary: 'Get articles by vendor id' })
-  @ApiOkResponse({ description: 'Articles retrieved', type: [ArticleResponseDto] })
-  getByVendor(@Param('vendorId', new ParseUUIDPipe()) vendorId: string) {
-    return this.appService.findByVendor(vendorId);
+  @ApiOperation({ summary: 'Get articles by vendor id with pagination and filters' })
+  @ApiQuery({ name: 'search', required: false, description: 'Search by title' })
+  @ApiQuery({ name: 'status', required: false, enum: ['DRAFT','PUBLISHED','ARCHIVED'] })
+  @ApiQuery({ name: 'isActive', required: false, description: 'true for active, false for inactive' })
+  @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
+  @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
+  @ApiOkResponse({ description: 'Paginated articles retrieved', type: [ArticleResponseDto] })
+  getByVendor(
+    @Param('vendorId', new ParseUUIDPipe()) vendorId: string,
+    @Query() query: QueryArticlesDto
+  ) {
+    return this.appService.findByVendor(vendorId, query);
   }
 
   @Patch(':id')
