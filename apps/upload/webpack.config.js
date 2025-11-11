@@ -1,5 +1,11 @@
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 const { join } = require('path');
+const fs = require('fs');
+
+const assetsPath = join(__dirname, './src/assets');
+const assets = fs.existsSync(assetsPath) && fs.readdirSync(assetsPath).length > 0 
+  ? ['./src/assets'] 
+  : [];
 
 module.exports = {
   resolve: {
@@ -19,7 +25,7 @@ module.exports = {
       compiler: 'tsc',
       main: './src/main.ts',
       tsConfig: './tsconfig.app.json',
-      assets: ['./src/assets'],
+      assets: assets,
       optimization: false,
       outputHashing: 'none',
       generatePackageJson: true,
