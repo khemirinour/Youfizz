@@ -63,8 +63,16 @@ const NewArticlePage = () => {
       if (makeActive && created?.id) {
         await activateArticle(created.id);
       }
-      toast({ title: 'Success', description: 'Article created successfully' });
-      router.push('/vendor/articles');
+      toast({ 
+        title: 'Success', 
+        description: 'Article created successfully. You can now upload images on the edit page.' 
+      });
+      // Redirect to edit page to allow image upload
+      if (created?.id) {
+        router.push(`/vendor/articles/${created.id}/edit`);
+      } else {
+        router.push('/vendor/articles');
+      }
     } catch (e: any) {
       toast({
         title: 'Error',
@@ -185,6 +193,12 @@ const NewArticlePage = () => {
                 onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
                 placeholder="Enter category ID (optional)"
               />
+            </div>
+
+            <div className="rounded-lg border border-border bg-muted/50 p-4">
+              <p className="text-sm text-muted-foreground">
+                💡 <strong>Tip:</strong> After creating the article, you'll be redirected to the edit page where you can upload images.
+              </p>
             </div>
 
             <div className="flex items-center gap-4">

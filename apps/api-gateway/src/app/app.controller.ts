@@ -1,10 +1,12 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiBody } from '@nestjs/swagger';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AppService } from './app.service';
 import { GatewayService } from './gateway.service';
 import { JwtAuthGuard } from '@you-fizz/shared';
 import { Request } from 'express';
+import  FormData from 'form-data';
 
 @ApiTags('api-gateway')
 @Controller()
@@ -433,6 +435,151 @@ export class AppController {
   @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
   async deactivateArticle(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest(`/articles/${id}/deactivate`, 'PATCH', null, headers, req.user);
+  }
+
+  @ApiTags('articles')
+  @Post('articles/:id/images')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Upload single image to article', description: 'Upload a single image and add it to the article\'s images array. Requires ADMIN or VENDEUR role.' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', description: 'Article ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+      required: ['image'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Image uploaded and added to article successfully' })
+  @ApiResponse({ status: 400, description: 'Article not found or invalid file' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
+  async uploadArticleImage(
+    @Param('id') id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    const formData = new FormData();
+    formData.append('image', file.buffer, {
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
+
+    const multipartHeaders = {
+      ...headers,
+      ...formData.getHeaders(),
+    };
+
+    return this.gatewayService.forwardRequest(
+      `/articles/${id}/images`,
+      'POST',
+      formData,
+      multipartHeaders,
+      req.user,
+      true, // isMultipart
+    );
+  }
+
+  @ApiTags('articles')
+  @Post('articles/:id/images/multiple')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FilesInterceptor('images', 10))
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Upload multiple images to article', description: 'Upload multiple images (max 10) and add them to the article\'s images array. Requires ADMIN or VENDEUR role.' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', description: 'Article ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        images: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['images'],
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Images uploaded and added to article successfully' })
+  @ApiResponse({ status: 400, description: 'Article not found or invalid files' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
+  async uploadMultipleArticleImages(
+    @Param('id') id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+
+    const formData = new FormData();
+    files.forEach((file) => {
+      formData.append('images', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+      });
+    });
+
+    const multipartHeaders = {
+      ...headers,
+      ...formData.getHeaders(),
+    };
+
+    return this.gatewayService.forwardRequest(
+      `/articles/${id}/images/multiple`,
+      'POST',
+      formData,
+      multipartHeaders,
+      req.user,
+      true, // isMultipart
+    );
+  }
+
+  @ApiTags('articles')
+  @Delete('articles/:id/images')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Remove image from article', description: 'Remove an image URL from the article\'s images array. Requires ADMIN or VENDEUR role.' })
+  @ApiParam({ name: 'id', description: 'Article ID' })
+  @ApiQuery({ name: 'imageUrl', description: 'Image URL to remove', type: String, required: true })
+  @ApiResponse({ status: 200, description: 'Image removed from article successfully' })
+  @ApiResponse({ status: 400, description: 'Article not found or imageUrl parameter missing' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
+  async removeArticleImage(
+    @Param('id') id: string,
+    @Query('imageUrl') imageUrl: string,
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    if (!imageUrl) {
+      throw new BadRequestException('imageUrl query parameter is required');
+    }
+
+    return this.gatewayService.forwardRequest(
+      `/articles/${id}/images?imageUrl=${encodeURIComponent(imageUrl)}`,
+      'DELETE',
+      null,
+      headers,
+      req.user,
+    );
   }
 
   // ==================== Order Service Routes ====================

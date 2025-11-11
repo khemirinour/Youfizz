@@ -48,6 +48,9 @@ export class GatewayService {
     { service: 'article', path: '/articles/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'article', path: '/articles/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/articles/:id/deactivate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id/images', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id/images/multiple', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/articles/:id/images', method: 'DELETE', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
     // CMD service endpoints
@@ -111,7 +114,7 @@ export class GatewayService {
     });
   }
 
-  private sanitizeHeaders(headers: Record<string, string> = {}): Record<string, string> {
+  private sanitizeHeaders(headers: Record<string, string> = {}, isMultipart: boolean = false): Record<string, string> {
     const blocked = new Set([
       'host',
       'content-length',
@@ -127,7 +130,8 @@ export class GatewayService {
         result[key] = value as unknown as string;
       }
     }
-    if (!result['Content-Type'] && !result['content-type']) {
+    // Don't override Content-Type for multipart requests
+    if (!isMultipart && !result['Content-Type'] && !result['content-type']) {
       result['Content-Type'] = 'application/json';
     }
     return result;
@@ -139,6 +143,7 @@ export class GatewayService {
     body: any,
     headers: Record<string, string>,
     user?: any,
+    isMultipart: boolean = false,
   ): Promise<any> {
     const [pathname, queryString] = path.split('?');
     const endpoint = this.findEndpoint(pathname, method);
@@ -168,7 +173,7 @@ export class GatewayService {
     }
     const fullUrl = `${serviceUrl}/api${forwardedPath}`;
 
-    const sanitized = this.sanitizeHeaders(headers);
+    const sanitized = this.sanitizeHeaders(headers, isMultipart);
 
     const config: AxiosRequestConfig = {
       method: method.toLowerCase() as any,
@@ -179,6 +184,8 @@ export class GatewayService {
         'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
       },
       timeout: 30000,
+      maxBodyLength: Infinity,
+      maxContentLength: Infinity,
       // validateStatus: (status) => {
       //   // Treat 2xx and 3xx (including 304 Not Modified) as success
       //   return status >= 200 && status < 400;

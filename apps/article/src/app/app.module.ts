@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SharedModule } from '@you-fizz/shared';
@@ -9,6 +10,7 @@ import { Article } from '../entities/article.entity';
   imports: [
     SharedModule, 
     TypeOrmModule.forFeature([Article]),
+    HttpModule,
   ],
   controllers: [AppController],
   providers: [AppService],

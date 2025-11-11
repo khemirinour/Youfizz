@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './http';
+import axios from 'axios';
 
 export interface Article {
   id: string;
@@ -81,5 +82,55 @@ export async function deactivateArticle(id: string) {
 
 export async function getArticleHealth() {
   return get<{ status: string; timestamp: string; service: string }>('/api/articles/health');
+}
+
+export async function uploadArticleImage(articleId: string, file: File): Promise<Article> {
+  const formData = new FormData();
+  formData.append('image', file);
+
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+
+  const response = await axios.post<Article>(`${baseURL}/api/articles/${articleId}/images`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    withCredentials: true,
+  });
+  return response.data;
+}
+
+export async function uploadMultipleArticleImages(articleId: string, files: File[]): Promise<Article> {
+  const formData = new FormData();
+  files.forEach((file) => {
+    formData.append('images', file);
+  });
+
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+
+  const response = await axios.post<Article>(`${baseURL}/api/articles/${articleId}/images/multiple`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    withCredentials: true,
+  });
+  return response.data;
+}
+
+export async function removeArticleImage(articleId: string, imageUrl: string): Promise<Article> {
+  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+  const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+
+  const response = await axios.delete<Article>(`${baseURL}/api/articles/${articleId}/images`, {
+    params: { imageUrl },
+    headers: {
+      ...(token && { Authorization: `Bearer ${token}` }),
+    },
+    withCredentials: true,
+  });
+  return response.data;
 }
 

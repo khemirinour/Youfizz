@@ -40,6 +40,29 @@ export class AppService {
           await this.minioClient.makeBucket(bucket);
           this.logger.log(`Created bucket: ${bucket}`);
         }
+        
+        // Set public read policy for articles bucket
+        if (bucket === 'youfizz-articles') {
+          const policy = {
+            Version: '2012-10-17',
+            Statement: [
+              {
+                Effect: 'Allow',
+                Principal: { AWS: ['*'] },
+                Action: ['s3:GetObject'],
+                Resource: [`arn:aws:s3:::${bucket}/*`],
+              },
+            ],
+          };
+          
+          try {
+            await this.minioClient.setBucketPolicy(bucket, JSON.stringify(policy));
+            this.logger.log(`Set public read policy for bucket: ${bucket}`);
+          } catch (policyError: any) {
+            // If policy already exists or can't be set, log warning but don't fail
+            this.logger.warn(`Could not set bucket policy for ${bucket}: ${policyError?.message || policyError}`);
+          }
+        }
       } catch (error) {
         this.logger.error(`Error initializing bucket ${bucket}:`, error);
       }
@@ -76,7 +99,7 @@ export class AppService {
         }
       );
 
-      // Generate public URL (use presigned URL for now, can switch to public URL if bucket policy allows)
+      // Generate public URL (bucket policy allows public read access for articles)
       const url = this.getPublicUrl(bucket, objectName);
 
       this.logger.log(`File uploaded successfully: ${bucket}/${objectName}`);

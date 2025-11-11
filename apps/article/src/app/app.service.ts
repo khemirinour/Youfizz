@@ -1,15 +1,28 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException, InternalServerErrorException } from '@nestjs/common';
+import { HttpService } from '@nestjs/axios';
+import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
+import { firstValueFrom } from 'rxjs';
+import FormData from 'form-data';
 import { Article } from '../entities/article.entity';
 import { QueryArticlesDto } from '../dto/query-articles.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
 
 @Injectable()
 export class AppService {
+  private readonly logger = new Logger(AppService.name);
+  private readonly uploadServiceUrl: string;
+  private readonly defaultBucket = 'youfizz-articles';
+
   constructor(
     @InjectRepository(Article) private readonly articleRepository: Repository<Article>,
-  ) {}
+    private readonly httpService: HttpService,
+    private readonly configService: ConfigService,
+  ) {
+    const uploadPort = this.configService.get('uploadService.port') || 3006;
+    this.uploadServiceUrl = `http://localhost:${uploadPort}/api/upload`;
+  }
 
   getData(): { message: string } {
     return { message: 'Article Service' };
@@ -108,6 +121,127 @@ export class AppService {
       inactive: inactiveCount,
       totalStock,
     };
+  }
+
+  async uploadImage(file: Express.Multer.File, articleId?: string, authorization?: string): Promise<string> {
+    try {
+      const folder = articleId ? `articles/${articleId}` : 'articles/temp';
+      const formData = new FormData();
+      formData.append('file', file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+      });
+
+      const params = new URLSearchParams();
+      params.append('bucket', this.defaultBucket);
+      params.append('folder', folder);
+
+      const headers: Record<string, string> = {
+        ...formData.getHeaders(),
+      };
+      
+      // Add authorization header if provided
+      if (authorization) {
+        headers['Authorization'] = authorization;
+      }
+
+      const response = await firstValueFrom(
+        this.httpService.post<{ url: string; filename: string; objectName: string; size: number; mimeType: string; bucket: string }>(
+          `${this.uploadServiceUrl}?${params.toString()}`,
+          formData,
+          { headers }
+        )
+      );
+
+      return response.data.url;
+    } catch (error: any) {
+      this.logger.error(`Error uploading image: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Failed to upload image');
+    }
+  }
+
+  async uploadMultipleImages(files: Express.Multer.File[], articleId?: string, authorization?: string): Promise<string[]> {
+    try {
+      const folder = articleId ? `articles/${articleId}` : 'articles/temp';
+      const formData = new FormData();
+      
+      files.forEach((file) => {
+        formData.append('files', file.buffer, {
+          filename: file.originalname,
+          contentType: file.mimetype,
+        });
+      });
+
+      const params = new URLSearchParams();
+      params.append('bucket', this.defaultBucket);
+      params.append('folder', folder);
+
+      const headers: Record<string, string> = {
+        ...formData.getHeaders(),
+      };
+      
+      // Add authorization header if provided
+      if (authorization) {
+        headers['Authorization'] = authorization;
+      }
+
+      const response = await firstValueFrom(
+        this.httpService.post<{ files: Array<{ url: string; filename: string; objectName: string; size: number; mimeType: string; bucket: string }>; total: number }>(
+          `${this.uploadServiceUrl}/multiple?${params.toString()}`,
+          formData,
+          { headers }
+        )
+      );
+
+      return response.data.files.map((f) => f.url);
+    } catch (error: any) {
+      this.logger.error(`Error uploading images: ${error.message}`, error.stack);
+      throw new InternalServerErrorException('Failed to upload images');
+    }
+  }
+
+  async addImageToArticle(articleId: string, imageUrl: string): Promise<Article> {
+    const article = await this.findOne(articleId);
+    if (!article) {
+      throw new BadRequestException('Article not found');
+    }
+
+    const images = article.images || [];
+    if (!images.includes(imageUrl)) {
+      images.push(imageUrl);
+      await this.articleRepository.update({ id: articleId }, { images });
+    }
+
+    return this.findOne(articleId);
+  }
+
+  async addImagesToArticle(articleId: string, imageUrls: string[]): Promise<Article> {
+    const article = await this.findOne(articleId);
+    if (!article) {
+      throw new BadRequestException('Article not found');
+    }
+
+    const images = article.images || [];
+    imageUrls.forEach((url) => {
+      if (!images.includes(url)) {
+        images.push(url);
+      }
+    });
+
+    await this.articleRepository.update({ id: articleId }, { images });
+    return this.findOne(articleId);
+  }
+
+  async removeImageFromArticle(articleId: string, imageUrl: string): Promise<Article> {
+    const article = await this.findOne(articleId);
+    if (!article) {
+      throw new BadRequestException('Article not found');
+    }
+
+    const images = (article.images || []).filter((url) => url !== imageUrl);
+    await this.articleRepository.update({ id: articleId }, { images });
+
+    return this.findOne(articleId);
   }
 }
 
