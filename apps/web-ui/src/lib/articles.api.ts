@@ -49,7 +49,7 @@ export interface PaginatedArticlesResponse {
 }
 
 export async function getArticles(params?: QueryArticlesParams) {
-  return get<Article[]>('/api/articles', params);
+  return get<PaginatedArticlesResponse>('/api/articles', params);
 }
 
 export async function getArticleById(id: string) {
