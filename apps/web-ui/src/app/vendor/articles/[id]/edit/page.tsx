@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
-import { getArticleById, updateArticle, type UpdateArticleDto, activateArticle, deactivateArticle } from '@/lib/articles.api';
+import { getArticleById, updateArticle, type UpdateArticleDto, activateArticle, deactivateArticle, uploadArticleImage, uploadMultipleArticleImages, removeArticleImage } from '@/lib/articles.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
+import { ImageUpload } from '@/components/ImageUpload';
+import { ImageGallery } from '@/components/ImageGallery';
 import type { Article } from '@/lib/articles.api';
 
 const EditArticlePage = () => {
@@ -117,6 +119,54 @@ const EditArticlePage = () => {
       });
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleImageUpload = async (files: File[]) => {
+    if (!params.id || files.length === 0) return;
+
+    try {
+      let updated: Article;
+      if (files.length === 1) {
+        updated = await uploadArticleImage(params.id, files[0]);
+      } else {
+        updated = await uploadMultipleArticleImages(params.id, files);
+      }
+      
+      // Refresh article data
+      setArticle(updated);
+      toast({ 
+        title: 'Success', 
+        description: `${files.length} image${files.length > 1 ? 's' : ''} uploaded successfully` 
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.response?.data?.message || e?.message || 'Failed to upload images',
+        variant: 'destructive',
+      });
+      throw e; // Re-throw to let ImageUpload component handle it
+    }
+  };
+
+  const handleImageRemove = async (imageUrl: string) => {
+    if (!params.id) return;
+
+    try {
+      const updated = await removeArticleImage(params.id, imageUrl);
+      // Refresh article data
+      setArticle(updated);
+      toast({ 
+        title: 'Success', 
+        description: 'Image removed successfully' 
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.response?.data?.message || e?.message || 'Failed to remove image',
+        variant: 'destructive',
+      });
+      throw e; // Re-throw to let ImageGallery component handle it
     }
   };
 
@@ -273,6 +323,34 @@ const EditArticlePage = () => {
               </Button>
             </div>
           </form>
+        </Card>
+
+        <Card className="card-glass rounded-xl p-6">
+          <div className="space-y-6">
+            <div>
+              <h2 className="text-xl font-semibold mb-2">Article Images</h2>
+              <p className="text-sm text-muted-foreground">Upload and manage images for this article</p>
+            </div>
+
+            {article && (
+              <>
+                <ImageGallery
+                  images={article.images || []}
+                  onRemove={handleImageRemove}
+                  disabled={submitting}
+                />
+                
+                <div className="border-t pt-6">
+                  <ImageUpload
+                    onUpload={handleImageUpload}
+                    multiple={true}
+                    maxFiles={10}
+                    disabled={submitting}
+                  />
+                </div>
+              </>
+            )}
+          </div>
         </Card>
       </div>
     </div>

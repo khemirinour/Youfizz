@@ -64,14 +64,13 @@ export class AppController {
         bucket: {
           type: 'string',
           example: 'youfizz-articles',
-          required: false,
         },
         folder: {
           type: 'string',
           example: 'articles/vendor123/article456',
-          required: false,
         },
       },
+      required: ['file'],
     },
   })
   @ApiResponse({ status: 201, description: 'File uploaded successfully', type: UploadResponseDto })
@@ -107,14 +106,13 @@ export class AppController {
         bucket: {
           type: 'string',
           example: 'youfizz-articles',
-          required: false,
         },
         folder: {
           type: 'string',
           example: 'articles/vendor123/article456',
-          required: false,
         },
       },
+      required: ['files'],
     },
   })
   @ApiResponse({ status: 201, description: 'Files uploaded successfully', type: MultipleUploadResponseDto })
@@ -133,7 +131,7 @@ export class AppController {
     };
   }
 
-  @Get('files/:bucket/:objectName(*)')
+  @Get('files/:bucket/*objectName')
   @ApiOperation({ summary: 'Get file URL', description: 'Get presigned URL for file access' })
   @ApiParam({ name: 'bucket', description: 'Bucket name', example: 'youfizz-articles' })
   @ApiParam({ name: 'objectName', description: 'Object name (path) in bucket', example: 'articles/vendor123/file.jpg' })
@@ -152,7 +150,7 @@ export class AppController {
     };
   }
 
-  @Delete('files/:bucket/:objectName(*)')
+  @Delete('files/:bucket/*objectName')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'vendeur')
   @ApiBearerAuth()

@@ -1,5 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Delete, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Delete, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException, Headers, Req } from '@nestjs/common';
+import { Request } from 'express';
+import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiCreatedResponse, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiUnauthorizedResponse, ApiConsumes, ApiBody, ApiParam } from '@nestjs/swagger';
 import { AppService } from './app.service';
 import { CreateArticleDto } from '../dto/create-article.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
@@ -123,6 +125,112 @@ export class AppController {
   @ApiForbiddenResponse({ description: 'Insufficient role' })
   deactivate(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.appService.setActive(id, false);
+  }
+
+  @Post(':id/images')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'vendeur')
+  @UseInterceptors(FileInterceptor('image'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload single image to article', description: 'Upload a single image and add it to the article\'s images array' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', description: 'Article ID', type: String })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        image: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+      required: ['image'],
+    },
+  })
+  @ApiOkResponse({ description: 'Image uploaded and added to article', type: ArticleResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role' })
+  @ApiResponse({ status: 400, description: 'Article not found or invalid file' })
+  async uploadImage(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UploadedFile() file: Express.Multer.File,
+    @Headers('authorization') authorization?: string,
+    @Req() req?: Request,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+    // Get authorization header from request (handle both lowercase and capitalized)
+    const authHeader = authorization || 
+      (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
+      (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    const imageUrl = await this.appService.uploadImage(file, id, authHeader);
+    return this.appService.addImageToArticle(id, imageUrl);
+  }
+
+  @Post(':id/images/multiple')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'vendeur')
+  @UseInterceptors(FilesInterceptor('images', 10))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload multiple images to article', description: 'Upload multiple images (max 10) and add them to the article\'s images array' })
+  @ApiConsumes('multipart/form-data')
+  @ApiParam({ name: 'id', description: 'Article ID', type: String })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        images: {
+          type: 'array',
+          items: {
+            type: 'string',
+            format: 'binary',
+          },
+        },
+      },
+      required: ['images'],
+    },
+  })
+  @ApiOkResponse({ description: 'Images uploaded and added to article', type: ArticleResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role' })
+  @ApiResponse({ status: 400, description: 'Article not found or invalid files' })
+  async uploadMultipleImages(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @UploadedFiles() files: Express.Multer.File[],
+    @Headers('authorization') authorization?: string,
+    @Req() req?: Request,
+  ) {
+    if (!files || files.length === 0) {
+      throw new BadRequestException('No files provided');
+    }
+    // Get authorization header from request (handle both lowercase and capitalized)
+    const authHeader = authorization || 
+      (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
+      (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    const imageUrls = await this.appService.uploadMultipleImages(files, id, authHeader);
+    return this.appService.addImagesToArticle(id, imageUrls);
+  }
+
+  @Delete(':id/images')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'vendeur')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove image from article', description: 'Remove an image URL from the article\'s images array' })
+  @ApiParam({ name: 'id', description: 'Article ID', type: String })
+  @ApiQuery({ name: 'imageUrl', description: 'Image URL to remove', type: String, required: true })
+  @ApiOkResponse({ description: 'Image removed from article', type: ArticleResponseDto })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role' })
+  @ApiResponse({ status: 400, description: 'Article not found' })
+  async removeImage(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Query('imageUrl') imageUrl: string,
+  ) {
+    if (!imageUrl) {
+      throw new BadRequestException('imageUrl query parameter is required');
+    }
+    return this.appService.removeImageFromArticle(id, imageUrl);
   }
 
   @Get('stats/articles')

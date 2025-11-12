@@ -1,16 +1,7 @@
-import { Request } from 'express';
 import 'multer';
 
 declare global {
   namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        role: string;
-        email: string;
-        [key: string]: any;
-      };
-    }
     namespace Multer {
       interface File {
         fieldname: string;
