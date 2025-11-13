@@ -10,11 +10,19 @@ const nextConfig = {
   // Use this to set Nx-specific options
   // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
-  // Configure images
   images: {
     formats: ['image/avif', 'image/webp'],
+    remotePatterns: [
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '9000',
+        pathname: '/youfizz-articles/**',
+      },
+    ],
+    // Or use domains for simpler config:
+    // domains: ['localhost'],
   },
-  // Configure path aliases
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,

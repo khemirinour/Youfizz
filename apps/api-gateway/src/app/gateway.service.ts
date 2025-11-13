@@ -55,7 +55,7 @@ export class GatewayService {
     
     // CMD service endpoints
     { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
-    { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: false }, // Changed to false - guest orders allowed
     { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },

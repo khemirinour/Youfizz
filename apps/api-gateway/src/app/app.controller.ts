@@ -605,14 +605,13 @@ export class AppController {
 
   @ApiTags('orders')
   @Post('orders')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Create order', description: 'Create a new order. Requires ADMIN or VENDEUR role.' })
+  // Remove @UseGuards(JwtAuthGuard) and @ApiBearerAuth to allow guest orders
+  @ApiOperation({ summary: 'Create order (guest allowed)', description: 'Create a new order. Guest users can place orders without authentication.' })
   @ApiResponse({ status: 201, description: 'Order created successfully' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
+  @ApiResponse({ status: 400, description: 'Bad request - validation errors' })
   @ApiBody({ description: 'Order data', schema: { type: 'object' } })
   async createOrder(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    // Pass req.user only if it exists (authenticated user), otherwise pass undefined for guest orders
     return this.gatewayService.forwardRequest('/orders', 'POST', body, headers, req.user);
   }
 
