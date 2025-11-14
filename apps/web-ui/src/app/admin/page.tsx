@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getUsers, updateUserRole, setUserActive, deleteUser, incrementVendeurNbrCmdConf, getUserStats, getOrderStats, getArticleStats } from '@/lib/admin.api';
 import type { AdminUser, UserRole } from '@/types/user';
 import type { UserStats, OrderStats, ArticleStats } from '@/lib/admin.api';
+import AnimatedBackground from '@/components/background/AnimatedBackground';
 
 const AdminDashboard = () => {
   const router = useRouter();
@@ -108,10 +109,11 @@ const AdminDashboard = () => {
   if (!hydrated || !isAuthenticated || user?.role !== 'admin') return null;
 
   return (
-<div className="min-h-screen bg-black text-white">
+    <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
+      <AnimatedBackground />
       <AdminNavbar activeTab={activeTab} onTabChange={setActiveTab} />
 
-      <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+      <div className="relative z-20 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Stats Section */}
         {activeTab === 'stats' && (
           <div className="space-y-8">
@@ -263,7 +265,7 @@ const AdminDashboard = () => {
             </div>
 
             {/* Users table */}
-            <div className="card-glass rounded-xl p-6 bg-zinc-900 border border-neutral-800">
+            <div className="card-glass rounded-xl p-6 bg-card border border-border">
               <div className="flex items-center justify-between mb-4 gap-4">
                 <h2 className="text-lg font-semibold">Users</h2>
                 <div className="flex items-center gap-4">
@@ -302,9 +304,9 @@ const AdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="overflow-x-auto rounded-lg border border-neutral-800/70">
-                <table className="w-full text-sm bg-zinc-950/40">
-                  <thead className="text-left text-muted-foreground bg-zinc-900/80 sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-zinc-900/70 border-b border-neutral-800/70">
+              <div className="overflow-x-auto rounded-lg border border-border/70">
+                <table className="w-full text-sm bg-card/60">
+                  <thead className="text-left text-muted-foreground bg-secondary/80 sticky top-0 z-10 backdrop-blur supports-[backdrop-filter]:bg-secondary/70 border-b border-border/70">
                     <tr>
                       <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Name</th>
                       <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap">Email</th>
@@ -315,9 +317,9 @@ const AdminDashboard = () => {
                       <th className="px-4 py-3 text-xs font-medium uppercase tracking-wide whitespace-nowrap text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-neutral-800/60">
+                  <tbody className="divide-y divide-border/60">
                     {users.map(u => (
-                      <tr key={u.id} className="odd:bg-transparent even:bg-zinc-900/30 hover:bg-zinc-800/50">
+                      <tr key={u.id} className="odd:bg-transparent even:bg-secondary/50 hover:bg-secondary/70 transition-colors">
                         <td className="px-4 py-3 pr-4 align-middle text-foreground max-w-[220px] truncate" title={`${u.firstName} ${u.lastName}`}>{u.firstName} {u.lastName}</td>
                         <td className="px-4 py-3 pr-4 align-middle text-foreground max-w-[260px] truncate" title={u.email}>{u.email}</td>
                         <td className="px-4 py-3 pr-4 align-middle">

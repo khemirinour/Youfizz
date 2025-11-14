@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
 import { LogOut, Users, BarChart3 } from 'lucide-react';
+import Image from 'next/image';
+import logo from '@/assets/youfizz-logo.png';
 
 interface AdminNavbarProps {
   activeTab?: 'users' | 'stats';
@@ -35,7 +37,10 @@ export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminN
         <div className="flex flex-col gap-3 py-3 md:hidden">
           {/* Top Row: Brand and Logout */}
           <div className="flex items-center justify-between w-full">
-            <h1 className="text-base sm:text-lg font-bold text-gradient">Admin Dashboard</h1>
+            <div className="flex items-center gap-2">
+              <Image src={logo.src || logo} alt="YouFizz" width={40} height={40} className="h-10 w-10" />
+              <h1 className="text-base sm:text-lg font-bold text-gradient">Admin Dashboard</h1>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -87,7 +92,8 @@ export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminN
         {/* Desktop Layout - Horizontal */}
         <div className="hidden md:flex h-16 items-center justify-between">
           {/* Logo/Brand */}
-          <div className="flex items-center">
+          <div className="flex items-center gap-3">
+            <Image src={logo.src || logo} alt="YouFizz" width={48} height={48} className="h-12 w-12" />
             <h1 className="text-xl font-bold text-gradient">Admin Dashboard</h1>
           </div>
 

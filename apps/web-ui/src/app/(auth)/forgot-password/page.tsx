@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import AnimatedBackground from "@/components/background/AnimatedBackground";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -52,12 +53,12 @@ const ForgotPassword = () => {
 
   if (isSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#0a0a0a] text-gray-100 relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#141414] to-[#1a1a1a] opacity-95" />
+      <div className="relative min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground overflow-hidden">
+        <AnimatedBackground />
         <LanguageSwitcher />
 
-        <div className="w-full max-w-md relative z-10 animate-fade-in text-center">
-          <div className="rounded-xl p-8 space-y-6 bg-[#1e1e1e]/80 shadow-lg backdrop-blur-md border border-[#2a2a2a]">
+        <div className="w-full max-w-md relative z-20 animate-fade-in text-center">
+          <div className="card-glass rounded-xl p-8 space-y-6 bg-card shadow-[var(--shadow-card)] border border-border">
             <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
               <svg
                 className="w-8 h-8 text-primary"
@@ -75,10 +76,10 @@ const ForgotPassword = () => {
             </div>
 
             <div>
-              <h2 className="text-2xl font-bold mb-2 text-white">
+              <h2 className="text-2xl font-bold mb-2 text-foreground">
                 {t("forgotPassword.title")}
               </h2>
-              <p className="text-gray-400">{t("toast.resetLinkSent")}</p>
+              <p className="text-muted-foreground">{t("toast.resetLinkSent")}</p>
             </div>
 
             <div className="space-y-4 pt-4">
@@ -94,7 +95,7 @@ const ForgotPassword = () => {
 
               <button
                 onClick={() => setIsSubmitted(false)}
-                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 {t("forgotPassword.sending")}
               </button>
@@ -106,15 +107,15 @@ const ForgotPassword = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-[#0a0a0a] text-gray-100 relative">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#0a0a0a] via-[#141414] to-[#1a1a1a] opacity-95" />
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground overflow-hidden">
+      <AnimatedBackground />
       <LanguageSwitcher />
 
-      <div className="w-full max-w-md relative z-10 animate-fade-in">
+      <div className="w-full max-w-md relative z-20 animate-fade-in">
         <div className="text-center mb-8">
           <button
             onClick={() => router.push("/signin")}
-            className="inline-flex items-center gap-2 text-gray-400 hover:text-primary transition-colors mb-4"
+            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-4"
           >
             <svg
               className="w-5 h-5"
@@ -132,22 +133,22 @@ const ForgotPassword = () => {
             {t("forgotPassword.backToSignIn")}
           </button>
 
-          <h1 className="text-4xl font-bold mb-2 text-white">
+          <h1 className="text-4xl font-bold mb-2 text-foreground">
             {t("forgotPassword.title")
               .split(" ")
               .slice(0, -1)
               .join(" ")}{" "}
             <span className="text-primary">
-            {t("forgotPassword.title").split(" ").slice(-1)}
+              {t("forgotPassword.title").split(" ").slice(-1)}
             </span>
           </h1>
-          <p className="text-gray-400">{t("forgotPassword.subtitle")}</p>
+          <p className="text-muted-foreground">{t("forgotPassword.subtitle")}</p>
         </div>
 
-        <div className="rounded-xl p-8 space-y-6 bg-[#1e1e1e]/80 shadow-lg backdrop-blur-md border border-[#2a2a2a]">
+        <div className="card-glass rounded-xl p-8 space-y-6 bg-card shadow-[var(--shadow-card)] border border-border">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-gray-300">
+              <Label htmlFor="email" className="text-foreground">
                 {t("forgotPassword.email")}
               </Label>
               <Input
@@ -156,7 +157,7 @@ const ForgotPassword = () => {
                 placeholder="you@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11 bg-[#2a2a2a] border-[#3a3a3a] text-white placeholder-gray-500 focus:ring-2 focus:ring-primary focus:border-primary"
+                className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground focus:border-primary"
                 required
               />
             </div>
@@ -177,7 +178,7 @@ const ForgotPassword = () => {
           <div className="text-center">
             <Link
               href="/signin"
-              className="text-sm text-gray-400 hover:text-primary transition-colors"
+              className="text-sm text-muted-foreground hover:text-primary transition-colors"
             >
               {t("forgotPassword.backToSignIn")}
             </Link>

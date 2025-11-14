@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuthStore } from "@/stores/authStore";
+import AnimatedBackground from "@/components/background/AnimatedBackground";
 
 const SignIn = () => {
   const router = useRouter();
@@ -30,7 +31,7 @@ const SignIn = () => {
 
   if (!mounted || !ready) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-black">
+      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     );
@@ -67,10 +68,11 @@ const SignIn = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-black text-white">
+    <div className="relative min-h-screen flex items-center justify-center px-4 py-12 bg-background text-foreground overflow-hidden">
+      <AnimatedBackground />
       <LanguageSwitcher />
       
-      <div className="w-full max-w-md relative z-10 animate-fade-in">
+      <div className="w-full max-w-md relative z-20 animate-fade-in">
         {/* Section titre */}
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold mb-2">
@@ -91,7 +93,7 @@ const SignIn = () => {
         </div>
 
         {/* Formulaire de connexion */}
-        <div className="card-glass rounded-xl p-8 space-y-6 shadow-[var(--shadow-card)] bg-zinc-900">
+        <div className="card-glass rounded-xl p-8 space-y-6 shadow-[var(--shadow-card)] bg-card">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="email">{t('signIn.email')}</Label>
@@ -101,7 +103,7 @@ const SignIn = () => {
                 placeholder="you@example.com"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="h-11 bg-zinc-800 border-zinc-700 text-gray-200 placeholder-gray-400 hover:border-zinc-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+                className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
                 required
               />
             </div>
@@ -114,7 +116,7 @@ const SignIn = () => {
                 placeholder="••••••••"
                 value={formData.password}
                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="h-11 bg-zinc-800 border-zinc-700 text-gray-200 placeholder-gray-400 hover:border-zinc-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+                className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
                 required
               />
             </div>
@@ -155,12 +157,12 @@ const SignIn = () => {
             </Button>
           </form>
 
-          <div className="relative">
+            <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-border"></div>
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-zinc-900 text-muted-foreground">
+              <span className="px-4 bg-card text-muted-foreground">
                 {t('signIn.noAccount')}
               </span>
             </div>

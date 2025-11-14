@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useAuthStore } from "@/stores/authStore";
+import AnimatedBackground from "@/components/background/AnimatedBackground";
 
 const SignUp = () => {
   const router = useRouter();
@@ -83,16 +84,17 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-black text-white px-4 py-12 relative">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-12 text-foreground">
+      <AnimatedBackground />
       {/* Changer la langue */}
-      <div className="absolute top-6 right-6">
+      <div className="absolute right-6 top-6 z-20">
         <LanguageSwitcher />
       </div>
 
-      <div className="w-full max-w-md relative z-10 bg-neutral-900 p-8 rounded-2xl shadow-lg border border-neutral-800">
+      <div className="relative z-20 w-full max-w-md rounded-2xl border border-border bg-card p-8 shadow-lg card-glass">
         {/* Titre */}
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2 text-white">
+          <h1 className="text-4xl font-bold mb-2 text-foreground">
             {(() => {
               const parts = t("signUp.title").split(" ");
               if (parts.length > 1) {
@@ -107,7 +109,7 @@ const SignUp = () => {
               return t("signUp.title");
             })()}
           </h1>
-          <p className="text-gray-400">{t("signUp.subtitle")}</p>
+          <p className="text-muted-foreground">{t("signUp.subtitle")}</p>
         </div>
 
         {/* Formulaire */}
@@ -121,7 +123,7 @@ const SignUp = () => {
                 placeholder={t("signUp.firstNamePlaceholder")}
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
-                className="h-11 bg-neutral-800 border-neutral-700 text-gray-200 placeholder-gray-400 hover:border-neutral-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+                className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
               />
             </div>
 
@@ -133,7 +135,7 @@ const SignUp = () => {
                 placeholder={t("signUp.lastNamePlaceholder")}
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                className="h-11 bg-neutral-800 border-neutral-700 text-gray-200 placeholder-gray-400 hover:border-neutral-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+                className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
               />
             </div>
           </div>
@@ -146,7 +148,7 @@ const SignUp = () => {
               placeholder="you@example.com"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-              className="h-11 bg-neutral-800 border-neutral-700 text-gray-200 placeholder-gray-400 hover:border-neutral-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+              className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
             />
           </div>
 
@@ -158,9 +160,9 @@ const SignUp = () => {
               placeholder="••••••••"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="h-11 bg-neutral-800 border-neutral-700 text-gray-200 placeholder-gray-400 hover:border-neutral-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+              className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
             />
-            <p className="text-xs text-gray-500">{t("signUp.passwordHint")}</p>
+            <p className="text-xs text-muted-foreground">{t("signUp.passwordHint")}</p>
           </div>
 
           <div className="space-y-2">
@@ -171,7 +173,7 @@ const SignUp = () => {
               placeholder="••••••••"
               value={formData.confirmPassword}
               onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-              className="h-11 bg-neutral-800 border-neutral-700 text-gray-200 placeholder-gray-400 hover:border-neutral-600 focus:border-orange-500 focus:outline-none focus-visible:ring-0"
+              className="h-11 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground hover:border-primary/70 focus:border-primary"
             />
           </div>
 
@@ -182,10 +184,10 @@ const SignUp = () => {
               onValueChange={(value) => setFormData({ ...formData, role: value })}
               required
             >
-              <SelectTrigger className="h-11 bg-neutral-800 border-neutral-700 text-white">
+              <SelectTrigger className="h-11 bg-secondary/80 border-border text-foreground">
                 <SelectValue placeholder={t("signUp.selectRole")} />
               </SelectTrigger>
-              <SelectContent className="bg-neutral-900 border-neutral-700 text-white">
+              <SelectContent className="bg-card border-border text-foreground">
                 <SelectItem value="vendeur">{t("signUp.vendeur")}</SelectItem>
                 <SelectItem value="confirmateur">{t("signUp.confirmateur")}</SelectItem>
               </SelectContent>
@@ -203,19 +205,15 @@ const SignUp = () => {
           </Button>
         </form>
 
-        <div className="border-t border-neutral-800 my-6" />
+        <div className="border-t border-border my-6" />
 
         <Link href="/signin">
-          <Button
-            variant="outline"
-            size="lg"
-            className="w-full border-neutral-700 text-gray-300 hover:bg-neutral-800"
-          >
+          <Button variant="outline" size="lg" className="w-full">
             {t("signUp.signInLink")}
           </Button>
         </Link>
 
-        <p className="text-center text-xs text-gray-500 mt-6">
+        <p className="text-center text-xs text-muted-foreground mt-6">
           {t("signUp.terms")}
         </p>
       </div>

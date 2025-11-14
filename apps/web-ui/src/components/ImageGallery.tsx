@@ -74,7 +74,7 @@ export function ImageGallery({
                   target.style.display = 'none';
                 }}
               />
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors" />
+              <div className="absolute inset-0 bg-background/0 group-hover:bg-background/60 transition-colors" />
               <Button
                 type="button"
                 variant="destructive"
@@ -84,7 +84,7 @@ export function ImageGallery({
                 disabled={disabled || removing === imageUrl}
               >
                 {removing === imageUrl ? (
-                  <div className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="h-4 w-4 border-2 border-foreground border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <Trash2 className="h-4 w-4" />
                 )}

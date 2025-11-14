@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
-import { getArticlesByVendor, type Article } from '@/lib/articles.api';
+import { getArticlesByVendor, type Article, activateArticle, deactivateArticle, deleteArticle } from '@/lib/articles.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
@@ -12,8 +12,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { activateArticle, deactivateArticle, deleteArticle } from '@/lib/articles.api';
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from '@/components/ui/pagination';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import Link from 'next/link';
 
 const ArticlesListPage = () => {
@@ -25,26 +31,22 @@ const ArticlesListPage = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
-  
-  // Pagination state
+
   const pageSize = 20;
   const [page, setPage] = useState(() => {
     const pageParam = searchParams.get('page');
     return pageParam ? parseInt(pageParam, 10) : 1;
   });
-  
-  // Filter state
-  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'>(() => {
-    const statusParam = searchParams.get('status');
-    return (statusParam as any) || 'ALL';
-  });
-  const [isActiveFilter, setIsActiveFilter] = useState<'ALL' | 'true' | 'false'>(() => {
-    const isActiveParam = searchParams.get('isActive');
-    return (isActiveParam as any) || 'ALL';
-  });
 
-  // Wait for Zustand persist hydration
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'>(
+    (searchParams.get('status') as any) || 'ALL'
+  );
+  const [isActiveFilter, setIsActiveFilter] = useState<'ALL' | 'true' | 'false'>(
+    (searchParams.get('isActive') as any) || 'ALL'
+  );
+
+  // Wait for Zustand hydration
   useEffect(() => {
     const api = (useAuthStore as any).persist;
     if (api?.hasHydrated?.()) setHydrated(true);
@@ -52,39 +54,32 @@ const ArticlesListPage = () => {
     return () => unsub?.();
   }, []);
 
+  // Redirect unauthorized users
   useEffect(() => {
-    // Redirect non-vendors to sign in (after hydration)
     if (!hydrated) return;
     if (!isAuthenticated || user?.role !== 'vendeur' || !vendorId) {
       router.replace('/signin');
     }
   }, [hydrated, isAuthenticated, user?.role, vendorId, router]);
 
-  const queryKey = useMemo(() => `${searchQuery}|${statusFilter}|${isActiveFilter}|${page}|${vendorId}`, [searchQuery, statusFilter, isActiveFilter, page, vendorId]);
+  const queryKey = useMemo(
+    () => `${searchQuery}|${statusFilter}|${isActiveFilter}|${page}|${vendorId}`,
+    [searchQuery, statusFilter, isActiveFilter, page, vendorId]
+  );
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return;
     const fetchArticles = async () => {
       try {
         setLoading(true);
-        const params: any = {
-          limit: pageSize,
-          offset: (page - 1) * pageSize,
-        };
-        if (searchQuery.trim()) {
-          params.search = searchQuery.trim();
-        }
-        if (statusFilter !== 'ALL') {
-          params.status = statusFilter;
-        }
-        if (isActiveFilter !== 'ALL') {
-          params.isActive = isActiveFilter === 'true';
-        }
+        const params: any = { limit: pageSize, offset: (page - 1) * pageSize };
+        if (searchQuery.trim()) params.search = searchQuery.trim();
+        if (statusFilter !== 'ALL') params.status = statusFilter;
+        if (isActiveFilter !== 'ALL') params.isActive = isActiveFilter === 'true';
         const data = await getArticlesByVendor(vendorId, params);
         setArticles(data.items || []);
         setTotal(data.total || 0);
-        
-        // Update URL after successful fetch
+
         const urlParams = new URLSearchParams();
         if (searchQuery.trim()) urlParams.set('search', searchQuery.trim());
         if (statusFilter !== 'ALL') urlParams.set('status', statusFilter);
@@ -93,8 +88,8 @@ const ArticlesListPage = () => {
         router.replace(`/vendor/articles${urlParams.toString() ? `?${urlParams.toString()}` : ''}`);
       } catch (e: any) {
         toast({
-          title: 'Error',
-          description: e?.response?.data?.message || e?.message || 'Failed to load articles',
+          title: 'Erreur',
+          description: e?.response?.data?.message || e?.message || 'Échec du chargement des articles',
           variant: 'destructive',
         });
       } finally {
@@ -102,22 +97,7 @@ const ArticlesListPage = () => {
       }
     };
     fetchArticles();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey, hydrated, isAuthenticated, user?.role, vendorId]);
-
-  const handleSearch = () => {
-    setPage(1); // Reset to first page on new search
-  };
-
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value as 'ALL' | 'DRAFT' | 'PUBLISHED' | 'ARCHIVED');
-    setPage(1); // Reset to first page on filter change
-  };
-
-  const handleIsActiveFilterChange = (value: string) => {
-    setIsActiveFilter(value as 'ALL' | 'true' | 'false');
-    setPage(1); // Reset to first page on filter change
-  };
 
   const totalPages = Math.ceil(total / pageSize);
   const startItem = total === 0 ? 0 : (page - 1) * pageSize + 1;
@@ -126,37 +106,20 @@ const ArticlesListPage = () => {
   const handleAction = async (id: string, action: 'activate' | 'deactivate' | 'delete') => {
     try {
       if (action === 'delete') {
-        if (!confirm('Delete this article?')) return;
+        if (!confirm('Supprimer cet article ?')) return;
         await deleteArticle(id);
-        toast({ title: 'Success', description: 'Article deleted' });
+        toast({ title: 'Succès', description: 'Article supprimé' });
       } else if (action === 'activate') {
         await activateArticle(id);
-        toast({ title: 'Success', description: 'Article activated' });
+        toast({ title: 'Succès', description: 'Article activé' });
       } else {
         await deactivateArticle(id);
-        toast({ title: 'Success', description: 'Article deactivated' });
+        toast({ title: 'Succès', description: 'Article désactivé' });
       }
-      // Refresh articles with current filters and pagination
-      const params: any = {
-        limit: pageSize,
-        offset: (page - 1) * pageSize,
-      };
-      if (searchQuery.trim()) {
-        params.search = searchQuery.trim();
-      }
-      if (statusFilter !== 'ALL') {
-        params.status = statusFilter;
-      }
-      if (isActiveFilter !== 'ALL') {
-        params.isActive = isActiveFilter === 'true';
-      }
-      const data = await getArticlesByVendor(vendorId!, params);
-      setArticles(data.items || []);
-      setTotal(data.total || 0);
     } catch (e: any) {
       toast({
-        title: 'Error',
-        description: e?.response?.data?.message || e?.message || 'Action failed',
+        title: 'Erreur',
+        description: e?.response?.data?.message || e?.message || 'Échec de l’action',
         variant: 'destructive',
       });
     }
@@ -165,36 +128,46 @@ const ArticlesListPage = () => {
   if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return null;
 
   return (
-    <div className="min-h-screen">
-      <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
-      <VendorNavbar />
+    <div className="min-h-screen bg-background text-foreground relative">
+      {/* --- Dégradé radial orange --- */}
+      <div
+        className="absolute inset-0 z-0"
+        style={{
+          background:
+            'radial-gradient(circle at top left, hsl(var(--primary) / 0.12), hsl(var(--background)) 60%)',
+        }}
+      />
+      <VendorNavbar logoSrc="/logo-dark.png" />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
+        {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Gestion des Articles</h1>
-            <p className="text-muted-foreground">Manage your articles and inventory</p>
+            <h1 className="text-3xl font-bold mb-2 text-foreground">Gestion des Articles</h1>
+            <p className="text-muted-foreground">Gérez vos produits et votre inventaire</p>
           </div>
           <Link href="/vendor/articles/new">
-            <Button>Create Article</Button>
+            <Button>
+              Créer un article
+            </Button>
           </Link>
         </div>
 
-        <Card className="card-glass rounded-xl p-6">
+        {/* Filters + Table */}
+        <Card className="bg-card border border-border rounded-xl p-6 shadow-lg">
           <div className="space-y-4 mb-6">
+            {/* Search bar */}
             <div className="flex items-center gap-4">
               <Input
-                placeholder="Search by title..."
+                placeholder="Rechercher par titre..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
-                className="flex-1"
+                onKeyDown={(e) => e.key === 'Enter' && setPage(1)}
+                className="flex-1 bg-secondary/80 border-border text-foreground placeholder:text-muted-foreground focus:border-primary"
               />
-              <Button onClick={handleSearch}>Search</Button>
+              <Button onClick={() => setPage(1)}>
+                Rechercher
+              </Button>
               {(searchQuery || statusFilter !== 'ALL' || isActiveFilter !== 'ALL') && (
                 <Button
                   variant="outline"
@@ -204,105 +177,112 @@ const ArticlesListPage = () => {
                     setIsActiveFilter('ALL');
                     setPage(1);
                   }}
+                  className="border-border text-foreground hover:bg-secondary/70"
                 >
-                  Clear All
+                  Réinitialiser
                 </Button>
               )}
             </div>
-            
+
+            {/* Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="status-filter">Status</Label>
-                <Select value={statusFilter} onValueChange={handleStatusFilterChange}>
-                  <SelectTrigger id="status-filter">
+                <Label htmlFor="status-filter" className="text-muted-foreground">
+                  Statut
+                </Label>
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+                  <SelectTrigger
+                    id="status-filter"
+                    className="bg-secondary/80 border-border text-foreground"
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All Statuses</SelectItem>
-                    <SelectItem value="DRAFT">DRAFT</SelectItem>
-                    <SelectItem value="PUBLISHED">PUBLISHED</SelectItem>
-                    <SelectItem value="ARCHIVED">ARCHIVED</SelectItem>
+                  <SelectContent className="bg-card text-foreground border-border">
+                    <SelectItem value="ALL">Tous</SelectItem>
+                    <SelectItem value="DRAFT">Brouillons</SelectItem>
+                    <SelectItem value="PUBLISHED">Publiés</SelectItem>
+                    <SelectItem value="ARCHIVED">Archivés</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
-              
+
               <div className="space-y-2">
-                <Label htmlFor="active-filter">Visibility</Label>
-                <Select value={isActiveFilter} onValueChange={handleIsActiveFilterChange}>
-                  <SelectTrigger id="active-filter">
+                <Label htmlFor="active-filter" className="text-muted-foreground">
+                  Visibilité
+                </Label>
+                <Select value={isActiveFilter} onValueChange={(v) => setIsActiveFilter(v as any)}>
+                  <SelectTrigger
+                    id="active-filter"
+                    className="bg-secondary/80 border-border text-foreground"
+                  >
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="ALL">All</SelectItem>
-                    <SelectItem value="true">Active</SelectItem>
-                    <SelectItem value="false">Inactive</SelectItem>
+                  <SelectContent className="bg-card text-foreground border-border">
+                    <SelectItem value="ALL">Toutes</SelectItem>
+                    <SelectItem value="true">Actives</SelectItem>
+                    <SelectItem value="false">Inactives</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
           </div>
 
+          {/* Table */}
           {loading ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Loading articles...</p>
-            </div>
+            <div className="text-center py-12 text-muted-foreground">Chargement...</div>
           ) : articles.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">No articles found</p>
-            </div>
+            <div className="text-center py-12 text-muted-foreground">Aucun article trouvé</div>
           ) : (
             <>
               <div className="mb-4 text-sm text-muted-foreground">
-                Showing {startItem}-{endItem} of {total} articles
+                Affichage {startItem}-{endItem} sur {total} articles
               </div>
               <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+                <Table className="text-foreground">
+                  <TableHeader className="bg-secondary/80">
                     <TableRow>
-                      <TableHead>Title</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Active</TableHead>
+                      <TableHead>Titre</TableHead>
+                      <TableHead>Statut</TableHead>
+                      <TableHead>Actif</TableHead>
                       <TableHead className="text-right">Stock</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {articles.map((article) => (
-                      <TableRow key={article.id}>
-                        <TableCell className="font-medium">{article.title}</TableCell>
-                        <TableCell>{article.status || '-'}</TableCell>
-                        <TableCell>{article.isActive ? 'Yes' : 'No'}</TableCell>
+                      <TableRow key={article.id} className="hover:bg-secondary/60">
+                        <TableCell>{article.title}</TableCell>
+                        <TableCell>{article.status}</TableCell>
+                        <TableCell>{article.isActive ? 'Oui' : 'Non'}</TableCell>
                         <TableCell className="text-right">{article.stock ?? 0}</TableCell>
                         <TableCell className="text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex justify-end gap-2">
                             <Link href={`/vendor/articles/${article.id}/edit`}>
-                              <Button variant="outline" size="sm">
-                                Edit
+                              <Button size="sm" variant="outline" className="border-border text-foreground hover:bg-secondary/70">
+                                Éditer
                               </Button>
                             </Link>
                             {article.isActive ? (
                               <Button
-                                variant="outline"
                                 size="sm"
                                 onClick={() => handleAction(article.id, 'deactivate')}
+                                variant="outline"
+                                className="border-border text-muted-foreground hover:bg-secondary/70"
                               >
-                                Deactivate
+                                Désactiver
                               </Button>
                             ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleAction(article.id, 'activate')}
-                              >
-                                Activate
+                              <Button size="sm" onClick={() => handleAction(article.id, 'activate')}>
+                                Activer
                               </Button>
                             )}
                             <Button
-                              variant="destructive"
                               size="sm"
+                              variant="destructive"
                               onClick={() => handleAction(article.id, 'delete')}
+                              className="hover:bg-destructive/90"
                             >
-                              Delete
+                              Supprimer
                             </Button>
                           </div>
                         </TableCell>
@@ -311,14 +291,14 @@ const ArticlesListPage = () => {
                   </TableBody>
                 </Table>
               </div>
-              
+
               {totalPages > 1 && (
                 <div className="mt-6">
                   <Pagination>
                     <PaginationContent>
                       <PaginationItem>
-                        <PaginationPrevious 
-                          href="#" 
+                        <PaginationPrevious
+                          href="#"
                           onClick={(e) => {
                             e.preventDefault();
                             if (page > 1) setPage(page - 1);
@@ -327,7 +307,6 @@ const ArticlesListPage = () => {
                         />
                       </PaginationItem>
                       {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => {
-                        // Show first page, last page, current page, and pages around current
                         if (
                           pageNum === 1 ||
                           pageNum === totalPages ||
@@ -342,23 +321,22 @@ const ArticlesListPage = () => {
                                   setPage(pageNum);
                                 }}
                                 isActive={pageNum === page}
+                                className={`${
+                                  pageNum === page
+                                    ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                                    : 'bg-secondary text-foreground hover:bg-secondary/70'
+                                }`}
                               >
                                 {pageNum}
                               </PaginationLink>
-                            </PaginationItem>
-                          );
-                        } else if (pageNum === page - 2 || pageNum === page + 2) {
-                          return (
-                            <PaginationItem key={pageNum}>
-                              <span className="px-2">...</span>
                             </PaginationItem>
                           );
                         }
                         return null;
                       })}
                       <PaginationItem>
-                        <PaginationNext 
-                          href="#" 
+                        <PaginationNext
+                          href="#"
                           onClick={(e) => {
                             e.preventDefault();
                             if (page < totalPages) setPage(page + 1);
@@ -379,4 +357,3 @@ const ArticlesListPage = () => {
 };
 
 export default ArticlesListPage;
-

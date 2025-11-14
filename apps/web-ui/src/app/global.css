@@ -9,7 +9,7 @@ All colors MUST be HSL.
 @layer base {
   :root {
     /* Dark space-themed marketplace colors */
-    --background: 0 0% 3%;
+    --background: 0 0% 0%;
     --foreground: 0 0% 95%;
 
     --card: 0 0% 6%;
@@ -30,8 +30,8 @@ All colors MUST be HSL.
     --muted: 0 0% 15%;
     --muted-foreground: 0 0% 60%;
 
-    /* Blue accent */
-    --accent: 207 72% 39%;
+    /* Orange accent */
+    --accent: 19 82% 65%;
     --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84% 60%;
@@ -45,7 +45,7 @@ All colors MUST be HSL.
 
     /* Custom design tokens */
     --gradient-primary: linear-gradient(135deg, hsl(19, 82%, 65%), hsl(19, 90%, 70%));
-    --gradient-dark: linear-gradient(180deg, hsl(0, 0%, 3%), hsl(0, 0%, 6%));
+    --gradient-dark: linear-gradient(180deg, hsl(0, 0%, 0%), hsl(0, 0%, 6%));
     --gradient-radial: radial-gradient(circle at 50% 50%, hsl(19, 82%, 65% / 0.15), transparent 70%);
     
     /* Glass morphism effects */
@@ -57,13 +57,51 @@ All colors MUST be HSL.
     --shadow-card: 0 4px 6px -1px hsl(0, 0%, 0% / 0.1), 0 2px 4px -1px hsl(0, 0%, 0% / 0.06);
     --shadow-card-hover: 0 10px 15px -3px hsl(0, 0%, 0% / 0.1), 0 4px 6px -2px hsl(0, 0%, 0% / 0.05);
   }
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 95%;
+    --card: 0 0% 6%;
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 6%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 19 82% 65%;
+    --primary-foreground: 0 0% 98%;
+    --primary-glow: 19 90% 70%;
+    --secondary: 0 0% 12%;
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%;
+    --accent: 19 82% 65%;
+    --accent-foreground: 0 0% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 0 0% 15%;
+    --input: 0 0% 10%;
+    --ring: 19 82% 65%;
+    --radius: 0.75rem;
+    --gradient-primary: linear-gradient(135deg, hsl(19, 82%, 65%), hsl(19, 90%, 70%));
+    --gradient-dark: linear-gradient(180deg, hsl(0, 0%, 0%), hsl(0, 0%, 6%));
+    --gradient-radial: radial-gradient(circle at 50% 50%, hsl(19, 82%, 65% / 0.15), transparent 70%);
+    --glass-bg: hsl(0, 0%, 6% / 0.8);
+    --glass-border: hsl(0, 0%, 15% / 0.3);
+    --glass-shadow: 0 8px 32px hsl(0, 0%, 0% / 0.3);
+    --shadow-card: 0 4px 6px -1px hsl(0, 0%, 0% / 0.1), 0 2px 4px -1px hsl(0, 0%, 0% / 0.06);
+    --shadow-card-hover: 0 10px 15px -3px hsl(0, 0%, 0% / 0.1), 0 4px 6px -2px hsl(0, 0%, 0% / 0.05);
+  }
+}
+
+@layer base {
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
 }
 
 @layer components {
-  /* Glass morphism card */
+  /* Glass morphism card - gris foncé pour meilleure visibilité */
   .card-glass {
-    background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    background: hsl(0, 0%, 12%);
+    border: 1px solid hsl(0, 0%, 20%);
     box-shadow: var(--glass-shadow);
   }
 
