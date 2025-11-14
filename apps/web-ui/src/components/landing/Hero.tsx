@@ -1,7 +1,7 @@
 'use client';
 
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, TrendingUp, Users } from "lucide-react";
+import { ShoppingCart, TrendingUp, Users, ArrowRight, ShoppingBag } from "lucide-react";
 import Link from "next/link";
 import logo from "@/assets/youfizz-logo-text.png";
 import AnimatedBackground from "@/components/background/AnimatedBackground";
@@ -9,23 +9,7 @@ import AnimatedBackground from "@/components/background/AnimatedBackground";
 const Hero = () => {
   return (
     <section className="relative min-h-screen flex flex-col overflow-hidden bg-background">
-      {/* Navigation avec boutons Sign In / Sign Up */}
-      <nav className="relative z-20 container mx-auto px-4 py-6">
-        <div className="flex justify-end gap-3">
-          <Link href="/signin">
-            <Button variant="ghost" size="lg" className="text-foreground hover:text-primary">
-              Sign In
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90">
-              Sign Up
-            </Button>
-          </Link>
-        </div>
-      </nav>
-
-      {/* Animated background elements */}
+      
       <AnimatedBackground />
 
       <div className="container mx-auto px-4 relative z-10 flex-1 flex items-center justify-center">
@@ -55,12 +39,21 @@ const Hero = () => {
           </p>
 
           {/* CTA Button */}
-          <div className="flex justify-center mb-16">
-            <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 animate-glow">
-              Explorer la marketplace
-            </Button>
-          </div>
-
+            <div className="flex justify-center mb-16">
+              <Link href="/shop">
+                <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 animate-glow">
+                  <ShoppingBag className="h-5 w-5 mr-2" />
+                  Browse Shop
+                </Button>
+              </Link>
+              <Link href="/signin">
+                <Button variant="outline" size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 animate-glow">
+                  Sign In
+                  <ArrowRight className="h-5 w-5 ml-2" />
+                </Button>
+              </Link>
+            </div>
+          
           {/* Stats */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="bg-card border border-border rounded-2xl p-6 hover:border-primary/50 transition-all duration-300">

@@ -54,6 +54,11 @@ function createHttp(): AxiosInstance {
 		async (error: AxiosError) => {
 			const originalRequest = error.config as any;
 			const status = error.response?.status;
+			const url = originalRequest?.url || '';
+
+			// List of public endpoints that don't require auth
+			const publicEndpoints = ['/api/orders'];
+			const isPublicEndpoint = publicEndpoints.some(endpoint => url.includes(endpoint));
 
 			// Handle 403 - Forbidden (token expired or invalid)
 			if (status === 403 && originalRequest && !originalRequest._retry) {
@@ -68,6 +73,11 @@ function createHttp(): AxiosInstance {
 							window.location.assign('/signin');
 						}
 					}
+					return Promise.reject(error);
+				}
+
+				// Don't redirect for public endpoints
+				if (isPublicEndpoint) {
 					return Promise.reject(error);
 				}
 
@@ -126,6 +136,11 @@ function createHttp(): AxiosInstance {
 
 			// Handle 401 - Unauthorized (no token or invalid token)
 			if (status === 401) {
+				// Don't redirect for public endpoints - let the error propagate
+				if (isPublicEndpoint) {
+					return Promise.reject(error);
+				}
+
 				try {
 					useAuthStore.getState().logout();
 				} catch {}
