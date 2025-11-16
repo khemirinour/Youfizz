@@ -17,6 +17,9 @@ export class AppController {
 
   @Get()
   @ApiOperation({ summary: 'List orders' })
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiQuery({ name: 'search', required: false, description: 'Order number contains' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING','CONFIRMED','SHIPPED','DELIVERED','CANCELLED'] })
   @ApiQuery({ name: 'customerId', required: false })
@@ -25,6 +28,8 @@ export class AppController {
   @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
   @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
   @ApiOkResponse({ description: 'Orders retrieved', type: [Order] })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role' })
   list(@Query() query: QueryOrdersDto) {
     return this.appService.findAll(query);
   }
@@ -47,7 +52,7 @@ export class AppController {
   @ApiOperation({ summary: 'Update order' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR', 'CONFIRMATEUR')
+  @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order updated', type: Order })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
@@ -71,7 +76,7 @@ export class AppController {
   @ApiOperation({ summary: 'Confirm order' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('VENDEUR', 'CONFIRMATEUR')
+  @Roles('VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order confirmed', type: Order })
   confirm(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
     // Extract user data from JWT token (same logic as login token)
@@ -80,7 +85,7 @@ export class AppController {
       userId: user?.userId,           // User ID from token
       role: user?.role,                // User role
       vendorId: user?.vendorId,     // Vendor ID from token (if vendeur)
-      confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confirmateur)
+      confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confermateur)
     };
     return this.appService.confirm(id, userData);
   }
@@ -89,7 +94,7 @@ export class AppController {
   @ApiOperation({ summary: 'Activate order (active)' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR', 'CONFIRMATEUR')
+  @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order activated', type: Order })
   activate(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.appService.setActive(id, true);
@@ -99,7 +104,7 @@ export class AppController {
   @ApiOperation({ summary: 'Deactivate order (inactive)' })
   @ApiBearerAuth()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('ADMIN', 'VENDEUR', 'CONFIRMATEUR')
+  @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order deactivated', type: Order })
   deactivate(@Param('id', new ParseUUIDPipe()) id: string) {
     return this.appService.setActive(id, false);

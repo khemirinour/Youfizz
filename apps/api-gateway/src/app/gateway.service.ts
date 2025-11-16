@@ -33,6 +33,12 @@ export class GatewayService {
     { service: 'auth', path: '/confermateurs', method: 'GET', requiresAuth: true },
     { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'POST', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/confermateurs/:confermateurId/accept-vendeur/:vendeurId', method: 'GET', requiresAuth: false },
+    { service: 'auth', path: '/confermateurs/:confermateurId/accept-vendeur/:vendeurId', method: 'POST', requiresAuth: false },
+    { service: 'auth', path: '/confermateurs/:confermateurId/refuse-vendeur/:vendeurId', method: 'GET', requiresAuth: false },
+    { service: 'auth', path: '/confermateurs/:confermateurId/refuse-vendeur/:vendeurId', method: 'POST', requiresAuth: false },
+    { service: 'auth', path: '/vendeurs/:vendeurId/request-confermateur', method: 'POST', requiresAuth: true, roles: ['vendeur'] },
+    { service: 'auth', path: '/users/by-email/:email', method: 'GET', requiresAuth: false },
     { service: 'auth', path: '/password-reset/request', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/confirm', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/reset', method: 'POST', requiresAuth: false },
@@ -71,6 +77,9 @@ export class GatewayService {
     // Notification service endpoints
     { service: 'notification', path: '/notifications', method: 'GET', requiresAuth: true },
     { service: 'notification', path: '/notifications/:id/read', method: 'PATCH', requiresAuth: true },
+    { service: 'notification', path: '/notifications/email/password-reset', method: 'POST', requiresAuth: false },
+    { service: 'notification', path: '/notifications/email/welcome', method: 'POST', requiresAuth: false },
+    { service: 'notification', path: '/notifications/email/confermateur-assignment-request', method: 'POST', requiresAuth: false },
   ];
 
   constructor(

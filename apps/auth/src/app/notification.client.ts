@@ -19,7 +19,9 @@ export class NotificationClient {
   private readonly notificationServiceUrl: string;
 
   constructor(private readonly httpService: HttpService) {
-    this.notificationServiceUrl = process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3004';
+    // Use gateway URL if available, otherwise direct notification service URL
+    // Gateway routes email endpoints, so we can use either gateway or direct service
+    this.notificationServiceUrl = process.env.API_GATEWAY_URL || process.env.NOTIFICATION_SERVICE_URL || 'http://localhost:3000';
   }
 
   async sendPasswordResetEmail(data: PasswordResetEmailData): Promise<void> {
@@ -45,6 +47,26 @@ export class NotificationClient {
     } catch (error) {
       this.logger.error(`Failed to send welcome email to ${data.email}:`, error.message);
       throw new Error(`Failed to send welcome email: ${error.message}`);
+    }
+  }
+
+  async sendConfermateurAssignmentRequestEmail(data: {
+    confermateurEmail: string;
+    confermateurName: string;
+    vendeurName: string;
+    vendeurEmail: string;
+    acceptUrl: string;
+    refuseUrl: string;
+  }): Promise<void> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post(`${this.notificationServiceUrl}/api/notifications/email/confermateur-assignment-request`, data)
+      );
+      
+      this.logger.log(`Confermateur assignment request email sent successfully to ${data.confermateurEmail}`);
+    } catch (error) {
+      this.logger.error(`Failed to send confermateur assignment request email to ${data.confermateurEmail}:`, error.message);
+      throw new Error(`Failed to send confermateur assignment request email: ${error.message}`);
     }
   }
 }

@@ -12,7 +12,7 @@ export interface RegisterPayload {
 	password: string;
 	firstName?: string;
 	lastName?: string;
-	role?: 'vendeur' | 'confirmateur' | 'admin';
+	role?: 'vendeur' | 'confermateur' | 'admin';
 }
 
 export interface UserResponse {
@@ -20,7 +20,7 @@ export interface UserResponse {
 	email: string;
 	firstName?: string;
 	lastName?: string;
-	role: 'vendeur' | 'confirmateur' | 'admin';
+	role: 'vendeur' | 'confermateur' | 'admin';
 }
 
 export interface AuthResponse {

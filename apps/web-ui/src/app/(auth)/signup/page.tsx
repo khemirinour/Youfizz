@@ -63,7 +63,7 @@ const SignUp = () => {
         lastName: formData.lastName,
         email: formData.email,
         password: formData.password,
-        role: formData.role as "vendeur" | "confirmateur",
+        role: formData.role as "vendeur" | "confermateur",
       });
 
       toast({
@@ -189,7 +189,7 @@ const SignUp = () => {
               </SelectTrigger>
               <SelectContent className="bg-card border-border text-foreground">
                 <SelectItem value="vendeur">{t("signUp.vendeur")}</SelectItem>
-                <SelectItem value="confirmateur">{t("signUp.confirmateur")}</SelectItem>
+                <SelectItem value="confermateur">{t("signUp.confirmateur")}</SelectItem>
               </SelectContent>
             </Select>
           </div>

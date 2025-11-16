@@ -334,10 +334,10 @@ const AdminDashboard = () => {
                           }}>
                             <SelectTrigger className="h-9 w-44"><SelectValue /></SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="ADMIN">ADMIN</SelectItem>
-                              <SelectItem value="VENDEUR">VENDEUR</SelectItem>
-                              <SelectItem value="CONFERMATEUR">CONFERMATEUR</SelectItem>
-                              <SelectItem value="GUEST">GUEST</SelectItem>
+                              <SelectItem value="admin">ADMIN</SelectItem>
+                              <SelectItem value="vendeur">VENDEUR</SelectItem>
+                              <SelectItem value="confermateur">CONFERMATEUR</SelectItem>
+                              <SelectItem value="guest">GUEST</SelectItem>
                             </SelectContent>
                           </Select>
                         </td>

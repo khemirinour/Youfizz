@@ -19,6 +19,15 @@ export interface WelcomeEmailData {
   firstName?: string;
 }
 
+export interface ConfermateurAssignmentRequestEmailData {
+  confermateurEmail: string;
+  confermateurName: string;
+  vendeurName: string;
+  vendeurEmail: string;
+  acceptUrl: string;
+  refuseUrl: string;
+}
+
 export interface NotificationEmailData {
   email: string;
   subject: string;
@@ -36,7 +45,7 @@ export class EmailService {
   }
 
   private initializeTransporter() {
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    const isDevelopment = false;
     
     if (isDevelopment) {
       // Use MailHog for development
@@ -97,6 +106,17 @@ export class EmailService {
     await this.sendEmail({
       to: data.email,
       subject: 'Welcome to YouFizz!',
+      html: emailContent.html,
+      text: emailContent.text,
+    });
+  }
+
+  async sendConfermateurAssignmentRequestEmail(data: ConfermateurAssignmentRequestEmailData): Promise<void> {
+    const emailContent = this.generateConfermateurAssignmentRequestEmailTemplate(data);
+    
+    await this.sendEmail({
+      to: data.confermateurEmail,
+      subject: 'Vendeur Assignment Request - YouFizz',
       html: emailContent.html,
       text: emailContent.text,
     });
@@ -312,6 +332,81 @@ export class EmailService {
       ${data.subject}
       
       ${data.data.content || 'You have a new notification from YouFizz.'}
+      
+      Best regards,
+      The YouFizz Team
+    `;
+
+    return { html, text };
+  }
+
+  private generateConfermateurAssignmentRequestEmailTemplate(data: ConfermateurAssignmentRequestEmailData) {
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Vendeur Assignment Request</title>
+        </head>
+        <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+          <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff; padding: 20px;">
+            <div style="text-align: center; margin-bottom: 30px;">
+              <h1 style="color: #333; margin: 0;">YouFizz</h1>
+            </div>
+            
+            <h2 style="color: #333; margin-bottom: 20px;">Vendeur Assignment Request</h2>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Hello ${data.confermateurName},
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              <strong>${data.vendeurName}</strong> (${data.vendeurEmail}) has requested to be assigned to you as their confermateur.
+            </p>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px;">
+              Please review this request and choose to accept or refuse:
+            </p>
+            
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${data.acceptUrl}" 
+                 style="display: inline-block; background-color: #28a745; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; margin-right: 10px;">
+                Accept
+              </a>
+              <a href="${data.refuseUrl}" 
+                 style="display: inline-block; background-color: #dc3545; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Refuse
+              </a>
+            </div>
+            
+            <p style="color: #666; line-height: 1.6; margin-bottom: 20px; font-size: 12px;">
+              If the buttons don't work, you can copy and paste these links into your browser:<br>
+              Accept: <a href="${data.acceptUrl}" style="color: #007bff;">${data.acceptUrl}</a><br>
+              Refuse: <a href="${data.refuseUrl}" style="color: #007bff;">${data.refuseUrl}</a>
+            </p>
+            
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee;">
+              <p style="color: #999; font-size: 12px; margin: 0;">
+                © ${new Date().getFullYear()} YouFizz. All rights reserved.
+              </p>
+            </div>
+          </div>
+        </body>
+      </html>
+    `;
+
+    const text = `
+      Vendeur Assignment Request - YouFizz
+      
+      Hello ${data.confermateurName},
+      
+      ${data.vendeurName} (${data.vendeurEmail}) has requested to be assigned to you as their confermateur.
+      
+      Please review this request and choose to accept or refuse:
+      
+      Accept: ${data.acceptUrl}
+      Refuse: ${data.refuseUrl}
       
       Best regards,
       The YouFizz Team

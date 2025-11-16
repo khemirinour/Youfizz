@@ -7,15 +7,24 @@ import VendorNavbar from '@/components/VendorNavbar';
 import { getArticleHealth } from '@/lib/articles.api';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
+import { findConfermateurByEmail, requestConfermateurAssignment, type ConfermateurUser } from '@/lib/vendor.api';
 
 const VendorDashboard = () => {
   const router = useRouter();
   const { user, isAuthenticated, vendorId } = useAuthStore();
+  const { toast } = useToast();
   const [hydrated, setHydrated] = useState(false);
   const [healthStatus, setHealthStatus] = useState<string>('');
   const [healthLoading, setHealthLoading] = useState(true);
+  const [confermateurEmail, setConfermateurEmail] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [foundConfermateur, setFoundConfermateur] = useState<ConfermateurUser | null>(null);
 
   useEffect(() => {
     const api = (useAuthStore as any).persist;
@@ -46,6 +55,51 @@ const VendorDashboard = () => {
     };
     fetchHealth();
   }, [hydrated, isAuthenticated, user?.role]);
+
+  const handleSearch = async () => {
+    if (!confermateurEmail) return;
+    
+    setSearching(true);
+    setFoundConfermateur(null);
+    
+    try {
+      const confermateur = await findConfermateurByEmail(confermateurEmail);
+      setFoundConfermateur(confermateur);
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error?.response?.data?.message || error?.message || 'Confermateur non trouvé',
+        variant: 'destructive',
+      });
+      setFoundConfermateur(null);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const handleSendRequest = async () => {
+    if (!foundConfermateur || !user?.id) return;
+    
+    setSending(true);
+    
+    try {
+      await requestConfermateurAssignment(user.id, foundConfermateur.email);
+      toast({
+        title: 'Succès',
+        description: 'Demande envoyée avec succès. Le confermateur recevra un email.',
+      });
+      setConfermateurEmail('');
+      setFoundConfermateur(null);
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description: error?.response?.data?.message || error?.message || 'Échec de l\'envoi de la demande',
+        variant: 'destructive',
+      });
+    } finally {
+      setSending(false);
+    }
+  };
 
   if (!hydrated || !isAuthenticated || user?.role !== 'vendeur') return null;
 
@@ -82,6 +136,63 @@ const VendorDashboard = () => {
             <p className="text-3xl font-semibold mt-2 text-primary">{vendorId || 'N/A'}</p>
           </Card>
         </div>
+
+        {/* Request Confermateur Assignment Section */}
+        <Card className="rounded-xl p-6 shadow-lg border-border bg-card">
+          <h2 className="text-xl font-semibold mb-4 text-foreground">Demander un Confermateur</h2>
+          <p className="text-sm text-muted-foreground mb-4">
+            Recherchez un confermateur par email et envoyez-lui une demande d'association
+          </p>
+          
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Label htmlFor="confermateur-email" className="sr-only">Email du confermateur</Label>
+                <Input
+                  id="confermateur-email"
+                  type="email"
+                  placeholder="email@confermateur.com"
+                  value={confermateurEmail}
+                  onChange={(e) => {
+                    setConfermateurEmail(e.target.value);
+                    setFoundConfermateur(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && confermateurEmail && !searching) {
+                      handleSearch();
+                    }
+                  }}
+                />
+              </div>
+              <Button
+                onClick={handleSearch}
+                disabled={!confermateurEmail || searching}
+              >
+                {searching ? 'Recherche...' : 'Rechercher'}
+              </Button>
+            </div>
+
+            {foundConfermateur && (
+              <div className="border border-border rounded-lg p-4 bg-secondary/30">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {foundConfermateur.firstName} {foundConfermateur.lastName}
+                    </p>
+                    <p className="text-sm text-muted-foreground">{foundConfermateur.email}</p>
+                  </div>
+                  <Button
+                    onClick={handleSendRequest}
+                    disabled={sending}
+                    variant="default"
+                  >
+                    {sending ? 'Envoi...' : 'Envoyer la demande'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </Card>
 
         <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
           <h2 className="text-xl font-semibold mb-4 text-foreground">Actions Rapides</h2>

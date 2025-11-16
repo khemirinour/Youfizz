@@ -19,7 +19,9 @@ import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
-  // Map of confermateur userId -> set of vendeur userIds they manage (temp until relation is added in persistence layer)
+  // DEPRECATED: This in-memory Map is no longer used. Relationships are now persisted in the database.
+  // Kept for backward compatibility but will be removed in a future version.
+  // @deprecated Use database relationships via Confermateur entity instead
   private confermateurVendeurs: Map<string, Set<string>> = new Map();
   constructor(
     @InjectRepository(User) private readonly userRepo: Repository<User>,
@@ -273,14 +275,30 @@ export class AuthService {
   }
 
   private async getVendorAndConfirmateurIds(userId: string): Promise<{ vendorId?: string; confirmateurId?: string }> {
+    const user = await this.userRepo.findOne({ where: { id: userId } });
+    if (!user) {
+      return {};
+    }
+
     const [vendeur, confermateur] = await Promise.all([
       this.vendeurRepo.findOne({ where: { idUser: userId } }),
       this.confermateurRepo.findOne({ where: { idUser: userId } })
     ]);
 
+    let finalConfermateur = confermateur;
+
+    // Create Confermateur entity if user is CONFERMATEUR but entity doesn't exist
+    if (user.role === UserRole.CONFERMATEUR && !confermateur) {
+      finalConfermateur = this.confermateurRepo.create({
+        idUser: userId,
+        vendeurs: []
+      });
+      await this.confermateurRepo.save(finalConfermateur);
+    }
+
     return {
       vendorId: vendeur?.id,
-      confirmateurId: confermateur?.id
+      confirmateurId: finalConfermateur?.id
     };
   }
 
@@ -289,7 +307,7 @@ export class AuthService {
     return users.map(u => this.toUserResponseDto(u));
   }
 
-  async findAllPaginated(params: { role?: UserRole; page: number | string; limit: number | string; }): Promise<{ items: (UserResponseDto & { nbrCmdConf?: number; vendeurs?: Array<{ id: string; firstName: string; lastName: string }> })[]; total: number; page: number; limit: number; }> {
+  async findAllPaginated(params: { role?: UserRole; page: number | string; limit: number | string; }): Promise<{ items: (UserResponseDto & { nbrCmdConf?: number; vendeurs?: Array<{ id: string; firstName: string; lastName: string; email: string }> })[]; total: number; page: number; limit: number; }> {
     const { role } = params;
     const page = Number(params.page);
     const limit = Number(params.limit);
@@ -319,35 +337,27 @@ export class AuthService {
     }
     // Fetch associated vendeurs for CONFERMATEUR users
     const confermateurUserIds = items.filter(u => u.role === UserRole.CONFERMATEUR).map(u => u.id);
+    const confermateurVendeursMap = new Map<string, Array<{ id: string; firstName: string; lastName: string; email: string }>>();
+    
+    // Use helper method for each confermateur to handle edge cases
     if (confermateurUserIds.length > 0) {
-      const confermateurs = await this.confermateurRepo
-        .createQueryBuilder('confermateur')
-        .leftJoinAndSelect('confermateur.vendeurs', 'vendeur')
-        .leftJoinAndSelect('vendeur.user', 'user')
-        .where('confermateur.idUser IN (:...ids)', { ids: confermateurUserIds })
-        .getMany();
-      
-      const confermateurVendeursMap = new Map<string, Array<{ id: string; firstName: string; lastName: string }>>();
-      confermateurs.forEach(conf => {
-        const vendeurUsers = (conf.vendeurs || []).map(v => ({
-          id: v.user?.id || '',
-          firstName: v.user?.firstName || '',
-          lastName: v.user?.lastName || '',
-        })).filter(v => v.id); // Filter out any invalid entries
-        if (vendeurUsers.length > 0) {
-          confermateurVendeursMap.set(conf.idUser, vendeurUsers);
-        }
-      });
-      
-      userDtos.forEach(dto => {
-        if (dto.role === UserRole.CONFERMATEUR) {
-          const vendeurs = confermateurVendeursMap.get(dto.id);
-          if (vendeurs && vendeurs.length > 0) {
-            (dto as any).vendeurs = vendeurs;
+      await Promise.all(
+        confermateurUserIds.map(async (confermateurUserId) => {
+          const vendeurUsers = await this.getVendeurUsersForConfermateur(confermateurUserId);
+          if (vendeurUsers.length > 0) {
+            confermateurVendeursMap.set(confermateurUserId, vendeurUsers);
           }
-        }
-      });
+        })
+      );
     }
+    
+    // Always set vendeurs field for CONFERMATEUR users (empty array if none)
+    userDtos.forEach(dto => {
+      if (dto.role === UserRole.CONFERMATEUR) {
+        const vendeurs = confermateurVendeursMap.get(dto.id);
+        (dto as any).vendeurs = vendeurs || [];
+      }
+    });
     return { items: userDtos, total, page: pageNum, limit: limitNum };
   }
 
@@ -356,6 +366,28 @@ export class AuthService {
 
     if (!user) {
       throw new BadRequestException('User not found');
+    }
+
+    return this.toUserResponseDto(user);
+  }
+
+  async findUserByEmail(email: string, role?: UserRole): Promise<UserResponseDto | null> {
+    // Normalize email: trim whitespace
+    const normalizedEmail = email.trim();
+    
+    // Use query builder for case-insensitive email search
+    // This handles cases where email might be stored with different casing
+    const queryBuilder = this.userRepo.createQueryBuilder('user')
+      .where('LOWER(user.email) = LOWER(:email)', { email: normalizedEmail });
+    
+    if (role) {
+      queryBuilder.andWhere('user.role = :role', { role });
+    }
+    
+    const user = await queryBuilder.getOne();
+    
+    if (!user) {
+      return null;
     }
 
     return this.toUserResponseDto(user);
@@ -444,17 +476,8 @@ export class AuthService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
-    const removed = user;
     await this.userRepo.delete({ id });
-    // Cleanup associations where this user was confermateur
-    this.confermateurVendeurs.delete(removed.id);
-    // Cleanup associations where this user was a vendeur
-    for (const [confId, vSet] of this.confermateurVendeurs.entries()) {
-      if (vSet.has(removed.id)) {
-        vSet.delete(removed.id);
-        this.confermateurVendeurs.set(confId, vSet);
-      }
-    }
+    // Database CASCADE delete will handle relationships automatically via entity relationships
     return { message: 'User deleted' };
   }
 
@@ -477,40 +500,285 @@ export class AuthService {
     return this.findByRole(UserRole.CONFERMATEUR);
   }
 
-  async assignVendeurToConfermateur(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
-    const confermateur = await this.userRepo.findOne({ where: { id: confermateurId, role: UserRole.CONFERMATEUR } });
+  async getConfermateurByUserId(userId: string): Promise<Confermateur> {
+    const confermateur = await this.confermateurRepo.findOne({
+      where: { idUser: userId },
+      relations: ['vendeurs', 'vendeurs.user']
+    });
+    
     if (!confermateur) {
-      throw new BadRequestException('Confermateur not found');
+      throw new BadRequestException(`Confermateur entity not found for user ID: ${userId}`);
     }
-    const vendeur = await this.userRepo.findOne({ where: { id: vendeurId, role: UserRole.VENDEUR } });
+    
+    return confermateur;
+  }
+
+  async getVendeurByUserId(userId: string): Promise<Vendeur> {
+    const vendeur = await this.vendeurRepo.findOne({
+      where: { idUser: userId },
+      relations: ['user']
+    });
+    
     if (!vendeur) {
-      throw new BadRequestException('Vendeur not found');
+      throw new BadRequestException(`Vendeur entity not found for user ID: ${userId}`);
     }
-    const set = this.confermateurVendeurs.get(confermateurId) || new Set<string>();
-    set.add(vendeurId);
-    this.confermateurVendeurs.set(confermateurId, set);
-    return { message: 'Vendeur assigned to confermateur' };
+    
+    return vendeur;
+  }
+
+  async sendConfermateurAssignmentRequest(vendeurId: string, confermateurEmail: string): Promise<{ message: string }> {
+    // Step 1: Validate vendeur user exists
+    const vendeurUser = await this.userRepo.findOne({ 
+      where: { id: vendeurId, role: UserRole.VENDEUR } 
+    });
+    
+    if (!vendeurUser) {
+      throw new BadRequestException('Vendeur user not found');
+    }
+
+    // Step 2: Find confermateur user by email
+    const confermateurUser = await this.findUserByEmail(confermateurEmail, UserRole.CONFERMATEUR);
+    
+    if (!confermateurUser) {
+      throw new BadRequestException(`No confermateur found with email: ${confermateurEmail}`);
+    }
+
+    // Step 3: Check if already assigned
+    const confermateur = await this.confermateurRepo.findOne({
+      where: { idUser: confermateurUser.id },
+      relations: ['vendeurs']
+    });
+
+    if (confermateur) {
+      const vendeur = await this.vendeurRepo.findOne({ where: { idUser: vendeurId } });
+      if (vendeur && confermateur.vendeurs?.some(v => v.id === vendeur.id)) {
+        throw new BadRequestException('Vendeur is already assigned to this confermateur');
+      }
+    }
+
+    // Step 4: Generate accept and refuse URLs
+    // Use API gateway URL or backend URL for the links
+    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const acceptUrl = `${apiBaseUrl}/api/auth/confermateurs/${confermateurUser.id}/accept-vendeur/${vendeurId}`;
+    const refuseUrl = `${apiBaseUrl}/api/auth/confermateurs/${confermateurUser.id}/refuse-vendeur/${vendeurId}`;
+
+    // Step 5: Send email
+    await this.notificationClient.sendConfermateurAssignmentRequestEmail({
+      confermateurEmail: confermateurUser.email,
+      confermateurName: `${confermateurUser.firstName || ''} ${confermateurUser.lastName || ''}`.trim() || confermateurUser.email,
+      vendeurName: `${vendeurUser.firstName || ''} ${vendeurUser.lastName || ''}`.trim() || vendeurUser.email,
+      vendeurEmail: vendeurUser.email,
+      acceptUrl,
+      refuseUrl,
+    });
+
+    return { message: 'Assignment request email sent successfully to confermateur' };
+  }
+
+  async refuseVendeurAssignment(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
+    // Validate that both users exist
+    const confermateurUser = await this.userRepo.findOne({ 
+      where: { id: confermateurId, role: UserRole.CONFERMATEUR } 
+    });
+    
+    if (!confermateurUser) {
+      throw new BadRequestException('Confermateur user not found');
+    }
+
+    const vendeurUser = await this.userRepo.findOne({ 
+      where: { id: vendeurId, role: UserRole.VENDEUR } 
+    });
+    
+    if (!vendeurUser) {
+      throw new BadRequestException('Vendeur user not found');
+    }
+
+    // Return success message (no action needed, just acknowledging the refusal)
+    return { message: 'Assignment request refused successfully' };
+  }
+
+  async assignVendeurToConfermateur(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
+    // Step 1: Check if user exists at all (for better error messages)
+    const confermateurUser = await this.userRepo.findOne({ 
+      where: { id: confermateurId } 
+    });
+    
+    if (!confermateurUser) {
+      throw new BadRequestException(`User with ID ${confermateurId} not found`);
+    }
+    
+    // Step 2: Validate user has CONFERMATEUR role
+    if (confermateurUser.role !== UserRole.CONFERMATEUR) {
+      throw new BadRequestException(
+        `User with ID ${confermateurId} has role '${confermateurUser.role}', expected '${UserRole.CONFERMATEUR}'`
+      );
+    }
+    
+    // Step 3: Validate vendeur user exists
+    const vendeurUser = await this.userRepo.findOne({ 
+      where: { id: vendeurId } 
+    });
+    
+    if (!vendeurUser) {
+      throw new BadRequestException(`User with ID ${vendeurId} not found`);
+    }
+    
+    // Step 4: Validate user has VENDEUR role
+    if (vendeurUser.role !== UserRole.VENDEUR) {
+      throw new BadRequestException(
+        `User with ID ${vendeurId} has role '${vendeurUser.role}', expected '${UserRole.VENDEUR}'`
+      );
+    }
+
+    // Step 5: Find or create the Confermateur entity
+    let confermateur = await this.confermateurRepo.findOne({ 
+      where: { idUser: confermateurId },
+      relations: ['vendeurs']
+    });
+
+    if (!confermateur) {
+      // Create confermateur entity if it doesn't exist
+      confermateur = this.confermateurRepo.create({
+        idUser: confermateurId,
+        vendeurs: []
+      });
+      await this.confermateurRepo.save(confermateur);
+      // Reload with relations to ensure we have the entity with proper structure
+      confermateur = await this.confermateurRepo.findOne({ 
+        where: { idUser: confermateurId },
+        relations: ['vendeurs']
+      });
+    }
+
+    // Step 6: Find the Vendeur entity (by idUser, not by id)
+    const vendeur = await this.vendeurRepo.findOne({ 
+      where: { idUser: vendeurId } 
+    });
+    if (!vendeur) {
+      throw new BadRequestException('Vendeur entity not found. Vendeur must be created first.');
+    }
+
+    // Step 7: Check if vendeur is already associated
+    if (!confermateur.vendeurs) {
+      confermateur.vendeurs = [];
+    }
+    
+    const isAlreadyAssociated = confermateur.vendeurs.some(v => v.id === vendeur.id);
+    if (isAlreadyAssociated) {
+      return { message: 'Vendeur is already assigned to this confermateur' };
+    }
+
+    // Step 8: Add vendeur to confermateur's vendeurs array and save
+    // TypeORM will handle the ManyToMany relationship via the join table
+    confermateur.vendeurs.push(vendeur);
+    await this.confermateurRepo.save(confermateur);
+
+    return { message: 'Vendeur assigned to confermateur successfully' };
   }
 
   async unassignVendeurFromConfermateur(confermateurId: string, vendeurId: string): Promise<{ message: string }> {
-    const set = this.confermateurVendeurs.get(confermateurId);
-    if (!set) {
+    const confermateur = await this.confermateurRepo.findOne({ 
+      where: { idUser: confermateurId },
+      relations: ['vendeurs']
+    });
+    
+    if (!confermateur || !confermateur.vendeurs || confermateur.vendeurs.length === 0) {
       return { message: 'No association existed' };
     }
-    set.delete(vendeurId);
-    this.confermateurVendeurs.set(confermateurId, set);
-    return { message: 'Vendeur unassigned from confermateur' };
+
+    const vendeur = await this.vendeurRepo.findOne({ where: { idUser: vendeurId } });
+    if (!vendeur) {
+      throw new BadRequestException('Vendeur entity not found');
+    }
+
+    const initialLength = confermateur.vendeurs.length;
+    confermateur.vendeurs = confermateur.vendeurs.filter(v => v.id !== vendeur.id);
+    
+    if (confermateur.vendeurs.length < initialLength) {
+      await this.confermateurRepo.save(confermateur);
+      return { message: 'Vendeur unassigned from confermateur' };
+    }
+    
+    return { message: 'No association existed' };
+  }
+
+  /**
+   * Get vendeur user information for a given confermateur user ID
+   * Flow: Confermateur (by idUser) -> Vendeur entities -> User entities
+   * 
+   * @param confermateurUserId - The user ID of the confermateur
+   * @returns Array of vendeur user information (id, firstName, lastName, email)
+   */
+  private async getVendeurUsersForConfermateur(confermateurUserId: string): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+    try {
+      // Step 1: Find Confermateur entity by idUser
+      const confermateur = await this.confermateurRepo.findOne({
+        where: { idUser: confermateurUserId },
+        relations: ['vendeurs', 'vendeurs.user']
+      });
+
+      // Edge case: Confermateur entity doesn't exist
+      if (!confermateur) {
+        return [];
+      }
+
+      // Step 2: Get vendeurs array from Confermateur (ManyToMany relationship)
+      // Edge case: Empty vendeurs array
+      if (!confermateur.vendeurs || confermateur.vendeurs.length === 0) {
+        return [];
+      }
+
+      // Step 3: Map vendeur entities to user information
+      // Each Vendeur has idUser field and user relation
+      const vendeurUsers = confermateur.vendeurs
+        .map(v => {
+          // Edge case: Missing user entity
+          if (!v.user) {
+            return null;
+          }
+          return {
+            id: v.user.id,
+            firstName: v.user.firstName || '',
+            lastName: v.user.lastName || '',
+            email: v.user.email || '',
+          };
+        })
+        .filter((v): v is { id: string; firstName: string; lastName: string; email: string } => v !== null && v.id !== '');
+
+      return vendeurUsers;
+    } catch (error) {
+      // Error handling: Log and return empty array on any error
+      console.error(`Error fetching vendeur users for confermateur ${confermateurUserId}:`, error);
+      return [];
+    }
   }
 
   async getConfermateursForVendeur(vendeurId: string): Promise<UserResponseDto[]> {
-    const result: UserResponseDto[] = [];
-    for (const [confId, vSet] of this.confermateurVendeurs.entries()) {
-      if (vSet.has(vendeurId)) {
-        const user = await this.userRepo.findOne({ where: { id: confId } });
-        if (user) result.push(this.toUserResponseDto(user));
-      }
+    // Find the vendeur entity
+    const vendeur = await this.vendeurRepo.findOne({ where: { idUser: vendeurId } });
+    if (!vendeur) {
+      return [];
     }
-    return result;
+
+    // Query all confermateurs that have this vendeur in their vendeurs array
+    const confermateurs = await this.confermateurRepo
+      .createQueryBuilder('confermateur')
+      .leftJoinAndSelect('confermateur.vendeurs', 'vendeur')
+      .where('vendeur.id = :vendeurId', { vendeurId: vendeur.id })
+      .getMany();
+
+    // Get user IDs and fetch user entities
+    const confermateurUserIds = confermateurs.map(c => c.idUser);
+    if (confermateurUserIds.length === 0) {
+      return [];
+    }
+
+    const users = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.id IN (:...ids)', { ids: confermateurUserIds })
+      .getMany();
+
+    return users.map(u => this.toUserResponseDto(u));
   }
 
   // Password reset functionality

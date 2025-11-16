@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Body, Param, ValidationPipe, Query, Patch, Delete, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiOkResponse, ApiCreatedResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiConflictResponse, ApiTooManyRequestsResponse, ApiQuery } from '@nestjs/swagger';
+import { Controller, Get, Post, Body, Param, ValidationPipe, Query, Patch, Delete, UseGuards, Req, Res, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiOkResponse, ApiCreatedResponse, ApiBadRequestResponse, ApiUnauthorizedResponse, ApiForbiddenResponse, ApiNotFoundResponse, ApiConflictResponse, ApiTooManyRequestsResponse, ApiQuery, ApiParam, ApiBody } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { CustomThrottlerGuard } from './custom-throttler.guard';
 import { AppService } from './app.service';
@@ -240,6 +240,39 @@ export class AppController {
     return this.authService.findAllPaginated({ role, page, limit });
   }
 
+  @UseGuards(JwtAuthGuard)
+  @Get('users/by-email/:email')
+  @ApiOperation({
+    summary: 'Find user by email',
+    description: 'Find a user by email address. Optionally filter by role using query parameter.'
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'email', description: 'User email address' })
+  @ApiQuery({ name: 'role', required: false, enum: UserRole, description: 'Filter by user role' })
+  @ApiOkResponse({ description: 'User found', type: UserResponseDto })
+  @ApiNotFoundResponse({ description: 'User not found' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  async findUserByEmail(
+    @Param('email') email: string,
+    @Query('role') role?: UserRole,
+  ) {
+    // Explicitly decode the email parameter (NestJS might not decode it automatically)
+    // Handle both encoded and already-decoded emails
+    let decodedEmail: string;
+    try {
+      decodedEmail = decodeURIComponent(email).trim();
+    } catch (e) {
+      // If decoding fails, use the email as-is (might already be decoded)
+      decodedEmail = email.trim();
+    }
+    
+    const user = await this.authService.findUserByEmail(decodedEmail, role);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Get('users/:id')
@@ -418,6 +451,57 @@ export class AppController {
     return this.authService.incrementVendeurNbrCmdConf(id, amount);
   }
 
+  // Vendor: Request confermateur assignment
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDEUR)
+  @Post('vendeurs/:vendeurId/request-confermateur')
+  @ApiOperation({
+    summary: 'Request confermateur assignment',
+    description: 'Send an email request to a confermateur to become assigned to this vendor. Vendor can only request for themselves.'
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiBody({ 
+    schema: { 
+      type: 'object', 
+      properties: { 
+        confermateurEmail: { type: 'string', format: 'email', description: 'Confermateur email address' } 
+      },
+      required: ['confermateurEmail']
+    } 
+  })
+  @ApiCreatedResponse({ description: 'Assignment request email sent successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid request or confermateur not found' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Vendeur required' })
+  async requestConfermateurAssignment(
+    @Param('vendeurId') vendeurId: string,
+    @Body('confermateurEmail') confermateurEmail: string,
+    @Req() req: any,
+  ) {
+    // Validate that vendor is requesting for themselves
+    // JWT strategy returns userId (from payload.sub), not sub
+    if (req.user?.userId !== vendeurId) {
+      throw new ForbiddenException('You can only request assignment for yourself');
+    }
+    return this.authService.sendConfermateurAssignmentRequest(vendeurId, confermateurEmail);
+  }
+
+  // Get vendeur entity by user ID
+  @Get('vendeurs/user/:userId')
+  @ApiOperation({
+    summary: 'Get vendeur entity by user ID',
+    description: 'Retrieve vendeur entity information for a given user ID. Returns vendeur entity with user relation.'
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiOkResponse({ description: 'Vendeur entity retrieved successfully' })
+  @ApiBadRequestResponse({ description: 'Vendeur entity not found for this user' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  async getVendeurByUserId(@Param('userId') userId: string) {
+    return this.authService.getVendeurByUserId(userId);
+  }
+
   // Vendeur: manage confermateurs associations
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.VENDEUR, UserRole.ADMIN)
@@ -442,6 +526,22 @@ export class AppController {
     return this.authService.getConfermateursForVendeur(vendeurId);
   }
 
+  // Get confermateur entity by user ID
+  
+  @Get('confermateurs/user/:userId')
+  @ApiOperation({
+    summary: 'Get confermateur entity by user ID',
+    description: 'Retrieve confermateur entity information for a given user ID. Returns confermateur entity with vendeurs and user relations.'
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'userId', description: 'User ID' })
+  @ApiOkResponse({ description: 'Confermateur entity retrieved successfully' })
+  @ApiBadRequestResponse({ description: 'Confermateur entity not found for this user' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  async getConfermateurByUserId(@Param('userId') userId: string) {
+    return this.authService.getConfermateurByUserId(userId);
+  }
+
   // Admin/Vendeur: list confermateurs
   @UseGuards(JwtAuthGuard)
   @Get('confermateurs')
@@ -459,6 +559,250 @@ export class AppController {
   }
 
   // Admin: manage assignment between confermateur and vendeur
+  // Public: Accept assignment request (via email link)
+  @Get('confermateurs/:confermateurId/accept-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Accept vendeur assignment request (GET)',
+    description: 'Renders a page that automatically submits the acceptance request. Accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  async acceptVendeurAssignmentGet(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Accepting Assignment...</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+            .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Accepting Assignment Request...</h2>
+            <div class="spinner"></div>
+            <p>Please wait while we process your request.</p>
+            <form id="acceptForm" method="POST" action="${apiBaseUrl}/api/auth/confermateurs/${confermateurId}/accept-vendeur/${vendeurId}">
+            </form>
+            <script>
+              document.getElementById('acceptForm').submit();
+            </script>
+          </div>
+        </body>
+      </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }
+
+  @Post('confermateurs/:confermateurId/accept-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Accept vendeur assignment request',
+    description: 'Accept a vendeur assignment request. This endpoint is public and accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiOkResponse({ description: 'Assignment accepted successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid request or assignment failed' })
+  async acceptVendeurAssignment(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    try {
+      await this.authService.assignVendeurToConfermateur(confermateurId, vendeurId);
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Assignment Accepted</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+              .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .success-icon { color: #28a745; font-size: 48px; margin: 20px 0; }
+              h2 { color: #28a745; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="success-icon">✓</div>
+              <h2>Assignment Accepted Successfully!</h2>
+              <p>The vendeur has been assigned to you.</p>
+              <p style="color: #666; font-size: 14px;">This window will close automatically...</p>
+            </div>
+            <script>
+              setTimeout(function() {
+                window.close();
+              }, 2000);
+            </script>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (error) {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Error</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+              .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .error-icon { color: #dc3545; font-size: 48px; margin: 20px 0; }
+              h2 { color: #dc3545; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="error-icon">✗</div>
+              <h2>Error</h2>
+              <p>${error.message || 'Failed to accept assignment'}</p>
+            </div>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      res.status(400).send(html);
+    }
+  }
+
+  // Public: Refuse assignment request (via email link)
+  @Get('confermateurs/:confermateurId/refuse-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Refuse vendeur assignment request (GET)',
+    description: 'Renders a page that automatically submits the refusal request. Accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  async refuseVendeurAssignmentGet(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Refusing Assignment...</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+            .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #dc3545; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Refusing Assignment Request...</h2>
+            <div class="spinner"></div>
+            <p>Please wait while we process your request.</p>
+            <form id="refuseForm" method="POST" action="${apiBaseUrl}/api/auth/confermateurs/${confermateurId}/refuse-vendeur/${vendeurId}">
+            </form>
+            <script>
+              document.getElementById('refuseForm').submit();
+            </script>
+          </div>
+        </body>
+      </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }
+
+  @Post('confermateurs/:confermateurId/refuse-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Refuse vendeur assignment request',
+    description: 'Refuse a vendeur assignment request. This endpoint is public and accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiOkResponse({ description: 'Assignment request refused successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid request' })
+  async refuseVendeurAssignment(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    try {
+      await this.authService.refuseVendeurAssignment(confermateurId, vendeurId);
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Assignment Refused</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+              .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .info-icon { color: #ffc107; font-size: 48px; margin: 20px 0; }
+              h2 { color: #333; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="info-icon">ℹ</div>
+              <h2>Assignment Refused</h2>
+              <p>The assignment request has been refused.</p>
+              <p style="color: #666; font-size: 14px;">This window will close automatically...</p>
+            </div>
+            <script>
+              setTimeout(function() {
+                window.close();
+              }, 2000);
+            </script>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      res.send(html);
+    } catch (error) {
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Error</title>
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+              .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+              .error-icon { color: #dc3545; font-size: 48px; margin: 20px 0; }
+              h2 { color: #dc3545; margin-bottom: 20px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="error-icon">✗</div>
+              <h2>Error</h2>
+              <p>${error.message || 'Failed to refuse assignment'}</p>
+            </div>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      res.status(400).send(html);
+    }
+  }
+
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post('confermateurs/:confermateurId/vendeurs/:vendeurId')

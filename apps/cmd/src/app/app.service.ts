@@ -66,7 +66,7 @@ export class AppService {
     }
 
     // Enforce vendor quota via auth internal APIs: check (GET) then consume (POST)
-    if (confirmer?.role === 'VENDEUR' || confirmer?.role === 'CONFIRMATEUR') {
+    if (confirmer?.role === 'VENDEUR' || confirmer?.role === 'CONFERMATEUR') {
       if (order.vendorId && order.vendorId !== confirmer.vendorId) {
         throw new ForbiddenException();
       }

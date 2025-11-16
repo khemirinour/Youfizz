@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, Res, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -215,6 +215,43 @@ export class AppController {
   }
 
   @ApiTags('auth')
+  @Post('auth/vendeurs/:vendeurId/request-confermateur')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Request confermateur assignment',
+    description: 'Send an email request to a confermateur to become assigned to this vendor. Vendor can only request for themselves.'
+  })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        confermateurEmail: { type: 'string', format: 'email', description: 'Confermateur email address' }
+      },
+      required: ['confermateurEmail']
+    }
+  })
+  @ApiResponse({ status: 201, description: 'Assignment request email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request or confermateur not found' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Vendeur role required' })
+  async requestConfermateurAssignment(
+    @Param('vendeurId') vendeurId: string,
+    @Body() body: { confermateurEmail: string },
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request
+  ) {
+    return this.gatewayService.forwardRequest(
+      `/vendeurs/${vendeurId}/request-confermateur`,
+      'POST',
+      body,
+      headers,
+      req.user
+    );
+  }
+
+  @ApiTags('auth')
   @Get('auth/confermateurs')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -223,6 +260,144 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getConfermateurs(@Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest('/confermateurs', 'GET', null, headers, req.user);
+  }
+
+  @ApiTags('auth')
+  @Get('auth/confermateurs/:confermateurId/accept-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Accept vendeur assignment request (GET)',
+    description: 'Renders a page that automatically submits the acceptance request. Accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  async acceptVendeurAssignmentGet(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Accepting Assignment...</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+            .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #28a745; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Accepting Assignment Request...</h2>
+            <div class="spinner"></div>
+            <p>Please wait while we process your request.</p>
+            <form id="acceptForm" method="POST" action="${apiBaseUrl}/api/auth/confermateurs/${confermateurId}/accept-vendeur/${vendeurId}">
+            </form>
+            <script>
+              document.getElementById('acceptForm').submit();
+            </script>
+          </div>
+        </body>
+      </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }
+
+  @ApiTags('auth')
+  @Post('auth/confermateurs/:confermateurId/accept-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Accept vendeur assignment request',
+    description: 'Accept a vendeur assignment request. This endpoint is public and accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiResponse({ status: 200, description: 'Assignment accepted successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request or assignment failed' })
+  async acceptVendeurAssignment(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Headers() headers: Record<string, string> = {}
+  ) {
+    return this.gatewayService.forwardRequest(
+      `/confermateurs/${confermateurId}/accept-vendeur/${vendeurId}`,
+      'POST',
+      null,
+      headers
+    );
+  }
+
+  @ApiTags('auth')
+  @Get('auth/confermateurs/:confermateurId/refuse-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Refuse vendeur assignment request (GET)',
+    description: 'Renders a page that automatically submits the refusal request. Accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  async refuseVendeurAssignmentGet(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Res() res: any
+  ) {
+    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const html = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Refusing Assignment...</title>
+          <style>
+            body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background-color: #f4f4f4; }
+            .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+            .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #dc3545; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+            @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <h2>Refusing Assignment Request...</h2>
+            <div class="spinner"></div>
+            <p>Please wait while we process your request.</p>
+            <form id="refuseForm" method="POST" action="${apiBaseUrl}/api/auth/confermateurs/${confermateurId}/refuse-vendeur/${vendeurId}">
+            </form>
+            <script>
+              document.getElementById('refuseForm').submit();
+            </script>
+          </div>
+        </body>
+      </html>
+    `;
+    res.setHeader('Content-Type', 'text/html');
+    res.send(html);
+  }
+
+  @ApiTags('auth')
+  @Post('auth/confermateurs/:confermateurId/refuse-vendeur/:vendeurId')
+  @ApiOperation({
+    summary: 'Refuse vendeur assignment request',
+    description: 'Refuse a vendeur assignment request. This endpoint is public and accessed via email link.'
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiResponse({ status: 200, description: 'Assignment request refused successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid request' })
+  async refuseVendeurAssignment(
+    @Param('confermateurId') confermateurId: string,
+    @Param('vendeurId') vendeurId: string,
+    @Headers() headers: Record<string, string> = {}
+  ) {
+    return this.gatewayService.forwardRequest(
+      `/confermateurs/${confermateurId}/refuse-vendeur/${vendeurId}`,
+      'POST',
+      null,
+      headers
+    );
   }
 
   @ApiTags('auth')
@@ -290,6 +465,28 @@ export class AppController {
   @ApiBody({ description: 'Reset token and new password', schema: { type: 'object' } })
   async resetPassword(@Body() body: any, @Headers() headers: Record<string, string>) {
     return this.gatewayService.forwardRequest('/password-reset/reset', 'POST', body, headers);
+  }
+
+  @ApiTags('auth')
+  @Get('auth/users/by-email/:email')
+  @ApiOperation({
+    summary: 'Find user by email',
+    description: 'Find a user by email address with optional role filter. Public endpoint.'
+  })
+  @ApiParam({ name: 'email', description: 'User email address' })
+  @ApiQuery({ name: 'role', required: false, enum: ['admin', 'vendeur', 'confermateur', 'guest'], description: 'Filter by user role' })
+  @ApiResponse({ status: 200, description: 'User found' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async findUserByEmail(
+    @Param('email') email: string,
+    @Query('role') role?: string,
+    @Headers() headers: Record<string, string> = {},
+  ) {
+    // Keep email URL-encoded when forwarding - NestJS will decode it in the auth service
+    // Re-encode to ensure proper URL format (handles cases where it might already be decoded)
+    const encodedEmail = encodeURIComponent(decodeURIComponent(email));
+    const path = role ? `/users/by-email/${encodedEmail}?role=${role}` : `/users/by-email/${encodedEmail}`;
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers);
   }
 
   // ==================== Article Service Routes ====================
@@ -748,6 +945,39 @@ export class AppController {
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async markNotificationRead(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest(`/notifications/${id}/read`, 'PATCH', null, headers, req.user);
+  }
+
+  @ApiTags('notifications')
+  @Post('notifications/email/password-reset')
+  @ApiOperation({ summary: 'Send password reset email', description: 'Sends a password reset email to the specified user' })
+  @ApiResponse({ status: 200, description: 'Password reset email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 500, description: 'Failed to send email' })
+  async sendPasswordResetEmail(@Body() body: any, @Headers() headers: Record<string, string> = {}) {
+    return this.gatewayService.forwardRequest('/notifications/email/password-reset', 'POST', body, headers);
+  }
+
+  @ApiTags('notifications')
+  @Post('notifications/email/welcome')
+  @ApiOperation({ summary: 'Send welcome email', description: 'Sends a welcome email to a new user' })
+  @ApiResponse({ status: 200, description: 'Welcome email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 500, description: 'Failed to send email' })
+  async sendWelcomeEmail(@Body() body: any, @Headers() headers: Record<string, string> = {}) {
+    return this.gatewayService.forwardRequest('/notifications/email/welcome', 'POST', body, headers);
+  }
+
+  @ApiTags('notifications')
+  @Post('notifications/email/confermateur-assignment-request')
+  @ApiOperation({ 
+    summary: 'Send confermateur assignment request email', 
+    description: 'Sends an email to a confermateur with accept/refuse links for a vendeur assignment request' 
+  })
+  @ApiResponse({ status: 200, description: 'Assignment request email sent successfully' })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 500, description: 'Failed to send email' })
+  async sendConfermateurAssignmentRequestEmail(@Body() body: any, @Headers() headers: Record<string, string> = {}) {
+    return this.gatewayService.forwardRequest('/notifications/email/confermateur-assignment-request', 'POST', body, headers);
   }
 
   // ==================== Statistics Routes ====================
