@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import ConfermateurNavbar from '@/components/ConfermateurNavbar';
@@ -10,6 +10,7 @@ import { getOrders, confirmOrder, type Order } from '@/lib/orders.api';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, Clock, Package, ShoppingCart } from 'lucide-react';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
+import { getVendeursForConfermateur, type ConfermateurVendeur } from '@/lib/confermateur.api';
 
 const ConfermateurDashboard = () => {
   const router = useRouter();
@@ -19,6 +20,11 @@ const ConfermateurDashboard = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [vendors, setVendors] = useState<ConfermateurVendeur[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
+
+  const hasFetchedOrders = useRef(false);
+  const hasFetchedVendors = useRef(false);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -39,6 +45,8 @@ const ConfermateurDashboard = () => {
   // Fetch orders
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return;
+    if (hasFetchedOrders.current) return;
+    hasFetchedOrders.current = true;
     const fetchOrders = async () => {
       try {
         setLoading(true);
@@ -51,7 +59,32 @@ const ConfermateurDashboard = () => {
       }
     };
     fetchOrders();
-  }, [hydrated, isAuthenticated, user?.role, toast]);
+  }, [hydrated, isAuthenticated, user?.role]);
+
+  // Fetch vendors assigned to this confermateur
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur' || !user?.id) return;
+    if (hasFetchedVendors.current) return;
+    hasFetchedVendors.current = true;
+
+    const fetchVendors = async () => {
+      try {
+        setLoadingVendors(true);
+        const res = await getVendeursForConfermateur(user.id);
+        setVendors(res || []);
+      } catch (e: any) {
+        toast({
+          title: 'Error',
+          description: e?.message || 'Failed to load your vendors',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+
+    fetchVendors();
+  }, [hydrated, isAuthenticated, user?.role, user?.id, toast]);
 
   const stats = useMemo(() => {
     const pending = orders.filter(o => o.status === 'PENDING').length;
@@ -89,6 +122,34 @@ const ConfermateurDashboard = () => {
           <h1 className="text-3xl font-bold mb-2 text-foreground">Welcome to Your Dashboard</h1>
           <p className="text-muted-foreground">Manage and confirm orders</p>
         </div>
+
+        {/* My Vendors */}
+        <Card className="rounded-xl p-6 shadow-lg border-border bg-card">
+          <h2 className="text-xl font-semibold mb-4 text-foreground">My Vendors</h2>
+          {loadingVendors ? (
+            <p className="text-sm text-muted-foreground">Loading your vendors...</p>
+          ) : vendors.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              You do not have any vendors assigned yet.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {vendors.map((v) => (
+                <div
+                  key={v.id}
+                  className="flex items-center justify-between border border-border rounded-lg px-3 py-2 bg-secondary/30"
+                >
+                  <div>
+                    <p className="font-medium text-foreground">
+                      {v.firstName} {v.lastName}
+                    </p>
+                    <p className="text-xs text-muted-foreground">{v.email}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -214,5 +275,7 @@ const ConfermateurDashboard = () => {
 };
 
 export default ConfermateurDashboard;
+
+
 
 

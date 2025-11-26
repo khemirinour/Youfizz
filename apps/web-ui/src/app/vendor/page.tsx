@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
@@ -12,7 +12,13 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
-import { findConfermateurByEmail, requestConfermateurAssignment, type ConfermateurUser } from '@/lib/vendor.api';
+import {
+  findConfermateurByEmail,
+  requestConfermateurAssignment,
+  getConfermateursForVendeur,
+  removeConfermateurForVendeur,
+  type ConfermateurUser,
+} from '@/lib/vendor.api';
 
 const VendorDashboard = () => {
   const router = useRouter();
@@ -25,6 +31,12 @@ const VendorDashboard = () => {
   const [searching, setSearching] = useState(false);
   const [sending, setSending] = useState(false);
   const [foundConfermateur, setFoundConfermateur] = useState<ConfermateurUser | null>(null);
+  const [myConfermateurs, setMyConfermateurs] = useState<ConfermateurUser[]>([]);
+  const [loadingConfermateurs, setLoadingConfermateurs] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
+
+  const hasFetchedHealth = useRef(false);
+  const hasFetchedConfermateurs = useRef(false);
 
   useEffect(() => {
     const api = (useAuthStore as any).persist;
@@ -42,6 +54,8 @@ const VendorDashboard = () => {
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'vendeur') return;
+    if (hasFetchedHealth.current) return;
+    hasFetchedHealth.current = true;
     const fetchHealth = async () => {
       try {
         setHealthLoading(true);
@@ -55,6 +69,33 @@ const VendorDashboard = () => {
     };
     fetchHealth();
   }, [hydrated, isAuthenticated, user?.role]);
+
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !user?.id) return;
+    if (hasFetchedConfermateurs.current) return;
+    hasFetchedConfermateurs.current = true;
+
+    const fetchConfermateurs = async () => {
+      try {
+        setLoadingConfermateurs(true);
+        const confermateurs = await getConfermateursForVendeur(user.id);
+        setMyConfermateurs(confermateurs || []);
+      } catch (error: any) {
+        toast({
+          title: 'Erreur',
+          description:
+            error?.response?.data?.message ||
+            error?.message ||
+            "Impossible de charger vos confermateurs",
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingConfermateurs(false);
+      }
+    };
+
+    fetchConfermateurs();
+  }, [hydrated, isAuthenticated, user?.role, user?.id, toast]);
 
   const handleSearch = async () => {
     if (!confermateurEmail) return;
@@ -98,6 +139,36 @@ const VendorDashboard = () => {
       });
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleRemoveConfermateur = async (confId: string) => {
+    if (!user?.id) return;
+
+    const confirmRemoval = window.confirm(
+      'Êtes-vous sûr de vouloir retirer ce confermateur de votre liste ?',
+    );
+    if (!confirmRemoval) return;
+
+    setRemovingId(confId);
+    try {
+      await removeConfermateurForVendeur(user.id, confId);
+      setMyConfermateurs((prev) => prev.filter((c) => c.id !== confId));
+      toast({
+        title: 'Confermateur retiré',
+        description: 'Le confermateur a été retiré de votre liste.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erreur',
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Impossible de retirer ce confermateur",
+        variant: 'destructive',
+      });
+    } finally {
+      setRemovingId(null);
     }
   };
 
@@ -191,6 +262,41 @@ const VendorDashboard = () => {
                 </div>
               </div>
             )}
+
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold mb-2 text-foreground">Mes Confermateurs</h3>
+              {loadingConfermateurs ? (
+                <p className="text-sm text-muted-foreground">Chargement de vos confermateurs...</p>
+              ) : myConfermateurs.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Vous n&apos;avez encore aucun confermateur associé.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {myConfermateurs.map((conf) => (
+                    <div
+                      key={conf.id}
+                      className="flex items-center justify-between border border-border rounded-lg px-3 py-2 bg-secondary/30"
+                    >
+                      <div>
+                        <p className="font-medium text-foreground">
+                          {conf.firstName} {conf.lastName}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{conf.email}</p>
+                      </div>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        disabled={removingId === conf.id}
+                        onClick={() => handleRemoveConfermateur(conf.id)}
+                      >
+                        {removingId === conf.id ? 'Suppression...' : 'Retirer'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </Card>
 

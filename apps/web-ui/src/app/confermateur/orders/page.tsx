@@ -64,13 +64,17 @@ const ConfermateurOrdersPage = () => {
         setOrders(res.items || []);
         setTotal(res.total || 0);
       } catch (e: any) {
-        toast({ title: 'Error', description: e?.message || 'Failed to load orders', variant: 'destructive' });
+        toast({
+          title: 'Error',
+          description: e?.message || 'Failed to load orders',
+          variant: 'destructive',
+        });
       } finally {
         setLoading(false);
       }
     };
     fetchOrders();
-  }, [hydrated, isAuthenticated, user?.role, page, pageSize, statusFilter, searchQuery, toast]);
+  }, [hydrated, isAuthenticated, user?.role, page, pageSize, statusFilter, searchQuery]);
 
   const handleConfirm = async (orderId: string) => {
     try {
@@ -324,5 +328,7 @@ const ConfermateurOrdersPage = () => {
 };
 
 export default ConfermateurOrdersPage;
+
+
 
 

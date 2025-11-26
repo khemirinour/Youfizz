@@ -526,6 +526,32 @@ export class AppController {
     return this.authService.getConfermateursForVendeur(vendeurId);
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.VENDEUR)
+  @Delete('vendeurs/:vendeurId/confermateurs/:confermateurId')
+  @ApiOperation({
+    summary: 'Vendor: remove confermateur association',
+    description: 'Allow a vendor to remove/unassign an associated confermateur from themselves.',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiOkResponse({ description: 'Association removed (or no association existed)' })
+  @ApiBadRequestResponse({ description: 'Invalid confermateur or vendeur ID' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Vendeur required or cannot modify another vendor' })
+  async removeConfermateurForVendeur(
+    @Param('vendeurId') vendeurId: string,
+    @Param('confermateurId') confermateurId: string,
+    @Req() req: any,
+  ) {
+    if (req.user?.userId !== vendeurId) {
+      throw new ForbiddenException('You can only manage your own confermateur associations');
+    }
+    // Reuse existing unassign logic (expects confermateurId as first arg, vendeurId as second)
+    return this.authService.unassignVendeurFromConfermateur(confermateurId, vendeurId);
+  }
+
   // Get confermateur entity by user ID
   
   @Get('confermateurs/user/:userId')
@@ -540,6 +566,29 @@ export class AppController {
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   async getConfermateurByUserId(@Param('userId') userId: string) {
     return this.authService.getConfermateurByUserId(userId);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.CONFERMATEUR)
+  @Get('confermateurs/:confermateurId/vendeurs')
+  @ApiOperation({
+    summary: 'Get vendors assigned to a confermateur',
+    description: 'Retrieve list of vendor users assigned to the authenticated confermateur.',
+  })
+  @ApiBearerAuth()
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiOkResponse({ description: 'Vendeurs retrieved successfully' })
+  @ApiBadRequestResponse({ description: 'Invalid confermateur ID' })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient role - Confermateur required or cannot view another confermateur' })
+  async getVendeursForConfermateur(
+    @Param('confermateurId') confermateurId: string,
+    @Req() req: any,
+  ) {
+    if (req.user?.userId !== confermateurId) {
+      throw new ForbiddenException('You can only view your own vendors');
+    }
+    return this.authService.getVendeursForConfermateur(confermateurId);
   }
 
   // Admin/Vendeur: list confermateurs

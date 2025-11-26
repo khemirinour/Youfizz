@@ -344,20 +344,20 @@ export class AuthService {
       await Promise.all(
         confermateurUserIds.map(async (confermateurUserId) => {
           const vendeurUsers = await this.getVendeurUsersForConfermateur(confermateurUserId);
-          if (vendeurUsers.length > 0) {
+        if (vendeurUsers.length > 0) {
             confermateurVendeursMap.set(confermateurUserId, vendeurUsers);
           }
         })
       );
-    }
-    
+        }
+      
     // Always set vendeurs field for CONFERMATEUR users (empty array if none)
-    userDtos.forEach(dto => {
-      if (dto.role === UserRole.CONFERMATEUR) {
-        const vendeurs = confermateurVendeursMap.get(dto.id);
+      userDtos.forEach(dto => {
+        if (dto.role === UserRole.CONFERMATEUR) {
+          const vendeurs = confermateurVendeursMap.get(dto.id);
         (dto as any).vendeurs = vendeurs || [];
-      }
-    });
+        }
+      });
     return { items: userDtos, total, page: pageNum, limit: limitNum };
   }
 
@@ -696,9 +696,9 @@ export class AuthService {
     
     if (confermateur.vendeurs.length < initialLength) {
       await this.confermateurRepo.save(confermateur);
-      return { message: 'Vendeur unassigned from confermateur' };
-    }
-    
+    return { message: 'Vendeur unassigned from confermateur' };
+  }
+
     return { message: 'No association existed' };
   }
 
@@ -751,6 +751,16 @@ export class AuthService {
       console.error(`Error fetching vendeur users for confermateur ${confermateurUserId}:`, error);
       return [];
     }
+  }
+
+  /**
+   * Public method: get vendors (users) assigned to a confermateur user ID.
+   * Thin wrapper around the internal helper for use by controllers/other services.
+   */
+  async getVendeursForConfermateur(
+    confermateurUserId: string,
+  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+    return this.getVendeurUsersForConfermateur(confermateurUserId);
   }
 
   async getConfermateursForVendeur(vendeurId: string): Promise<UserResponseDto[]> {

@@ -215,6 +215,33 @@ export class AppController {
   }
 
   @ApiTags('auth')
+  @Delete('auth/vendeurs/:vendeurId/confermateurs/:confermateurId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Remove confermateur from vendeur',
+    description: 'Allow an authenticated vendor to remove/unassign an associated confermateur.',
+  })
+  @ApiParam({ name: 'vendeurId', description: 'Vendeur user ID' })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiResponse({ status: 200, description: 'Association removed (or no association existed)' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async removeVendeurConfermateur(
+    @Param('vendeurId') vendeurId: string,
+    @Param('confermateurId') confermateurId: string,
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    return this.gatewayService.forwardRequest(
+      `/vendeurs/${vendeurId}/confermateurs/${confermateurId}`,
+      'DELETE',
+      null,
+      headers,
+      req.user,
+    );
+  }
+
+  @ApiTags('auth')
   @Post('auth/vendeurs/:vendeurId/request-confermateur')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
@@ -260,6 +287,31 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getConfermateurs(@Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest('/confermateurs', 'GET', null, headers, req.user);
+  }
+
+  @ApiTags('auth')
+  @Get('auth/confermateurs/:confermateurId/vendeurs')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({
+    summary: 'Get vendors for a confermateur',
+    description: 'Retrieve list of vendors associated with the authenticated confermateur',
+  })
+  @ApiParam({ name: 'confermateurId', description: 'Confermateur user ID' })
+  @ApiResponse({ status: 200, description: 'Vendors retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async getConfermateurVendeurs(
+    @Param('confermateurId') confermateurId: string,
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request,
+  ) {
+    return this.gatewayService.forwardRequest(
+      `/confermateurs/${confermateurId}/vendeurs`,
+      'GET',
+      null,
+      headers,
+      req.user,
+    );
   }
 
   @ApiTags('auth')

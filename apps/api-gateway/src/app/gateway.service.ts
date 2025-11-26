@@ -30,7 +30,9 @@ export class GatewayService {
     { service: 'auth', path: '/users/:id/vendeur/nbr-cmd-conf', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/users/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/vendeurs/:vendeurId/confermateurs', method: 'GET', requiresAuth: true, roles: ['vendeur', 'admin'] },
+    { service: 'auth', path: '/vendeurs/:vendeurId/confermateurs/:confermateurId', method: 'DELETE', requiresAuth: true, roles: ['vendeur'] },
     { service: 'auth', path: '/confermateurs', method: 'GET', requiresAuth: true },
+    { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs', method: 'GET', requiresAuth: true, roles: ['confermateur'] },
     { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'POST', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/confermateurs/:confermateurId/vendeurs/:vendeurId', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/confermateurs/:confermateurId/accept-vendeur/:vendeurId', method: 'GET', requiresAuth: false },
@@ -195,10 +197,10 @@ export class GatewayService {
       timeout: 30000,
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
-      // validateStatus: (status) => {
-      //   // Treat 2xx and 3xx (including 304 Not Modified) as success
-      //   return status >= 200 && status < 400;
-      // },
+      validateStatus: (status) => {
+        // Treat 2xx and 3xx (including 304 Not Modified) as success
+        return status >= 200 && status < 400;
+      },
     };
 
     if (queryString) {
