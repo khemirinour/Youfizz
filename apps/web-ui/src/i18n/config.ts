@@ -9,7 +9,7 @@ const resources = {
       home: {
         title: "Welcome to",
         marketplace: "MarketSpace",
-        subtitle: "Your trusted marketplace for buying and selling quality products",
+        subtitle: "Your trusted company for buying and selling quality products",
         signIn: "Sign In",
         signUp: "Sign Up"
       },
@@ -102,7 +102,7 @@ const resources = {
       home: {
         title: "Bienvenue sur",
         marketplace: "MarketSpace",
-        subtitle: "Votre marketplace de confiance pour acheter et vendre des produits de qualité",
+        subtitle: "Votre compagnie de confiance pour acheter et vendre des produits de qualité",
         signIn: "Se connecter",
         signUp: "S'inscrire"
       },

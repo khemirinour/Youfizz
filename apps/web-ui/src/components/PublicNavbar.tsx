@@ -42,12 +42,15 @@ export default function PublicNavbar() {
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         <div className="flex h-16 md:h-20 items-center justify-between">
           {/* Logo */}
-          <div className="flex items-center">
-            <Logo height={50} width={180} />
-          </div>
+          {pathname !== '/' && (
+            <div className="flex items-center">
+              <Logo height={50} width={180} />
+            </div>
+          )}
+          {pathname === '/' && <div></div>}
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2 ml-auto">
             {navLinks.map((link) => {
               const Icon = link.icon;
               return (
@@ -66,7 +69,7 @@ export default function PublicNavbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex md:hidden items-center gap-2">
+          <div className="flex md:hidden items-center gap-2 ml-auto">
             <Button
               variant="ghost"
               size="sm"

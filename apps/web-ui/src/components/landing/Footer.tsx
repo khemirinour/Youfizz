@@ -1,6 +1,7 @@
 'use client';
 
 import { Facebook, Twitter, Instagram, Linkedin } from "lucide-react";
+import Link from "next/link";
 import logo from "@/assets/youfizz-logo.png";
 
 const Footer = () => {
@@ -12,7 +13,7 @@ const Footer = () => {
           <div className="col-span-1 md:col-span-1">
             <img src={logo.src || logo} alt="YouFizz" className="h-12 w-auto mb-4" />
             <p className="text-sm text-muted-foreground">
-              La marketplace qui transforme votre passion en succès.
+              La compagnie qui transforme votre passion en succès.
             </p>
           </div>
 
@@ -31,9 +32,9 @@ const Footer = () => {
             <h3 className="font-semibold text-foreground mb-4">Ressources</h3>
             <ul className="space-y-2">
               <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Documentation</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Support</a></li>
-              <li><a href="#" className="text-sm text-muted-foreground hover:text-primary transition-colors">Centre d'aide</a></li>
+              <li><Link href="/blogs" className="text-sm text-muted-foreground hover:text-primary transition-colors">Blog</Link></li>
+              <li><Link href="/support" className="text-sm text-muted-foreground hover:text-primary transition-colors">Support</Link></li>
+              <li><Link href="/shop" className="text-sm text-muted-foreground hover:text-primary transition-colors">Shop</Link></li>
             </ul>
           </div>
 
@@ -51,7 +52,7 @@ const Footer = () => {
         {/* Bottom section */}
         <div className="border-t border-border pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-sm text-muted-foreground">
-            © 2024 YouFizz Marketplace. Tous droits réservés.
+            © 2024 YouFizz Company. Tous droits réservés.
           </p>
           
           <div className="flex gap-4">

@@ -3,8 +3,8 @@ import ClientProviders from './providers';
 import OrbBackground from '@/components/background/OrbBackground';
 
 export const metadata = {
-  title: 'YouFizz - Your Trusted Marketplace',
-  description: 'Your trusted marketplace for buying and selling quality products',
+  title: 'YouFizz - Your Trusted Company',
+  description: 'Your trusted company for buying and selling quality products',
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

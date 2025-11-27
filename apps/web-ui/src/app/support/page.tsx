@@ -1,15 +1,18 @@
 'use client';
 
 import PublicNavbar from '@/components/PublicNavbar';
+import AnimatedBackground from '@/components/background/AnimatedBackground';
+import Footer from '@/components/landing/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { HelpCircle, Mail, MessageCircle, FileText } from 'lucide-react';
 
 const SupportPage = () => {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <AnimatedBackground />
       <PublicNavbar />
       
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8 relative z-10">
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl md:text-4xl font-bold mb-2">Support</h1>
@@ -103,6 +106,7 @@ const SupportPage = () => {
           </CardContent>
         </Card>
       </div>
+      <Footer />
     </div>
   );
 };

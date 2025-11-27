@@ -18,11 +18,11 @@ const Hero = () => {
           <div className="mb-8 flex justify-center">
             <div className="relative group">
               {/* Glow effect dynamique derrière le logo */}
-              <div className="absolute inset-0 bg-primary/40 blur-[80px] scale-125 animate-glow" />
+              <div className="absolute inset-0 bg-primary/20 blur-[60px] scale-125 animate-glow" />
               <img 
                 src={logo.src || logo} 
-                alt="YouFizz Marketplace" 
-                className="h-56 md:h-72 lg:h-96 w-auto relative z-10 transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_40px_rgba(255,119,51,0.6)]"
+                alt="YouFizz Company" 
+                className="h-56 md:h-72 lg:h-96 w-auto relative z-10 transition-transform duration-300 group-hover:scale-105 drop-shadow-[0_0_30px_rgba(255,119,51,0.45)]"
                 style={{ animation: "float 5s ease-in-out infinite" }}
               />
             </div>
@@ -30,7 +30,7 @@ const Hero = () => {
 
           {/* Tagline */}
           <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
-            Votre marketplace <span className="text-primary">nouvelle génération</span>
+            Votre compagnie <span className="text-primary">nouvelle génération</span>
           </h2>
           
           <p className="text-lg md:text-xl text-muted-foreground mb-12 max-w-2xl mx-auto">
@@ -39,7 +39,7 @@ const Hero = () => {
           </p>
 
           {/* CTA Button */}
-            <div className="flex justify-center mb-16">
+            <div className="flex justify-center gap-4 mb-16">
               <Link href="/shop">
                 <Button size="lg" className="bg-primary text-primary-foreground hover:bg-primary/90 text-lg px-12 py-6 animate-glow">
                   <ShoppingBag className="h-5 w-5 mr-2" />
