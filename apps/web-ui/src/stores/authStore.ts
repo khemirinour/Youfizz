@@ -7,12 +7,13 @@ export interface User {
   email: string;
   firstName: string;
   lastName: string;
-  role: 'vendeur' | 'confirmateur' | 'admin';
+  role: 'vendeur' | 'confermateur' | 'admin';
 }
 
 interface AuthState {
   user: User | null;
   vendorId: string | null;
+  confirmateurId: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
@@ -37,6 +38,7 @@ export const useAuthStore = create<AuthStore>()(
       // Initial state
       user: null,
       vendorId: null,
+      confirmateurId: null,
       isAuthenticated: false,
       isLoading: false,
       error: null,
@@ -53,6 +55,9 @@ export const useAuthStore = create<AuthStore>()(
             if (res.vendorId) {
               window.localStorage.setItem('vendorId', res.vendorId);
             }
+            if (res.confirmateurId) {
+              window.localStorage.setItem('confirmateurId', res.confirmateurId);
+            }
           }
 
           set({
@@ -64,6 +69,7 @@ export const useAuthStore = create<AuthStore>()(
               role: (res.user.role as User['role']) || 'vendeur',
             },
             vendorId: res.vendorId || null,
+            confirmateurId: res.confirmateurId || null,
             isAuthenticated: true,
             isLoading: false,
             error: null,
@@ -115,8 +121,9 @@ export const useAuthStore = create<AuthStore>()(
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
+            window.localStorage.removeItem('confirmateurId');
           }
-          set({ user: null, vendorId: null, isAuthenticated: false, error: null });
+          set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false, error: null });
         }
       },
 
@@ -131,8 +138,9 @@ export const useAuthStore = create<AuthStore>()(
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
+            window.localStorage.removeItem('confirmateurId');
           }
-          set({ user: null, vendorId: null, isAuthenticated: false, error: null });
+          set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false, error: null });
         }
       },
 
@@ -150,6 +158,9 @@ export const useAuthStore = create<AuthStore>()(
           if (res.vendorId) {
             window.localStorage.setItem('vendorId', res.vendorId);
           }
+          if (res.confirmateurId) {
+            window.localStorage.setItem('confirmateurId', res.confirmateurId);
+          }
 
           // Update user data if provided
           if (res.user) {
@@ -162,6 +173,7 @@ export const useAuthStore = create<AuthStore>()(
                 role: (res.user.role as User['role']) || 'vendeur',
               },
               vendorId: res.vendorId || null,
+              confirmateurId: res.confirmateurId || null,
               isAuthenticated: true,
             });
           }
@@ -173,8 +185,9 @@ export const useAuthStore = create<AuthStore>()(
             window.localStorage.removeItem('token');
             window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
+            window.localStorage.removeItem('confirmateurId');
           }
-          set({ user: null, vendorId: null, isAuthenticated: false });
+          set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false });
           return false;
         }
       },
@@ -196,6 +209,7 @@ export const useAuthStore = create<AuthStore>()(
       partialize: (state) => ({
         user: state.user,
         vendorId: state.vendorId,
+        confirmateurId: state.confirmateurId,
         isAuthenticated: state.isAuthenticated
       })
     }

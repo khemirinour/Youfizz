@@ -1,7 +1,7 @@
 import { Controller, Post, Body, ValidationPipe, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { SharedRateLimitGuard, EmailService, PasswordResetEmailData, WelcomeEmailData } from '@you-fizz/shared';
+import { SharedRateLimitGuard, EmailService, PasswordResetEmailData, WelcomeEmailData, ConfermateurAssignmentRequestEmailData } from '@you-fizz/shared';
 
 @ApiTags('notifications')
 @Controller('notifications')
@@ -102,6 +102,37 @@ export class NotificationController {
     return {
       message: 'Welcome email sent successfully',
       email: data.email
+    };
+  }
+
+  @Post('email/confermateur-assignment-request')
+  @UseGuards(SharedRateLimitGuard)
+  @Throttle({ short: { limit: 20, ttl: 60000 } }) // 20 emails per minute
+  @ApiOperation({ 
+    summary: 'Send confermateur assignment request email',
+    description: 'Sends an email to a confermateur with accept/refuse links for a vendeur assignment request.'
+  })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Assignment request email sent successfully',
+    schema: {
+      type: 'object',
+      properties: {
+        message: { type: 'string', example: 'Assignment request email sent successfully' },
+        email: { type: 'string', example: 'confermateur@example.com' }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Bad request' })
+  @ApiResponse({ status: 429, description: 'Too many requests' })
+  @ApiResponse({ status: 500, description: 'Failed to send email' })
+  async sendConfermateurAssignmentRequestEmail(
+    @Body(ValidationPipe) data: ConfermateurAssignmentRequestEmailData
+  ): Promise<{ message: string; email: string }> {
+    await this.emailService.sendConfermateurAssignmentRequestEmail(data);
+    return {
+      message: 'Assignment request email sent successfully',
+      email: data.confermateurEmail
     };
   }
 }
