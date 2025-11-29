@@ -1,5 +1,6 @@
 import { get, post, patch, del } from './http';
 import axios from 'axios';
+import { useArticlesStore, generateArticlesCacheKey } from '@/stores/articlesStore';
 
 export interface Article {
   id: string;
@@ -48,16 +49,108 @@ export interface PaginatedArticlesResponse {
   total: number;
 }
 
-export async function getArticles(params?: QueryArticlesParams) {
-  return get<PaginatedArticlesResponse>('/api/articles', params);
+export async function getArticles(params?: QueryArticlesParams): Promise<PaginatedArticlesResponse | undefined> {
+  // Generate cache key from params
+  const cacheKey = generateArticlesCacheKey({
+    vendorId: params?.vendorId,
+    status: params?.status,
+    search: params?.search,
+    categoryId: params?.categoryId,
+    isActive: params?.isActive,
+    page: params?.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
+    pageSize: params?.limit,
+  });
+  
+  // Get cached data from store
+  const { getCachedArticles, setCachedArticles } = useArticlesStore.getState();
+  const cachedData = getCachedArticles(cacheKey);
+  
+  // Make API call
+  const response = await get<PaginatedArticlesResponse>('/api/articles', params);
+  
+  // If response is undefined (304 Not Modified), return cached data from store
+  if (!response) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return undefined;
+  }
+  
+  // Empty items might indicate a 304 - return cached data if available
+  if (!response.items || response.items.length === 0) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return response; // Return empty response if no cache
+  }
+  
+  // Update cache with new data
+  setCachedArticles(cacheKey, response);
+  
+  return response;
 }
 
-export async function getArticleById(id: string) {
-  return get<Article>(`/api/articles/${id}`);
+export async function getArticleById(id: string): Promise<Article | undefined> {
+  // Get cached data from store
+  const { getCachedArticleById, setCachedArticleById } = useArticlesStore.getState();
+  const cachedData = getCachedArticleById(id);
+  
+  // Make API call
+  const response = await get<Article>(`/api/articles/${id}`);
+  
+  // If response is undefined (304 Not Modified), return cached data from store
+  if (!response) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return undefined;
+  }
+  
+  // Update cache with new data
+  setCachedArticleById(id, response);
+  
+  return response;
 }
 
-export async function getArticlesByVendor(vendorId: string, params?: Omit<QueryArticlesParams, 'vendorId'>) {
-  return get<PaginatedArticlesResponse>(`/api/articles/vendor/${vendorId}`, params);
+export async function getArticlesByVendor(vendorId: string, params?: Omit<QueryArticlesParams, 'vendorId'>): Promise<PaginatedArticlesResponse | undefined> {
+  // Generate cache key from params
+  const cacheKey = generateArticlesCacheKey({
+    vendorId,
+    status: params?.status,
+    search: params?.search,
+    categoryId: params?.categoryId,
+    isActive: params?.isActive,
+    page: params?.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
+    pageSize: params?.limit,
+  });
+  
+  // Get cached data from store
+  const { getCachedArticles, setCachedArticles } = useArticlesStore.getState();
+  const cachedData = getCachedArticles(cacheKey);
+  
+  // Make API call
+  const response = await get<PaginatedArticlesResponse>(`/api/articles/vendor/${vendorId}`, params);
+  
+  // If response is undefined (304 Not Modified), return cached data from store
+  if (!response) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return undefined;
+  }
+  
+  // Empty items might indicate a 304 - return cached data if available
+  if (!response.items || response.items.length === 0) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return response; // Return empty response if no cache
+  }
+  
+  // Update cache with new data
+  setCachedArticles(cacheKey, response);
+  
+  return response;
 }
 
 export async function createArticle(data: CreateArticleDto) {

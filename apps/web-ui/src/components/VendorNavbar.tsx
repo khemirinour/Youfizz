@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { LogOut, Package, Plus, LayoutDashboard } from 'lucide-react';
+import { LogOut, Package, Plus, LayoutDashboard, ShoppingCart } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import logo from '@/assets/youfizz-logo.png';
@@ -85,6 +85,16 @@ export default function VendorNavbar() {
                   <span className="text-xs sm:text-sm">Create</span>
                 </Button>
               </Link>
+              <Link href="/vendor/orders">
+                <Button
+                  variant={isActive('/vendor/orders') ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
+                >
+                  <ShoppingCart className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-sm">Orders</span>
+                </Button>
+              </Link>
             </div>
             
             {/* User Info - Condensed */}
@@ -140,6 +150,16 @@ export default function VendorNavbar() {
               >
                 <Plus className="h-4 w-4" />
                 <span>Create</span>
+              </Button>
+            </Link>
+            <Link href="/vendor/orders">
+              <Button
+                variant={isActive('/vendor/orders') ? 'default' : 'ghost'}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <ShoppingCart className="h-4 w-4" />
+                <span>Orders</span>
               </Button>
             </Link>
           </div>

@@ -167,7 +167,14 @@ export function http(): AxiosInstance {
 }
 
 export const get = <T = unknown>(url: string, params?: Record<string, unknown>) =>
-	http().get<T>(url, { params }).then((r) => r.data);
+	http().get<T>(url, { params }).then((r) => {
+		// Handle 304 Not Modified - return undefined to indicate no change
+		// The frontend should preserve existing state when receiving undefined
+		if (r.status === 304) {
+			return undefined;
+		}
+		return r.data;
+	});
 
 export const post = <T = unknown>(url: string, data?: unknown) =>
 	http().post<T>(url, data).then((r) => r.data);

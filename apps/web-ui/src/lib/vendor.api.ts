@@ -1,4 +1,5 @@
 import { get, post, del } from './http';
+import { useVendorConfermateurStore } from '@/stores/vendorConfermateurStore';
 
 // Base path for auth service from gateway
 const AUTH_BASE = '/api/auth';
@@ -29,8 +30,31 @@ export async function requestConfermateurAssignment(
 
 export async function getConfermateursForVendeur(
   vendeurUserId: string,
-): Promise<ConfermateurUser[]> {
-  return get<ConfermateurUser[]>(`${AUTH_BASE}/vendeurs/${vendeurUserId}/confermateurs`);
+): Promise<ConfermateurUser[] | undefined> {
+  // Get cached data from store
+  const { getCachedConfermateursForVendeur, setCachedConfermateursForVendeur } = useVendorConfermateurStore.getState();
+  const cachedData = getCachedConfermateursForVendeur(vendeurUserId);
+  
+  // Make API call
+  const response = await get<ConfermateurUser[]>(`${AUTH_BASE}/vendeurs/${vendeurUserId}/confermateurs`);
+  
+  // If response is undefined (304 Not Modified), return cached data from store
+  if (!response) {
+    if (cachedData) {
+      return cachedData;
+    }
+    return undefined;
+  }
+  
+  // Empty array might indicate a 304 - return cached data if available
+  if (response.length === 0 && cachedData) {
+    return cachedData;
+  }
+  
+  // Update cache with new data
+  setCachedConfermateursForVendeur(vendeurUserId, response);
+  
+  return response;
 }
 
 export async function removeConfermateurForVendeur(

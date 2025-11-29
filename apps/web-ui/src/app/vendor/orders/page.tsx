@@ -3,21 +3,21 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
-import ConfermateurNavbar from '@/components/ConfermateurNavbar';
+import VendorNavbar from '@/components/VendorNavbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { getOrders, confirmOrder, activateOrder, deactivateOrder, type Order } from '@/lib/orders.api';
+import { getOrders, type Order } from '@/lib/orders.api';
 import { useToast } from '@/hooks/use-toast';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
 import { CheckCircle2, XCircle, Search, Filter } from 'lucide-react';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
 
-const ConfermateurOrdersPage = () => {
+const VendorOrdersPage = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, isAuthenticated } = useAuthStore();
+  const { user, isAuthenticated, vendorId } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -27,7 +27,7 @@ const ConfermateurOrdersPage = () => {
   const [pageSize, setPageSize] = useState(20);
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
-  const [actioning, setActioning] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState('');
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -38,9 +38,9 @@ const ConfermateurOrdersPage = () => {
   }, []);
 
   useEffect(() => {
-    // Redirect non-confermateurs to sign in (after hydration)
+    // Redirect non-vendors to sign in (after hydration)
     if (!hydrated) return;
-    if (!isAuthenticated || user?.role !== 'confermateur') {
+    if (!isAuthenticated || user?.role !== 'vendeur') {
       router.replace('/signin');
     }
   }, [hydrated, isAuthenticated, user?.role, router]);
@@ -48,7 +48,7 @@ const ConfermateurOrdersPage = () => {
   // Get cached data from store for initial render
   const { getCachedOrders } = useOrdersStore();
   const cacheKey = generateOrdersCacheKey({
-    vendorId: undefined, // Confermateur doesn't filter by vendorId
+    vendorId,
     status: statusFilter !== 'ALL' ? statusFilter : undefined,
     search: searchQuery || undefined,
     page,
@@ -57,21 +57,22 @@ const ConfermateurOrdersPage = () => {
 
   // Initialize from cache if available
   useEffect(() => {
-    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return;
+    if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return;
     const cached = getCachedOrders(cacheKey);
     if (cached) {
       setOrders(cached.items || []);
       setTotal(cached.total || 0);
     }
-  }, [hydrated, isAuthenticated, user?.role, cacheKey, getCachedOrders]);
+  }, [hydrated, isAuthenticated, user?.role, vendorId, cacheKey, getCachedOrders]);
 
-  // Fetch orders
+  // Fetch orders filtered by vendorId
   useEffect(() => {
-    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return;
+    if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return;
     const fetchOrders = async () => {
       try {
         setLoading(true);
         const params: any = {
+          vendorId,
           limit: pageSize,
           offset: page * pageSize,
         };
@@ -106,77 +107,27 @@ const ConfermateurOrdersPage = () => {
       }
     };
     fetchOrders();
-  }, [hydrated, isAuthenticated, user?.role, page, pageSize, statusFilter, searchQuery, cacheKey, getCachedOrders]);
-
-  const handleConfirm = async (orderId: string) => {
-    try {
-      setActioning(orderId);
-      const updated = await confirmOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      toast({ title: 'Success', description: 'Order confirmed successfully' });
-    } catch (e: any) {
-      toast({ 
-        title: 'Error', 
-        description: e?.message || 'Failed to confirm order', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setActioning(null);
-    }
-  };
-
-  const handleActivate = async (orderId: string) => {
-    try {
-      setActioning(orderId);
-      const updated = await activateOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      toast({ title: 'Success', description: 'Order activated successfully' });
-    } catch (e: any) {
-      toast({ 
-        title: 'Error', 
-        description: e?.message || 'Failed to activate order', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setActioning(null);
-    }
-  };
-
-  const handleDeactivate = async (orderId: string) => {
-    try {
-      setActioning(orderId);
-      const updated = await deactivateOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
-      toast({ title: 'Success', description: 'Order deactivated successfully' });
-    } catch (e: any) {
-      toast({ 
-        title: 'Error', 
-        description: e?.message || 'Failed to deactivate order', 
-        variant: 'destructive' 
-      });
-    } finally {
-      setActioning(null);
-    }
-  };
+  }, [hydrated, isAuthenticated, user?.role, vendorId, page, pageSize, statusFilter, searchQuery, cacheKey, getCachedOrders]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    setSearchQuery(searchInput);
     setPage(0);
   };
 
   const totalPages = Math.ceil(total / pageSize);
 
-  if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return null;
+  if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return null;
 
   return (
     <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
       <AnimatedBackground />
-      <ConfermateurNavbar />
+      <VendorNavbar />
 
       <div className="relative z-20 max-w-7xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         <div>
-          <h1 className="text-3xl font-bold mb-2 text-foreground">Orders Management</h1>
-          <p className="text-muted-foreground">View, filter, and manage orders</p>
+          <h1 className="text-3xl font-bold mb-2 text-foreground">My Orders</h1>
+          <p className="text-muted-foreground">View and filter your orders</p>
         </div>
 
         {/* Filters */}
@@ -187,8 +138,8 @@ const ConfermateurOrdersPage = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search by order number..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="pl-9"
                 />
               </div>
@@ -238,7 +189,7 @@ const ConfermateurOrdersPage = () => {
                         <th className="px-4 py-3 text-xs font-medium uppercase">Status</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Active</th>
-                        <th className="px-4 py-3 text-xs font-medium uppercase text-right">Actions</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Date</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
@@ -283,37 +234,14 @@ const ConfermateurOrdersPage = () => {
                               <span className="text-red-600 dark:text-red-400 text-xs font-medium">Inactive</span>
                             )}
                           </td>
-                          <td className="px-4 py-3 text-right">
-                            <div className="flex items-center gap-2 justify-end">
-                              {order.status === 'PENDING' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => handleConfirm(order.id)}
-                                  disabled={actioning === order.id}
-                                >
-                                  {actioning === order.id ? '...' : 'Confirm'}
-                                </Button>
-                              )}
-                              {order.isActive ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDeactivate(order.id)}
-                                  disabled={actioning === order.id}
-                                >
-                                  Deactivate
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleActivate(order.id)}
-                                  disabled={actioning === order.id}
-                                >
-                                  Activate
-                                </Button>
-                              )}
-                            </div>
+                          <td className="px-4 py-3 text-foreground">
+                            {order.createdAt ? (
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(order.createdAt).toLocaleDateString()}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">N/A</span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -359,8 +287,5 @@ const ConfermateurOrdersPage = () => {
   );
 };
 
-export default ConfermateurOrdersPage;
-
-
-
+export default VendorOrdersPage;
 

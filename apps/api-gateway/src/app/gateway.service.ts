@@ -215,6 +215,13 @@ export class GatewayService {
     try {
       this.logger.log(`Forwarding ${method} ${path} to ${endpoint.service} service`);
       const response = await firstValueFrom(this.httpService.request(config));
+      
+      // If backend returns 304 Not Modified, return undefined to indicate no change
+      // This allows the frontend to preserve existing state
+      if (response.status === 304) {
+        return undefined;
+      }
+      
       return response.data; // Return only the data, not the full Axios response
     } catch (error: any) {
       this.logger.error(

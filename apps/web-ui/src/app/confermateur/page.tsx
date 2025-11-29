@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useRef } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import ConfermateurNavbar from '@/components/ConfermateurNavbar';
 import { Card } from '@/components/ui/card';
@@ -14,6 +14,7 @@ import { getVendeursForConfermateur, type ConfermateurVendeur } from '@/lib/conf
 
 const ConfermateurDashboard = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const { user, isAuthenticated } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
@@ -24,7 +25,8 @@ const ConfermateurDashboard = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
 
   const hasFetchedOrders = useRef(false);
-  const hasFetchedVendors = useRef(false);
+  const vendorsFetchController = useRef<AbortController | null>(null);
+  const vendorsFetchKey = useRef<string | null>(null);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -63,28 +65,82 @@ const ConfermateurDashboard = () => {
 
   // Fetch vendors assigned to this confermateur
   useEffect(() => {
-    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur' || !user?.id) return;
-    if (hasFetchedVendors.current) return;
-    hasFetchedVendors.current = true;
+    // Early returns for invalid states
+    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur' || !user?.id) {
+      if (!user?.id) {
+        setVendors([]);
+        vendorsFetchKey.current = null;
+      }
+      return;
+    }
+
+    // Create a unique key for this fetch (pathname + user.id)
+    const currentKey = `${pathname}-${user.id}`;
+
+    // Skip if already fetched for this key
+    if (vendorsFetchKey.current === currentKey) {
+      return;
+    }
+
+    // Mark as fetching for this key
+    vendorsFetchKey.current = currentKey;
+
+    // Abort any previous fetch
+    if (vendorsFetchController.current) {
+      vendorsFetchController.current.abort();
+    }
+
+    // Create new abort controller for this fetch
+    const abortController = new AbortController();
+    vendorsFetchController.current = abortController;
+
+    let isMounted = true;
 
     const fetchVendors = async () => {
       try {
         setLoadingVendors(true);
         const res = await getVendeursForConfermateur(user.id);
-        setVendors(res || []);
+        
+        // Only update state if component is still mounted and fetch wasn't aborted
+        // If res is undefined, it means we got a 304 Not Modified - preserve existing state
+        if (isMounted && !abortController.signal.aborted && res !== undefined) {
+          setVendors(res || []);
+        }
+        // If res is undefined (304 response), we keep the existing vendors state
       } catch (e: any) {
+        // Don't show error if fetch was aborted or component unmounted
+        if (abortController.signal.aborted || !isMounted) {
+          return;
+        }
         toast({
           title: 'Error',
           description: e?.message || 'Failed to load your vendors',
           variant: 'destructive',
         });
+        // Reset key on error so it can retry
+        if (vendorsFetchKey.current === currentKey) {
+          vendorsFetchKey.current = null;
+        }
       } finally {
-        setLoadingVendors(false);
+        if (isMounted && !abortController.signal.aborted) {
+          setLoadingVendors(false);
+        }
       }
     };
 
-    fetchVendors();
-  }, [hydrated, isAuthenticated, user?.role, user?.id, toast]);
+    // Use a small timeout to ensure state is stable, especially on refresh
+    const timeoutId = setTimeout(() => {
+      fetchVendors();
+    }, 50);
+
+    // Cleanup function
+    return () => {
+      isMounted = false;
+      clearTimeout(timeoutId);
+      abortController.abort();
+      vendorsFetchController.current = null;
+    };
+  }, [hydrated, isAuthenticated, user?.role, user?.id, pathname]);
 
   const stats = useMemo(() => {
     const pending = orders.filter(o => o.status === 'PENDING').length;
