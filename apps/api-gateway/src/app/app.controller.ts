@@ -889,7 +889,22 @@ export class AppController {
   @ApiResponse({ status: 404, description: 'Order not found' })
   @ApiBody({ description: 'Updated order data', schema: { type: 'object' } })
   async updateOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PUT', body, headers, req.user);
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user);  // Changed from 'PUT' to 'PATCH'
+  }
+
+  @ApiTags('orders')
+  @Patch('orders/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Patch order', description: 'Partially update an existing order (e.g., status, isPaid). Requires ADMIN, VENDEUR, or CONFERMATEUR role.' })
+  @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiResponse({ status: 200, description: 'Order updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  @ApiResponse({ status: 404, description: 'Order not found' })
+  @ApiBody({ description: 'Partial order update data', schema: { type: 'object' } })
+  async patchOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user);
   }
 
   @ApiTags('orders')

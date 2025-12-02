@@ -1,4 +1,4 @@
-import { post, get, patch } from './http';
+import { post, get, patch, put, del } from './http';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
 
 export interface OrderItemDto {
@@ -17,6 +17,8 @@ export interface CreateOrderDto {
   customerAddress?: string;
   vendorId?: string;
 }
+
+export interface UpdateOrderDto extends Partial<CreateOrderDto> {}
 
 export interface Order {
   id: string;
@@ -72,8 +74,23 @@ export interface PaginatedOrdersResponse {
   offset: number;
 }
 
-export async function createOrder(data: CreateOrderDto) {
-  return post<Order>('/api/orders', data);
+export async function createOrder(data: CreateOrderDto): Promise<Order | undefined> {
+  const response = await post<OrderResponse | Order>('/api/orders', data);
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  // Check if response is already transformed (has orderNumber) or needs transformation (has number)
+  const transformed = 'orderNumber' in response 
+    ? response as Order
+    : transformOrderResponse(response as OrderResponse);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
 }
 
 // Transform backend response to frontend format
@@ -151,23 +168,125 @@ export async function getOrders(params?: GetOrdersParams): Promise<PaginatedOrde
   return result;
 }
 
-export async function getOrder(id: string): Promise<Order> {
-  const order = await get<OrderResponse>(`/api/orders/${id}`);
-  return transformOrderResponse(order);
+export async function getOrder(id: string): Promise<Order | undefined> {
+  // Get cached data from store (we could cache individual orders too, but for now just fetch)
+  const response = await get<OrderResponse>(`/api/orders/${id}`);
+  
+  // If response is undefined (304 Not Modified), we'd need individual order cache
+  // For now, return undefined if no response
+  if (!response) {
+    return undefined;
+  }
+  
+  return transformOrderResponse(response);
 }
 
-export async function confirmOrder(id: string): Promise<Order> {
-  const order = await patch<OrderResponse>(`/api/orders/${id}/confirm`, {});
-  return transformOrderResponse(order);
+export async function updateOrder(id: string, data: UpdateOrderDto): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}`, data);  // Changed from put to patch
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache for all orders to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
 }
 
-export async function activateOrder(id: string): Promise<Order> {
-  const order = await patch<OrderResponse>(`/api/orders/${id}/activate`, {});
-  return transformOrderResponse(order);
+export async function deleteOrder(id: string): Promise<{ message?: string } | undefined> {
+  const response = await del<{ message?: string }>(`/api/orders/${id}`);
+  
+  // Clear cache after deletion
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return response;
 }
 
-export async function deactivateOrder(id: string): Promise<Order> {
-  const order = await patch<OrderResponse>(`/api/orders/${id}/deactivate`, {});
-  return transformOrderResponse(order);
+export async function confirmOrder(id: string): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, {});
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
+}
+
+export async function activateOrder(id: string): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}/activate`, {});
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
+}
+
+export async function deactivateOrder(id: string): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}/deactivate`, {});
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
+}
+
+export async function updateOrderStatus(
+  id: string, 
+  status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED'
+): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}`, { status });
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
+}
+
+export async function updateOrderPaid(id: string, isPaid: boolean): Promise<Order | undefined> {
+  const response = await patch<OrderResponse>(`/api/orders/${id}`, { isPaid });
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  const transformed = transformOrderResponse(response);
+  
+  // Clear cache to force refresh
+  const { clearCache } = useOrdersStore.getState();
+  clearCache();
+  
+  return transformed;
 }
 
