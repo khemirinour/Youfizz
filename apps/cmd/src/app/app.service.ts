@@ -1,4 +1,4 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { ILike, Repository } from 'typeorm';
@@ -8,6 +8,7 @@ import { UpdateOrderDto } from '../dto/update-order.dto';
 
 @Injectable()
 export class AppService {
+  private readonly logger = new Logger(AppService.name);
   constructor(
     @InjectRepository(Order) private readonly repo: Repository<Order>,
   ) {}
@@ -65,33 +66,84 @@ export class AppService {
       throw new NotFoundException('Order not found');
     }
 
+    // DEBUG: Log what we received
+    this.logger.log(`Confirm order ${id} - confirmer: ${JSON.stringify(confirmer)}`);
+
     // Enforce vendor quota via auth internal APIs: check (GET) then consume (POST)
-    if (confirmer?.role === 'VENDEUR' || confirmer?.role === 'CONFERMATEUR') {
-      if (order.vendorId && order.vendorId !== confirmer.vendorId) {
-        throw new ForbiddenException();
+    // Make role comparison case-insensitive to handle both 'CONFERMATEUR' and 'confermateur'
+    const role = confirmer?.role?.toUpperCase();
+    this.logger.log(`Role check - original: ${confirmer?.role}, uppercase: ${role}`);
+    
+    if (role === 'VENDEUR' || role === 'CONFERMATEUR') {
+      // Determine the vendorId to use: prefer from confirmer, then from order, then from token
+      const vendorId = confirmer.vendorId || order.vendorId;
+      const vendorUserId = confirmer.userId; // userId from token
+      
+      this.logger.log(`Confirming order ${id} - vendorId: ${vendorId}, vendorUserId: ${vendorUserId}, role: ${confirmer.role}`);
+      
+      // For VENDEUR: ensure they can only confirm their own orders
+      if (role === 'VENDEUR' && order.vendorId && order.vendorId !== confirmer.vendorId) {
+        throw new ForbiddenException('You can only confirm orders for your own vendor account');
       }
 
-      // Use same logic as login token: get user ID and vendor ID from token
-      const vendorUserId = confirmer.userId; // userId from token (same as login logic)
-      const vendorId = confirmer.vendorId;   // vendorId from token (same as login logic)
+      // Ensure we have either vendorId or vendorUserId for the quota check
+      if (!vendorId && !vendorUserId) {
+        this.logger.error(`Missing vendorId and vendorUserId for order ${id}`);
+        throw new BadRequestException('Vendor ID is required to confirm order');
+      }
       
       try {
         // 1) Check remaining via GET
         const params: any = vendorId ? { vendorId } : { vendorUserId };
+        this.logger.log(`Checking quota with params: ${JSON.stringify(params)}`);
+        
         const check = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
           params,
           timeout: 5000,
         });
+        
+        this.logger.log(`Quota check response: ${JSON.stringify(check.data)}`);
+        
         if (!check?.data || typeof check.data.remaining !== 'number' || check.data.remaining <= 0) {
+          this.logger.warn(`No remaining confirmations for vendor. Response: ${JSON.stringify(check.data)}`);
           throw { statusCode: 403, message: 'Vendor has no remaining confirmations' };
         }
+        
         // 2) Consume quota via POST to keep atomicity on auth side
         const body: any = vendorId ? { vendorId } : { vendorUserId };
-        await axios.post('http://localhost:3001/api/internal/vendors/confirm-quota/consume', body, { timeout: 5000 });
+        this.logger.log(`Consuming quota with body: ${JSON.stringify(body)}`);
+        
+        const consumeResponse = await axios.post('http://localhost:3001/api/internal/vendors/confirm-quota/consume', body, { 
+          timeout: 5000 
+        });
+        
+        this.logger.log(`Quota consumed successfully. Response: ${JSON.stringify(consumeResponse.data)}`);
+        
       } catch (e: any) {
-        throw e?.response?.data ?? e;
+        this.logger.error(`Error during quota check/consume for order ${id}:`, {
+          error: e?.message,
+          response: e?.response?.data,
+          status: e?.response?.status,
+          vendorId,
+          vendorUserId,
+        });
+        
+        // Re-throw with proper error format - THIS MUST PREVENT ORDER CONFIRMATION
+        if (e?.response?.data) {
+          throw e.response.data;
+        }
+        if (e?.statusCode) {
+          throw e;
+        }
+        throw new ForbiddenException(e?.message || 'Failed to check or consume vendor quota');
       }
+    } else {
+      // Log when role doesn't match (for debugging)
+      this.logger.warn(`Order confirmation skipped quota check - role: ${confirmer?.role}, expected VENDEUR or CONFERMATEUR`);
     }
+    
+    // Only update order status if quota was successfully consumed (or if role doesn't require quota)
+    this.logger.log(`Updating order ${id} status to CONFIRMED`);
     await this.repo.update({ id }, { status: OrderStatus.CONFIRMED, isActive: true });
     return this.findOne(id);
   }

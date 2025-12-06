@@ -152,7 +152,10 @@ const ConfermateurDashboard = () => {
   const handleConfirm = async (orderId: string) => {
     try {
       setConfirming(orderId);
-      const updated = await confirmOrder(orderId);
+      // Get vendorId from the order if available
+      const order = orders.find(o => o.id === orderId);
+      const idvendor = order?.vendorId;
+      const updated = await confirmOrder(orderId, idvendor);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
       toast({ title: 'Success', description: 'Order confirmed successfully' });
     } catch (e: any) {

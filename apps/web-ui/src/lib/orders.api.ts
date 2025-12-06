@@ -207,8 +207,9 @@ export async function deleteOrder(id: string): Promise<{ message?: string } | un
   return response;
 }
 
-export async function confirmOrder(id: string): Promise<Order | undefined> {
-  const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, {});
+export async function confirmOrder(id: string, idvendor?: string): Promise<Order | undefined> {
+  const body = idvendor ? { idvendor } : {};
+  const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, body);
   
   if (!response) {
     return undefined;

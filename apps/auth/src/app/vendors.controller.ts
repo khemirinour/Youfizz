@@ -1,16 +1,11 @@
-import { BadRequestException, Body, Controller, ForbiddenException, NotFoundException, Post, Get, Query, UseGuards } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiBearerAuth, ApiOkResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiForbiddenResponse, ApiUnauthorizedResponse } from '@nestjs/swagger';
+import { BadRequestException, Body, Controller, ForbiddenException, NotFoundException, Post, Get, Query } from '@nestjs/common';
+import { ApiTags, ApiOperation, ApiResponse, ApiQuery, ApiBody, ApiOkResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiForbiddenResponse } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Vendeur } from '../entities/vendeur.entity';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { Roles } from './roles.decorator';
-import { RolesGuard } from './roles.guard';
 
 @ApiTags('internal')
 @Controller('internal/vendors')
-@UseGuards(JwtAuthGuard, RolesGuard)
-@ApiBearerAuth()
 export class VendorsController {
   constructor(
     @InjectRepository(Vendeur) private readonly vendeurRepo: Repository<Vendeur>,
@@ -69,8 +64,6 @@ export class VendorsController {
       }
     }
   })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-  @ApiForbiddenResponse({ description: 'Insufficient role' })
   async getConfirmQuota(@Query() query: { vendorId?: string; vendorUserId?: string }) {
     if (!query?.vendorId && !query?.vendorUserId) {
       throw new BadRequestException('vendorId or vendorUserId is required');
@@ -152,7 +145,6 @@ export class VendorsController {
       }
     }
   })
-  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   async consumeConfirmQuota(@Body() body: { vendorId?: string; vendorUserId?: string }) {
     if (!body?.vendorId && !body?.vendorUserId) {
       throw new BadRequestException('vendorId or vendorUserId is required');
@@ -168,8 +160,13 @@ export class VendorsController {
     if ((vendeur.nbrCmdConf ?? 0) <= 0) {
       throw new ForbiddenException('Vendor has no remaining confirmations');
     }
-    await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: vendeur.nbrCmdConf - 1 });
-    return { vendorId: vendeur.id, remaining: vendeur.nbrCmdConf - 1 };
+    
+    // IMPORTANT: Read the current value, decrement, and update
+    const currentValue = vendeur.nbrCmdConf ?? 0;
+    const newValue = currentValue - 1;
+    
+    await this.vendeurRepo.update({ id: vendeur.id }, { nbrCmdConf: newValue });
+    return { vendorId: vendeur.id, remaining: newValue };
   }
 }
 

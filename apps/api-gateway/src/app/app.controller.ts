@@ -929,12 +929,32 @@ export class AppController {
     description: 'Confirm an order (consumes vendeur confirmation quota). Requires VENDEUR or CONFERMATEUR role.'
   })
   @ApiParam({ name: 'id', description: 'Order ID' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        idvendor: {
+          type: 'string',
+          format: 'uuid',
+          description: 'Vendor ID (optional - will use JWT token vendorId if not provided)'
+        }
+      },
+      required: []
+    }
+  })
   @ApiResponse({ status: 200, description: 'Order confirmed successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Requires VENDEUR or CONFERMATEUR role, or no remaining confirmations' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async confirmOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', null, headers, req.user);
+  async confirmOrder(
+    @Param('id') id: string,
+    @Body() body: { idvendor?: string },
+    @Headers() headers: Record<string, string>,
+    @Req() req: Request
+  ) {
+    // Map idvendor to vendorId for consistency with internal API
+    const requestBody = body?.idvendor ? { vendorId: body.idvendor } : null;
+    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', requestBody, headers, req.user);
   }
 
   @ApiTags('orders')

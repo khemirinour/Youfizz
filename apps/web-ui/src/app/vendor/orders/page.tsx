@@ -432,7 +432,10 @@ const VendorOrdersPage = () => {
   const handleConfirm = async (orderId: string) => {
     try {
       setActioning(orderId);
-      await confirmOrder(orderId);
+      // Get vendorId from the order if available
+      const order = orders.find(o => o.id === orderId);
+      const idvendor = order?.vendorId || vendorId;
+      await confirmOrder(orderId, idvendor);
       toast({
         title: 'Success',
         description: 'Order confirmed successfully',
