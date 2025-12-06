@@ -1,7 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
 
 export interface ServiceEndpoint {
@@ -134,6 +134,8 @@ export class GatewayService {
       'connection',
       'accept-encoding',
       'content-encoding',
+      'if-none-match', // Block cache validation headers
+      'if-modified-since',
     ]);
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
@@ -194,6 +196,8 @@ export class GatewayService {
         ...sanitized,
         ...(user ? { 'x-user-id': user.userId, 'x-user-role': user.role } : {}),
         'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
+        'Cache-Control': 'no-cache, no-store, must-revalidate', // Force fresh data
+        'Pragma': 'no-cache', // HTTP/1.0 compatibility
       },
       timeout: 30000,
       maxBodyLength: Infinity,
@@ -215,19 +219,40 @@ export class GatewayService {
 
     try {
       this.logger.log(`Forwarding ${method} ${path} to ${endpoint.service} service`);
-      const response = await firstValueFrom(this.httpService.request(config));
+      const response = await lastValueFrom(this.httpService.request(config));
       
-      // If backend returns 304 Not Modified, return undefined to indicate no change
-      // This allows the frontend to preserve existing state
+      // Add response validation
+      if (!response) {
+        this.logger.error(`Empty response from ${endpoint.service} for ${method} ${path}`);
+        throw new HttpException('Empty response from service', HttpStatus.BAD_GATEWAY);
+      }
+      
+      this.logger.debug(`Response status: ${response.status}, has data: ${!!response.data}`);
+      
+      // Handle 304 explicitly - but we need to return the ETag header for proper caching
       if (response.status === 304) {
+        this.logger.log(`304 Not Modified for ${method} ${path}`);
+        // For 304, we still need to return undefined, but the ETag header should be forwarded
+        // The frontend will handle this with its cache
         return undefined;
+      }
+      
+      // Validate data exists
+      if (response.data === undefined || response.data === null) {
+        this.logger.warn(`Response data is null/undefined for ${method} ${path}`);
       }
       
       return response.data; // Return only the data, not the full Axios response
     } catch (error: any) {
+      // Enhanced error logging
       this.logger.error(
         `Error forwarding ${method} ${path} to ${endpoint.service} service:`,
-        error?.message || 'Unknown error'
+        {
+          message: error?.message,
+          status: error?.response?.status,
+          data: error?.response?.data,
+          url: fullUrl,
+        }
       );
       
       if (error?.response) {

@@ -9,11 +9,25 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
 import { JwtStrategy } from '@you-fizz/shared';
 import { StringValue } from 'ms';
+import * as http from 'http';
+import * as https from 'https';
 
 @Module({
   imports: [
     SharedModule,
-    HttpModule,
+    HttpModule.register({
+      timeout: 30000,
+      maxRedirects: 5,
+      // Disable keep-alive to prevent connection reuse issues
+      httpAgent: new http.Agent({ 
+        keepAlive: false,
+        maxSockets: 50,
+      }),
+      httpsAgent: new https.Agent({ 
+        keepAlive: false,
+        maxSockets: 50,
+      }),
+    }),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET as string,
