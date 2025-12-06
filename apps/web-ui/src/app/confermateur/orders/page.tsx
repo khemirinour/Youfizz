@@ -8,7 +8,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { getOrders, confirmOrder, activateOrder, deactivateOrder, type Order } from '@/lib/orders.api';
+import { getOrders, confirmOrder, activateOrder, deactivateOrder, updateOrderStatus, type Order } from '@/lib/orders.api';
+import { getVendeursForConfermateur, type ConfermateurVendeur } from '@/lib/confermateur.api';
 import { useToast } from '@/hooks/use-toast';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
 import { CheckCircle2, XCircle, Search, Filter } from 'lucide-react';
@@ -28,6 +29,9 @@ const ConfermateurOrdersPage = () => {
   const [statusFilter, setStatusFilter] = useState<string>(searchParams.get('status') || 'ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [actioning, setActioning] = useState<string | null>(null);
+  const [vendors, setVendors] = useState<ConfermateurVendeur[]>([]);
+  const [selectedVendorId, setSelectedVendorId] = useState<string>('');
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -45,10 +49,37 @@ const ConfermateurOrdersPage = () => {
     }
   }, [hydrated, isAuthenticated, user?.role, router]);
 
+  // Fetch vendors for the confermateur
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur' || !user?.id) return;
+    const fetchVendors = async () => {
+      try {
+        setLoadingVendors(true);
+        const res = await getVendeursForConfermateur(user.id);
+        if (res !== undefined) {
+          setVendors(res || []);
+          // Auto-select first vendor if none selected and vendors are available
+          if (res && res.length > 0) {
+            setSelectedVendorId(prev => prev || res[0].id);
+          }
+        }
+      } catch (e: any) {
+        toast({
+          title: 'Error',
+          description: e?.message || 'Failed to load vendors',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingVendors(false);
+      }
+    };
+    fetchVendors();
+  }, [hydrated, isAuthenticated, user?.role, user?.id]);
+
   // Get cached data from store for initial render
   const { getCachedOrders } = useOrdersStore();
   const cacheKey = generateOrdersCacheKey({
-    vendorId: undefined, // Confermateur doesn't filter by vendorId
+    vendorId: selectedVendorId || undefined,
     status: statusFilter !== 'ALL' ? statusFilter : undefined,
     search: searchQuery || undefined,
     page,
@@ -63,15 +94,16 @@ const ConfermateurOrdersPage = () => {
       setOrders(cached.items || []);
       setTotal(cached.total || 0);
     }
-  }, [hydrated, isAuthenticated, user?.role, cacheKey, getCachedOrders]);
+  }, [hydrated, isAuthenticated, user?.role, selectedVendorId, cacheKey, getCachedOrders]);
 
   // Fetch orders
   useEffect(() => {
-    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return;
+    if (!hydrated || !isAuthenticated || user?.role !== 'confermateur' || !selectedVendorId) return;
     const fetchOrders = async () => {
       try {
         setLoading(true);
         const params: any = {
+          vendorId: selectedVendorId, // Always filter by selected vendor
           limit: pageSize,
           offset: page * pageSize,
         };
@@ -106,7 +138,7 @@ const ConfermateurOrdersPage = () => {
       }
     };
     fetchOrders();
-  }, [hydrated, isAuthenticated, user?.role, page, pageSize, statusFilter, searchQuery, cacheKey, getCachedOrders]);
+  }, [hydrated, isAuthenticated, user?.role, page, pageSize, statusFilter, searchQuery, selectedVendorId, cacheKey, getCachedOrders]);
 
   const handleConfirm = async (orderId: string) => {
     try {
@@ -115,7 +147,9 @@ const ConfermateurOrdersPage = () => {
       const order = orders.find(o => o.id === orderId);
       const idvendor = order?.vendorId;
       const updated = await confirmOrder(orderId, idvendor);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      if (updated) {
+        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      }
       toast({ title: 'Success', description: 'Order confirmed successfully' });
     } catch (e: any) {
       toast({ 
@@ -132,7 +166,9 @@ const ConfermateurOrdersPage = () => {
     try {
       setActioning(orderId);
       const updated = await activateOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      if (updated) {
+        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      }
       toast({ title: 'Success', description: 'Order activated successfully' });
     } catch (e: any) {
       toast({ 
@@ -149,13 +185,37 @@ const ConfermateurOrdersPage = () => {
     try {
       setActioning(orderId);
       const updated = await deactivateOrder(orderId);
-      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      if (updated) {
+        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      }
       toast({ title: 'Success', description: 'Order deactivated successfully' });
     } catch (e: any) {
       toast({ 
         title: 'Error', 
         description: e?.message || 'Failed to deactivate order', 
         variant: 'destructive' 
+      });
+    } finally {
+      setActioning(null);
+    }
+  };
+
+  const handleStatusChange = async (orderId: string, newStatus: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED') => {
+    try {
+      setActioning(orderId);
+      const updated = await updateOrderStatus(orderId, newStatus);
+      if (updated) {
+        setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      }
+      toast({
+        title: 'Success',
+        description: 'Order status updated successfully',
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.message || 'Failed to update order status',
+        variant: 'destructive',
       });
     } finally {
       setActioning(null);
@@ -201,6 +261,18 @@ const ConfermateurOrdersPage = () => {
             </form>
             <div className="flex items-center gap-2">
               <Filter className="h-4 w-4 text-muted-foreground" />
+              <Select value={selectedVendorId} onValueChange={(v) => { setSelectedVendorId(v); setPage(0); }} disabled={loadingVendors || vendors.length === 0}>
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder={loadingVendors ? "Loading vendors..." : vendors.length === 0 ? "No vendors available" : "Select vendor"} />
+                </SelectTrigger>
+                <SelectContent>
+                  {vendors.map((vendor) => (
+                    <SelectItem key={vendor.id} value={vendor.id}>
+                      {vendor.firstName} {vendor.lastName} {vendor.email ? `(${vendor.email})` : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(0); }}>
                 <SelectTrigger className="w-[180px]">
                   <SelectValue placeholder="Filter by status" />
@@ -256,21 +328,35 @@ const ConfermateurOrdersPage = () => {
                           </td>
                           <td className="px-4 py-3 text-foreground">{order.total} TND</td>
                           <td className="px-4 py-3">
-                            <span
-                              className={`px-2 py-1 rounded text-xs font-medium ${
-                                order.status === 'PENDING'
-                                  ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400'
-                                  : order.status === 'CONFIRMED'
-                                  ? 'bg-green-500/20 text-green-600 dark:text-green-400'
-                                  : order.status === 'SHIPPED'
-                                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400'
-                                  : order.status === 'DELIVERED'
-                                  ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400'
-                                  : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                              }`}
-                            >
-                              {order.status}
-                            </span>
+                            {order.status === 'CONFIRMED' ? (
+                              <div className="w-[130px] h-8 flex items-center justify-center rounded-md border bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30 px-3 py-1.5 text-sm font-medium">
+                                CONFIRMED
+                              </div>
+                            ) : (
+                              <Select
+                                value={order.status}
+                                onValueChange={(value) => handleStatusChange(order.id, value as 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED')}
+                                disabled={actioning === order.id}
+                              >
+                                <SelectTrigger className={`w-[130px] h-8 ${
+                                  order.status === 'PENDING'
+                                    ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30'
+                                    : order.status === 'SHIPPED'
+                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                    : order.status === 'DELIVERED'
+                                    ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                    : 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30'
+                                }`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PENDING">PENDING</SelectItem>
+                                  <SelectItem value="SHIPPED">SHIPPED</SelectItem>
+                                  <SelectItem value="DELIVERED">DELIVERED</SelectItem>
+                                  <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             {order.isPaid ? (

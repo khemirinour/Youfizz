@@ -579,7 +579,6 @@ const VendorOrdersPage = () => {
                 <SelectContent>
                   <SelectItem value="ALL">All Status</SelectItem>
                   <SelectItem value="PENDING">Pending</SelectItem>
-                  <SelectItem value="CONFIRMED">Confirmed</SelectItem>
                   <SelectItem value="SHIPPED">Shipped</SelectItem>
                   <SelectItem value="DELIVERED">Delivered</SelectItem>
                   <SelectItem value="CANCELLED">Cancelled</SelectItem>
@@ -608,6 +607,7 @@ const VendorOrdersPage = () => {
                       <tr>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Order #</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Customer</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Phone</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Total</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Status</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
@@ -626,34 +626,40 @@ const VendorOrdersPage = () => {
                               <p className="text-xs text-muted-foreground">{order.customerEmail}</p>
                             </div>
                           </td>
+                          <td className="px-4 py-3 text-foreground">
+                            {order.customerPhone || 'N/A'}
+                          </td>
                           <td className="px-4 py-3 text-foreground">{order.total} TND</td>
                           <td className="px-4 py-3">
-                            <Select
-                              value={order.status}
-                              onValueChange={(value) => handleStatusChange(order.id, value as 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED')}
-                              disabled={actioning === order.id}
-                            >
-                              <SelectTrigger className={`w-[130px] h-8 ${
-                                order.status === 'PENDING'
-                                  ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30'
-                                  : order.status === 'CONFIRMED'
-                                  ? 'bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30'
-                                  : order.status === 'SHIPPED'
-                                  ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30'
-                                  : order.status === 'DELIVERED'
-                                  ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30'
-                                  : 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30'
-                              }`}>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="PENDING">PENDING</SelectItem>
-                                <SelectItem value="CONFIRMED">CONFIRMED</SelectItem>
-                                <SelectItem value="SHIPPED">SHIPPED</SelectItem>
-                                <SelectItem value="DELIVERED">DELIVERED</SelectItem>
-                                <SelectItem value="CANCELLED">CANCELLED</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            {order.status === 'CONFIRMED' ? (
+                              <div className="w-[130px] h-8 flex items-center justify-center rounded-md border bg-green-500/20 text-green-600 dark:text-green-400 border-green-500/30 px-3 py-1.5 text-sm font-medium">
+                                CONFIRMED
+                              </div>
+                            ) : (
+                              <Select
+                                value={order.status}
+                                onValueChange={(value) => handleStatusChange(order.id, value as 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED')}
+                                disabled={actioning === order.id}
+                              >
+                                <SelectTrigger className={`w-[130px] h-8 ${
+                                  order.status === 'PENDING'
+                                    ? 'bg-yellow-500/20 text-yellow-600 dark:text-yellow-400 border-yellow-500/30'
+                                    : order.status === 'SHIPPED'
+                                    ? 'bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/30'
+                                    : order.status === 'DELIVERED'
+                                    ? 'bg-purple-500/20 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                                    : 'bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/30'
+                                }`}>
+                                  <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="PENDING">PENDING</SelectItem>
+                                  <SelectItem value="SHIPPED">SHIPPED</SelectItem>
+                                  <SelectItem value="DELIVERED">DELIVERED</SelectItem>
+                                  <SelectItem value="CANCELLED">CANCELLED</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
                           </td>
                           <td className="px-4 py-3">
                             <Button
@@ -712,7 +718,7 @@ const VendorOrdersPage = () => {
                                   <Edit className="h-4 w-4" />
                                 </Button>
                               )}
-                              {order.status === 'PENDING' && (
+                              
                                 <Button
                                   size="sm"
                                   onClick={() => handleConfirm(order.id)}
@@ -720,7 +726,7 @@ const VendorOrdersPage = () => {
                                 >
                                   {actioning === order.id ? '...' : 'Confirm'}
                                 </Button>
-                              )}
+                              
                               {order.isActive ? (
                                 <Button
                                   size="sm"
