@@ -11,6 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
+import { useSeoMeta } from '@/hooks/use-seo-meta';
+import { getArticleUrl } from '@/lib/utils/url';
 import { ArrowLeft, ShoppingBag, Package, ShoppingCart } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -55,6 +57,20 @@ const ArticleDetailPage = () => {
     fetchArticle();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleId]); // Remove router and toast from dependencies
+
+  // Update SEO meta tags when article is loaded
+  useSeoMeta(
+    article
+      ? {
+          title: article.title,
+          description: article.description || article.title,
+          image: article.images?.[0],
+          url: getArticleUrl(article.id),
+          type: 'product',
+          siteName: 'YouFizz',
+        }
+      : null
+  );
 
   if (loading) {
     return (

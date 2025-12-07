@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { getArticleUrl } from '@/lib/utils/url';
 import {
   Pagination,
   PaginationContent,
@@ -20,6 +21,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 
 const ArticlesListPage = () => {
@@ -31,6 +33,7 @@ const ArticlesListPage = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [copiedArticleId, setCopiedArticleId] = useState<string | null>(null);
 
   const pageSize = 20;
   const [page, setPage] = useState(() => {
@@ -77,8 +80,8 @@ const ArticlesListPage = () => {
         if (statusFilter !== 'ALL') params.status = statusFilter;
         if (isActiveFilter !== 'ALL') params.isActive = isActiveFilter === 'true';
         const data = await getArticlesByVendor(vendorId, params);
-        setArticles(data.items || []);
-        setTotal(data.total || 0);
+        setArticles(data?.items || []);
+        setTotal(data?.total || 0);
 
         const urlParams = new URLSearchParams();
         if (searchQuery.trim()) urlParams.set('search', searchQuery.trim());
@@ -119,9 +122,47 @@ const ArticlesListPage = () => {
     } catch (e: any) {
       toast({
         title: 'Erreur',
-        description: e?.response?.data?.message || e?.message || 'Échec de l’action',
+        description: e?.response?.data?.message || e?.message || "Échec de l'action",
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCopyLink = async (articleId: string) => {
+    try {
+      const articleUrl = getArticleUrl(articleId);
+      await navigator.clipboard.writeText(articleUrl);
+      setCopiedArticleId(articleId);
+      toast({
+        title: 'Succès',
+        description: 'Lien copié dans le presse-papiers',
+      });
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedArticleId(null), 2000);
+    } catch (e: any) {
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = getArticleUrl(articleId);
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopiedArticleId(articleId);
+        toast({
+          title: 'Succès',
+          description: 'Lien copié dans le presse-papiers',
+        });
+        setTimeout(() => setCopiedArticleId(null), 2000);
+      } catch (fallbackError) {
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de copier le lien',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -137,7 +178,7 @@ const ArticlesListPage = () => {
             'radial-gradient(circle at top left, hsl(var(--primary) / 0.12), hsl(var(--background)) 60%)',
         }}
       />
-      <VendorNavbar logoSrc="/logo-dark.png" />
+      <VendorNavbar />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Header */}
@@ -257,6 +298,20 @@ const ArticlesListPage = () => {
                         <TableCell className="text-right">{article.stock ?? 0}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCopyLink(article.id)}
+                              className="border-border text-foreground hover:bg-secondary/70"
+                              title="Copier le lien de l'article"
+                              aria-label="Copier le lien de l'article"
+                            >
+                              {copiedArticleId === article.id ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
                             <Link href={`/vendor/articles/${article.id}/edit`}>
                               <Button size="sm" variant="outline" className="border-border text-foreground hover:bg-secondary/70">
                                 Éditer
