@@ -47,13 +47,63 @@ const ConfermateurDashboard = () => {
   // Fetch orders
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return;
-    if (hasFetchedOrders.current) return;
-    hasFetchedOrders.current = true;
+    
+    // Wait for vendors to be loaded first
+    if (vendors.length === 0 && !loadingVendors) {
+      // If vendors are not loading and we have none, set empty orders
+      setOrders([]);
+      return;
+    }
+    
+    // If vendors are still loading, wait for them
+    if (loadingVendors) {
+      return;
+    }
+    
     const fetchOrders = async () => {
       try {
         setLoading(true);
-        const res = await getOrders({ limit: 10, offset: 0 });
-        setOrders(res.items || []);
+        
+        // If no vendors, set empty orders
+        if (vendors.length === 0) {
+          setOrders([]);
+          return;
+        }
+        
+        // Fetch orders for each vendor and combine them
+        const vendorIds = vendors.map(v => v.vendorId).filter(Boolean);
+        
+        if (vendorIds.length === 0) {
+          setOrders([]);
+          return;
+        }
+        
+        // Fetch orders for all vendors
+        const orderPromises = vendorIds.map(vendorId => 
+          getOrders({ limit: 100, offset: 0, vendorId })
+        );
+        
+        const results = await Promise.all(orderPromises);
+        
+        // Combine all orders and remove duplicates
+        const allOrders = results
+          .filter((res): res is { items: Order[] } => res !== undefined && res.items !== undefined)
+          .flatMap(res => res.items);
+        
+        // Remove duplicates by order ID
+        const uniqueOrders = Array.from(
+          new Map(allOrders.map(order => [order.id, order])).values()
+        );
+        
+        // Sort by creation date (newest first)
+        uniqueOrders.sort((a, b) => {
+          const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return dateB - dateA;
+        });
+        
+        // Limit to 10 most recent
+        setOrders(uniqueOrders.slice(0, 10));
       } catch (e: any) {
         toast({ title: 'Error', description: e?.message || 'Failed to load orders', variant: 'destructive' });
       } finally {
@@ -61,7 +111,7 @@ const ConfermateurDashboard = () => {
       }
     };
     fetchOrders();
-  }, [hydrated, isAuthenticated, user?.role]);
+  }, [hydrated, isAuthenticated, user?.role, vendors, loadingVendors]);
 
   // Fetch vendors assigned to this confermateur
   useEffect(() => {

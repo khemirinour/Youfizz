@@ -3,6 +3,7 @@ import { useVendorConfermateurStore } from '@/stores/vendorConfermateurStore';
 
 export interface ConfermateurVendeur {
   id: string;
+  vendorId: string; // Add vendor entity ID
   email: string;
   firstName: string;
   lastName: string;

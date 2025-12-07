@@ -709,7 +709,7 @@ export class AuthService {
    * @param confermateurUserId - The user ID of the confermateur
    * @returns Array of vendeur user information (id, firstName, lastName, email)
    */
-  private async getVendeurUsersForConfermateur(confermateurUserId: string): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+  private async getVendeurUsersForConfermateur(confermateurUserId: string): Promise<Array<{ id: string; vendorId: string; firstName: string; lastName: string; email: string }>> {
     try {
       // Step 1: Find Confermateur entity by idUser
       const confermateur = await this.confermateurRepo.findOne({
@@ -738,12 +738,13 @@ export class AuthService {
           }
           return {
             id: v.user.id,
+            vendorId: v.id, // Add vendor entity ID
             firstName: v.user.firstName || '',
             lastName: v.user.lastName || '',
             email: v.user.email || '',
           };
         })
-        .filter((v): v is { id: string; firstName: string; lastName: string; email: string } => v !== null && v.id !== '');
+        .filter((v): v is { id: string; vendorId: string; firstName: string; lastName: string; email: string } => v !== null && v.id !== '');
 
       return vendeurUsers;
     } catch (error) {
@@ -759,7 +760,7 @@ export class AuthService {
    */
   async getVendeursForConfermateur(
     confermateurUserId: string,
-  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+  ): Promise<Array<{ id: string; vendorId: string; firstName: string; lastName: string; email: string }>> {
     return this.getVendeurUsersForConfermateur(confermateurUserId);
   }
 

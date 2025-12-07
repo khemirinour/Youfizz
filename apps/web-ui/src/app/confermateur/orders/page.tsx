@@ -8,11 +8,20 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import { getOrders, confirmOrder, activateOrder, deactivateOrder, updateOrderStatus, type Order } from '@/lib/orders.api';
+import { Label } from '@/components/ui/label';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { getOrders, confirmOrder, activateOrder, deactivateOrder, updateOrderStatus, getOrder, type Order } from '@/lib/orders.api';
 import { getVendeursForConfermateur, type ConfermateurVendeur } from '@/lib/confermateur.api';
 import { useToast } from '@/hooks/use-toast';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
-import { CheckCircle2, XCircle, Search, Filter } from 'lucide-react';
+import { CheckCircle2, XCircle, Search, Filter, Eye } from 'lucide-react';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
 
 const ConfermateurOrdersPage = () => {
@@ -32,6 +41,8 @@ const ConfermateurOrdersPage = () => {
   const [vendors, setVendors] = useState<ConfermateurVendeur[]>([]);
   const [selectedVendorId, setSelectedVendorId] = useState<string>('');
   const [loadingVendors, setLoadingVendors] = useState(false);
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -60,7 +71,7 @@ const ConfermateurOrdersPage = () => {
           setVendors(res || []);
           // Auto-select first vendor if none selected and vendors are available
           if (res && res.length > 0) {
-            setSelectedVendorId(prev => prev || res[0].id);
+            setSelectedVendorId(prev => prev || res[0].vendorId); // Use vendorId instead of id
           }
         }
       } catch (e: any) {
@@ -227,6 +238,22 @@ const ConfermateurOrdersPage = () => {
     setPage(0);
   };
 
+  const handleViewOrder = async (orderId: string) => {
+    try {
+      const order = await getOrder(orderId);
+      if (order) {
+        setSelectedOrder(order);
+        setViewDialogOpen(true);
+      }
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.message || 'Failed to load order details',
+        variant: 'destructive',
+      });
+    }
+  };
+
   const totalPages = Math.ceil(total / pageSize);
 
   if (!hydrated || !isAuthenticated || user?.role !== 'confermateur') return null;
@@ -267,7 +294,7 @@ const ConfermateurOrdersPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   {vendors.map((vendor) => (
-                    <SelectItem key={vendor.id} value={vendor.id}>
+                    <SelectItem key={vendor.vendorId} value={vendor.vendorId}> {/* Use vendorId as key and value */}
                       {vendor.firstName} {vendor.lastName} {vendor.email ? `(${vendor.email})` : ''}
                     </SelectItem>
                   ))}
@@ -374,6 +401,13 @@ const ConfermateurOrdersPage = () => {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center gap-2 justify-end">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleViewOrder(order.id)}
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
                               {order.status === 'PENDING' && (
                                 <Button
                                   size="sm"
@@ -444,6 +478,76 @@ const ConfermateurOrdersPage = () => {
           </div>
         </Card>
       </div>
+
+      {/* View Order Dialog */}
+      <Dialog open={viewDialogOpen} onOpenChange={setViewDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>View complete order information</DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-muted-foreground">Order Number</Label>
+                  <p className="font-semibold">#{selectedOrder.orderNumber}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Status</Label>
+                  <p className="font-semibold">{selectedOrder.status}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Total</Label>
+                  <p className="font-semibold">{selectedOrder.total} TND</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Payment Status</Label>
+                  <p className="font-semibold">{selectedOrder.isPaid ? 'Paid' : 'Unpaid'}</p>
+                </div>
+                {selectedOrder.createdAt && (
+                  <div>
+                    <Label className="text-muted-foreground">Created At</Label>
+                    <p className="font-semibold">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
+                  </div>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Customer Information</Label>
+                <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
+                  <p><span className="font-medium">Name:</span> {selectedOrder.customerName || 'N/A'}</p>
+                  <p><span className="font-medium">Email:</span> {selectedOrder.customerEmail || 'N/A'}</p>
+                  {selectedOrder.customerPhone && (
+                    <p><span className="font-medium">Phone:</span> {selectedOrder.customerPhone}</p>
+                  )}
+                  {selectedOrder.customerAddress && (
+                    <p><span className="font-medium">Address:</span> {selectedOrder.customerAddress}</p>
+                  )}
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground">Order Items</Label>
+                <div className="space-y-2">
+                  {selectedOrder.items.map((item, index) => (
+                    <div key={index} className="p-3 bg-secondary/50 rounded-lg flex justify-between">
+                      <div>
+                        <p className="font-medium">Article ID: {item.articleId}</p>
+                        <p className="text-sm text-muted-foreground">Qty: {item.qty} × {item.price} TND</p>
+                      </div>
+                      <p className="font-semibold">{(parseFloat(item.price) * item.qty).toFixed(2)} TND</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setViewDialogOpen(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
