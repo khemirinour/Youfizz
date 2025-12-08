@@ -12,6 +12,10 @@ import { setupSwagger } from './app/swagger.config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable cookie parser middleware to read cookies from requests
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  
   // Remove microservice configuration for HTTP-only service
   // app.connectMicroservice({
   //   transport: Transport.TCP,

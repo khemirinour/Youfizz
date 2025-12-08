@@ -11,6 +11,12 @@ import { setupSwagger } from './app/swagger.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable cookie parser middleware for HttpOnly cookies
+  // Use require for CommonJS module
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  
   app.enableCors({
     origin: [
       'http://localhost:3000',
@@ -21,7 +27,7 @@ async function bootstrap() {
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    credentials: true, // Required for cookies
   });
   app.connectMicroservice({
     transport: Transport.TCP,

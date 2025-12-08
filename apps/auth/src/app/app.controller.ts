@@ -145,8 +145,9 @@ export class AppController {
   @ApiTooManyRequestsResponse({ 
     description: 'Too many requests - rate limit exceeded'
   })
-  async login(@Body(ValidationPipe) loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(@Body(ValidationPipe) loginDto: LoginDto, @Res({ passthrough: true }) response: any): Promise<AuthResponseDto> {
+    const result = await this.authService.login(loginDto, response);
+    return result;
   }
 
   @Post('refresh')
@@ -172,8 +173,32 @@ export class AppController {
       }
     }
   })
-  async refreshToken(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
-    return this.authService.refreshToken(refreshTokenDto);
+  async refreshToken(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto, @Req() request: any, @Res({ passthrough: true }) response: any): Promise<AuthResponseDto> {
+    // Try to get refresh token from cookie first, fallback to body
+    // Check both parsed cookies and Cookie header (for gateway forwarding)
+    const cookieRefreshToken = request.cookies?.refreshToken;
+    const headerCookie = request.headers?.cookie;
+    
+    // Parse Cookie header if cookies object doesn't have refreshToken
+    let refreshToken = cookieRefreshToken;
+    if (!refreshToken && headerCookie) {
+      const cookies = headerCookie.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+        const [key, value] = cookie.trim().split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      refreshToken = cookies.refreshToken;
+    }
+    
+    // Fallback to body if not in cookies
+    if (!refreshToken && refreshTokenDto?.refreshToken && refreshTokenDto.refreshToken.trim()) {
+      refreshToken = refreshTokenDto.refreshToken;
+    }
+    
+    const result = await this.authService.refreshToken(refreshTokenDto, response, refreshToken);
+    return result;
   }
 
   @Post('logout')
@@ -193,8 +218,19 @@ export class AppController {
   @ApiBadRequestResponse({ 
     description: 'Bad request - validation errors'
   })
-  async logout(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto): Promise<{ message: string }> {
-    return this.authService.logout(refreshTokenDto.refreshToken);
+  async logout(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto, @Req() request: any, @Res({ passthrough: true }) response: any): Promise<{ message: string }> {
+    // Try to get refresh token from cookie first, fallback to body
+    const refreshToken = request.cookies?.refreshToken || refreshTokenDto?.refreshToken;
+    if (!refreshToken) {
+      // If no refresh token in cookie or body, still clear cookies
+      if (response) {
+        response.clearCookie('accessToken', { path: '/' });
+        response.clearCookie('refreshToken', { path: '/' });
+      }
+      return { message: 'Successfully logged out' };
+    }
+    const result = await this.authService.logout(refreshToken, response);
+    return result;
   }
 
   @Post('logout-all')
@@ -214,8 +250,9 @@ export class AppController {
   @ApiBadRequestResponse({ 
     description: 'Bad request - validation errors'
   })
-  async logoutAll(@Body() body: { userId: string }): Promise<{ message: string }> {
-    return this.authService.logoutAll(body.userId);
+  async logoutAll(@Body() body: { userId: string }, @Res({ passthrough: true }) response: any): Promise<{ message: string }> {
+    const result = await this.authService.logoutAll(body.userId, response);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -10,6 +10,11 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable cookie parser middleware to read cookies from requests
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  
   app.enableCors({
     origin: [
       'http://localhost:3000',
@@ -19,8 +24,8 @@ async function bootstrap() {
       'http://127.0.0.1:4200',
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'Cookie'],
+    credentials: true, // Required for cookies
   });
   const globalPrefix = 'api';
   app.setGlobalPrefix(globalPrefix);

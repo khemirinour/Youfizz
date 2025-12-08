@@ -49,9 +49,9 @@ export const useAuthStore = create<AuthStore>()(
 
         try {
           const res: AuthResponse = await apiLogin({ email, password });
+          // Tokens are now stored in HttpOnly cookies, not localStorage
+          // Only store vendorId and confirmateurId in localStorage (not sensitive)
           if (typeof window !== 'undefined') {
-            window.localStorage.setItem('token', res.accessToken);
-            window.localStorage.setItem('refreshToken', res.refreshToken);
             if (res.vendorId) {
               window.localStorage.setItem('vendorId', res.vendorId);
             }
@@ -112,17 +112,15 @@ export const useAuthStore = create<AuthStore>()(
 
       logout: async () => {
         try {
-          const refreshToken = typeof window !== 'undefined' ? window.localStorage.getItem('refreshToken') : null;
-          if (refreshToken) {
-            await apiLogout(refreshToken);
-          }
+          // Refresh token is in HttpOnly cookie, backend will read it from cookie
+          await apiLogout('');
         } finally {
+          // Clear localStorage (vendorId, confirmateurId)
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('token');
-            window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
             window.localStorage.removeItem('confirmateurId');
           }
+          // Cookies are cleared by backend
           set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false, error: null });
         }
       },
@@ -134,12 +132,12 @@ export const useAuthStore = create<AuthStore>()(
             await apiLogoutAll(currentUser.id);
           }
         } finally {
+          // Clear localStorage (vendorId, confirmateurId)
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('token');
-            window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
             window.localStorage.removeItem('confirmateurId');
           }
+          // Cookies are cleared by backend
           set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false, error: null });
         }
       },
@@ -147,14 +145,12 @@ export const useAuthStore = create<AuthStore>()(
       refreshToken: async () => {
         try {
           if (typeof window === 'undefined') return false;
-          const refreshToken = window.localStorage.getItem('refreshToken');
-          if (!refreshToken) return false;
-
-          const res: AuthResponse = await apiRefreshToken(refreshToken);
           
-          // Update tokens in localStorage
-          window.localStorage.setItem('token', res.accessToken);
-          window.localStorage.setItem('refreshToken', res.refreshToken);
+          // Refresh token is in HttpOnly cookie, backend will read it from cookie
+          const res: AuthResponse = await apiRefreshToken('');
+          
+          // Tokens are now stored in HttpOnly cookies, not localStorage
+          // Only update vendorId and confirmateurId in localStorage if provided
           if (res.vendorId) {
             window.localStorage.setItem('vendorId', res.vendorId);
           }
@@ -180,13 +176,12 @@ export const useAuthStore = create<AuthStore>()(
 
           return true;
         } catch (error) {
-          // Refresh failed, clear tokens
+          // Refresh failed, clear localStorage
           if (typeof window !== 'undefined') {
-            window.localStorage.removeItem('token');
-            window.localStorage.removeItem('refreshToken');
             window.localStorage.removeItem('vendorId');
             window.localStorage.removeItem('confirmateurId');
           }
+          // Cookies are cleared by backend
           set({ user: null, vendorId: null, confirmateurId: null, isAuthenticated: false });
           return false;
         }

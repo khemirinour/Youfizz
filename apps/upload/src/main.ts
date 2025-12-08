@@ -13,6 +13,10 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
   
+  // Enable cookie parser middleware to read cookies from requests
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  
   app.connectMicroservice({
     transport: Transport.TCP,
     options: { port: configService.get('uploadService.microservicePort') || 4006 },

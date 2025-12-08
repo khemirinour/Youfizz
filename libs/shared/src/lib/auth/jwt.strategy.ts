@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy } from 'passport-jwt';
 import { ConfigService } from '@nestjs/config';
+import { Request } from 'express';
 
 export interface JwtPayload {
   sub: string;
@@ -13,6 +14,31 @@ export interface JwtPayload {
   confirmateurId?: string; // Confirmateur ID if user is a confirmateur
 }
 
+// Custom extractor to get token from cookies first, then Authorization header
+const cookieExtractor = (req: Request): string | null => {
+  // Try to get token from parsed cookies first (when cookie-parser is used)
+  if (req && req.cookies && req.cookies.accessToken) {
+    return req.cookies.accessToken;
+  }
+  
+  // Fallback: Parse Cookie header manually if cookies weren't parsed
+  if (req && req.headers && req.headers.cookie) {
+    const cookies = req.headers.cookie.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+      const [key, value] = cookie.trim().split('=');
+      if (key && value) {
+        acc[key] = value;
+      }
+      return acc;
+    }, {});
+    if (cookies.accessToken) {
+      return cookies.accessToken;
+    }
+  }
+  
+  // Final fallback to Authorization header for backward compatibility
+  return ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+};
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(private configService: ConfigService) {
@@ -22,7 +48,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     }
     
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: cookieExtractor,
       ignoreExpiration: false,
       secretOrKey: secret,
       algorithms: ['HS256'],

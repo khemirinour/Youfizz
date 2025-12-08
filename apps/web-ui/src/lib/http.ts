@@ -10,14 +10,11 @@ let failedQueue: Array<{
 	reject: (error?: any) => void;
 }> = [];
 
+// Tokens are now stored in HttpOnly cookies, not accessible via JavaScript
+// Browser automatically sends cookies with requests when withCredentials: true
 function getToken(): string | null {
-	try {
-		if (typeof window === 'undefined') return null;
-		const tokenFromStorage = window.localStorage.getItem('token');
-		return tokenFromStorage || null;
-	} catch {
-		return null;
-	}
+	// Return null - tokens are in HttpOnly cookies, not accessible from JS
+	return null;
 }
 
 function processQueue(error: any, token: string | null = null) {
@@ -41,11 +38,9 @@ function createHttp(): AxiosInstance {
 	});
 
 	instance.interceptors.request.use((config) => {
-		const token = getToken();
-		if (token) {
-			config.headers = config.headers ?? {};
-			config.headers.Authorization = `Bearer ${token}`;
-		}
+		// Tokens are in HttpOnly cookies, browser sends them automatically
+		// No need to set Authorization header - backend reads from cookies
+		// Keep withCredentials: true to ensure cookies are sent
 		return config;
 	});
 
@@ -104,14 +99,11 @@ function createHttp(): AxiosInstance {
 					const refreshed = await useAuthStore.getState().refreshToken();
 					
 					if (refreshed) {
-						const newToken = getToken();
-						processQueue(null, newToken);
+						// Token refresh successful, new tokens are in cookies
+						// No need to update headers - cookies are sent automatically
+						processQueue(null, null);
 						
-						// Update authorization header and retry original request
-						if (originalRequest.headers && newToken) {
-							originalRequest.headers.Authorization = `Bearer ${newToken}`;
-						}
-						
+						// Retry original request (cookies will be sent automatically)
 						return httpInstance!.request(originalRequest);
 					} else {
 						processQueue(error, null);

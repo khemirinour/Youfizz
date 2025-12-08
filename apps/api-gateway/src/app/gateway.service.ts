@@ -140,7 +140,8 @@ export class GatewayService {
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
       const lowerKey = key.toLowerCase();
-      if (!blocked.has(lowerKey) && value !== undefined && value !== null) {
+      // Allow Cookie header to pass through for cookie forwarding
+      if ((!blocked.has(lowerKey) || lowerKey === 'cookie') && value !== undefined && value !== null) {
         result[key] = value as unknown as string;
       }
     }
@@ -158,6 +159,8 @@ export class GatewayService {
     headers: Record<string, string>,
     user?: any,
     isMultipart: boolean = false,
+    returnHeaders: boolean = false,
+    cookies?: Record<string, string>,
   ): Promise<any> {
     const [pathname, queryString] = path.split('?');
     const endpoint = this.findEndpoint(pathname, method);
@@ -175,6 +178,22 @@ export class GatewayService {
     // Check role requirements
     if (endpoint.roles && user && !endpoint.roles.includes(user.role)) {
         throw new HttpException('Insufficient permissions', HttpStatus.FORBIDDEN);
+    }
+
+    // Forward cookies from client to service
+    // Priority: 1) Explicit cookies parameter, 2) Cookie header from request, 3) Construct from cookies object
+    if (cookies && Object.keys(cookies).length > 0) {
+      const cookieString = Object.entries(cookies)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('; ');
+      headers['Cookie'] = cookieString;
+    } else if (headers['Cookie'] || headers['cookie']) {
+      // Cookie header already exists, keep it (sanitizeHeaders allows it)
+      // No action needed
+    } else if (endpoint.requiresAuth) {
+      // For authenticated endpoints, if no cookies provided, log warning
+      // Cookies should be forwarded from the controller
+      this.logger.warn(`No cookies forwarded for authenticated endpoint: ${method} ${pathname}`);
     }
 
     const serviceUrl = this.getServiceUrl(endpoint.service);
@@ -202,6 +221,7 @@ export class GatewayService {
       timeout: 30000,
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
+      withCredentials: false, // Don't use axios cookie forwarding, we handle it manually via Cookie header
       validateStatus: (status) => {
         // Treat 2xx and 3xx (including 304 Not Modified) as success
         return status >= 200 && status < 400;
@@ -242,7 +262,24 @@ export class GatewayService {
         this.logger.warn(`Response data is null/undefined for ${method} ${path}`);
       }
       
-      return response.data; // Return only the data, not the full Axios response
+      // Extract Set-Cookie headers to forward to client
+      const setCookieHeaders: string[] = [];
+      if (response.headers['set-cookie']) {
+        // Axios normalizes Set-Cookie headers to lowercase and returns as array
+        const cookies = Array.isArray(response.headers['set-cookie']) 
+          ? response.headers['set-cookie'] 
+          : [response.headers['set-cookie']];
+        setCookieHeaders.push(...cookies);
+      }
+      
+      // Return data and headers if requested, otherwise just data (backward compatibility)
+      if (returnHeaders) {
+        return {
+          data: response.data,
+          headers: setCookieHeaders.length > 0 ? { 'set-cookie': setCookieHeaders } : undefined,
+        };
+      }
+      return response.data;
     } catch (error: any) {
       // Enhanced error logging
       this.logger.error(

@@ -11,6 +11,11 @@ import { AppModule } from './app/app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  
+  // Enable cookie parser middleware to read cookies from requests
+  const cookieParser = require('cookie-parser');
+  app.use(cookieParser());
+  
   app.connectMicroservice({
     transport: Transport.TCP,
     options: { port: 4005 },

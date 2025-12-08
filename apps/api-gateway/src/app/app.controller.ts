@@ -60,8 +60,18 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiBody({ description: 'Login credentials', schema: { type: 'object' } })
-  async login(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/login', 'POST', body, headers);
+  async login(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.gatewayService.forwardRequest('/login', 'POST', body, headers, undefined, false, true, req.cookies);
+    // Forward Set-Cookie headers from auth service to client
+    if (result.headers && result.headers['set-cookie']) {
+      const cookies = Array.isArray(result.headers['set-cookie'])
+        ? result.headers['set-cookie']
+        : [result.headers['set-cookie']];
+      cookies.forEach((cookie: string) => {
+        res.appendHeader('Set-Cookie', cookie);
+      });
+    }
+    return result.data;
   }
 
   @ApiTags('auth')
@@ -70,8 +80,18 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Token refreshed successfully' })
   @ApiResponse({ status: 401, description: 'Invalid refresh token' })
   @ApiBody({ description: 'Refresh token data', schema: { type: 'object' } })
-  async refresh(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/refresh', 'POST', body, headers);
+  async refresh(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.gatewayService.forwardRequest('/refresh', 'POST', body, headers, undefined, false, true, req.cookies);
+    // Forward Set-Cookie headers from auth service to client
+    if (result.headers && result.headers['set-cookie']) {
+      const cookies = Array.isArray(result.headers['set-cookie'])
+        ? result.headers['set-cookie']
+        : [result.headers['set-cookie']];
+      cookies.forEach((cookie: string) => {
+        res.appendHeader('Set-Cookie', cookie);
+      });
+    }
+    return result.data;
   }
 
   @ApiTags('auth')
@@ -81,8 +101,18 @@ export class AppController {
   @ApiOperation({ summary: 'Logout user', description: 'Invalidate current session and refresh token' })
   @ApiResponse({ status: 200, description: 'Logout successful' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logout(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/logout', 'POST', body, headers, req.user);
+  async logout(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.gatewayService.forwardRequest('/logout', 'POST', body, headers, req.user, false, true, req.cookies);
+    // Forward Set-Cookie headers from auth service to client (for clearing cookies)
+    if (result.headers && result.headers['set-cookie']) {
+      const cookies = Array.isArray(result.headers['set-cookie'])
+        ? result.headers['set-cookie']
+        : [result.headers['set-cookie']];
+      cookies.forEach((cookie: string) => {
+        res.appendHeader('Set-Cookie', cookie);
+      });
+    }
+    return result.data;
   }
 
   @ApiTags('auth')
@@ -92,8 +122,18 @@ export class AppController {
   @ApiOperation({ summary: 'Logout from all devices', description: 'Invalidate all refresh tokens for the user' })
   @ApiResponse({ status: 200, description: 'Logged out from all devices' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async logoutAll(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/logout-all', 'POST', body, headers, req.user);
+  async logoutAll(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+    const result = await this.gatewayService.forwardRequest('/logout-all', 'POST', body, headers, req.user, false, true, req.cookies);
+    // Forward Set-Cookie headers from auth service to client (for clearing cookies)
+    if (result.headers && result.headers['set-cookie']) {
+      const cookies = Array.isArray(result.headers['set-cookie'])
+        ? result.headers['set-cookie']
+        : [result.headers['set-cookie']];
+      cookies.forEach((cookie: string) => {
+        res.appendHeader('Set-Cookie', cookie);
+      });
+    }
+    return result.data;
   }
 
   @ApiTags('auth')
@@ -113,7 +153,7 @@ export class AppController {
   async getUsers(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
     const qs = new URLSearchParams(query as any).toString();
     const path = qs ? `/users?${qs}` : '/users';
-    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -127,7 +167,7 @@ export class AppController {
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUser(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/users/${id}`, 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/users/${id}`, 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -138,7 +178,7 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Roles retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getRoles(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/roles', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/roles', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -152,7 +192,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async updateUserRole(@Param('id') id: string, @Param('role') role: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/users/${id}/role/${role}`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/users/${id}/role/${role}`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -166,7 +206,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async updateUserActive(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/users/${id}/active`, 'PATCH', body, headers, req.user);
+    return this.gatewayService.forwardRequest(`/users/${id}/active`, 'PATCH', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -186,7 +226,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async incrementVendeurNbrCmdConf(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/users/${id}/vendeur/nbr-cmd-conf`, 'PATCH', body, headers, req.user);
+    return this.gatewayService.forwardRequest(`/users/${id}/vendeur/nbr-cmd-conf`, 'PATCH', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -199,7 +239,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async deleteUser(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/users/${id}`, 'DELETE', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/users/${id}`, 'DELETE', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -211,7 +251,7 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Confermateurs retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getVendeurConfermateurs(@Param('vendeurId') vendeurId: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/vendeurs/${vendeurId}/confermateurs`, 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/vendeurs/${vendeurId}/confermateurs`, 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -286,7 +326,7 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Confermateurs retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getConfermateurs(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/confermateurs', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/confermateurs', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -463,7 +503,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async assignVendeurToConfermateur(@Param('confermateurId') confermateurId: string, @Param('vendeurId') vendeurId: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'POST', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'POST', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -477,7 +517,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async unassignVendeurFromConfermateur(@Param('confermateurId') confermateurId: string, @Param('vendeurId') vendeurId: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'DELETE', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/confermateurs/${confermateurId}/vendeurs/${vendeurId}`, 'DELETE', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
@@ -570,7 +610,7 @@ export class AppController {
   @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
   @ApiBody({ description: 'Article data', schema: { type: 'object' } })
   async createArticle(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/articles', 'POST', body, headers, req.user);
+    return this.gatewayService.forwardRequest('/articles', 'POST', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -629,7 +669,7 @@ export class AppController {
   @ApiResponse({ status: 404, description: 'Article not found' })
   @ApiBody({ description: 'Updated article data', schema: { type: 'object' } })
   async updateArticle(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/articles/${id}`, 'PUT', body, headers, req.user);
+    return this.gatewayService.forwardRequest(`/articles/${id}`, 'PUT', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -644,7 +684,7 @@ export class AppController {
   @ApiResponse({ status: 404, description: 'Article not found' })
   @ApiBody({ description: 'Updated article data', schema: { type: 'object' } })
   async patchArticle(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/articles/${id}`, 'PATCH', body, headers, req.user);
+    return this.gatewayService.forwardRequest(`/articles/${id}`, 'PATCH', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -657,7 +697,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async deleteArticle(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/articles/${id}`, 'DELETE', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/articles/${id}`, 'DELETE', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -670,7 +710,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
   async activateArticle(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/articles/${id}/activate`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/articles/${id}/activate`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -683,7 +723,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Requires ADMIN or VENDEUR role' })
   async deactivateArticle(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/articles/${id}/deactivate`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/articles/${id}/deactivate`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('articles')
@@ -738,6 +778,8 @@ export class AppController {
       multipartHeaders,
       req.user,
       true, // isMultipart
+      false,
+      (req as any).cookies,
     );
   }
 
@@ -798,6 +840,8 @@ export class AppController {
       multipartHeaders,
       req.user,
       true, // isMultipart
+      false,
+      (req as any).cookies,
     );
   }
 
@@ -848,8 +892,8 @@ export class AppController {
   @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Offset for pagination (default: 0)' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async getOrders(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/orders', 'GET', null, headers, req.user);
+  async getOrders(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    return this.gatewayService.forwardRequest('/orders', 'GET', null, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
@@ -861,7 +905,7 @@ export class AppController {
   @ApiBody({ description: 'Order data', schema: { type: 'object' } })
   async createOrder(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
     // Pass req.user only if it exists (authenticated user), otherwise pass undefined for guest orders
-    return this.gatewayService.forwardRequest('/orders', 'POST', body, headers, req.user);
+    return this.gatewayService.forwardRequest('/orders', 'POST', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('orders')
@@ -873,8 +917,8 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Order retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Order not found' })
-  async getOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}`, 'GET', null, headers, req.user);
+  async getOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: any) {
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'GET', null, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
@@ -888,8 +932,8 @@ export class AppController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Order not found' })
   @ApiBody({ description: 'Updated order data', schema: { type: 'object' } })
-  async updateOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user);  // Changed from 'PUT' to 'PATCH'
+  async updateOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user, false, false, req.cookies);  // Changed from 'PUT' to 'PATCH'
   }
 
   @ApiTags('orders')
@@ -903,8 +947,8 @@ export class AppController {
   @ApiResponse({ status: 403, description: 'Forbidden' })
   @ApiResponse({ status: 404, description: 'Order not found' })
   @ApiBody({ description: 'Partial order update data', schema: { type: 'object' } })
-  async patchOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user);
+  async patchOrder(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'PATCH', body, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
@@ -916,8 +960,8 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Order deleted successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
-  async deleteOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}`, 'DELETE', null, headers, req.user);
+  async deleteOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: any) {
+    return this.gatewayService.forwardRequest(`/orders/${id}`, 'DELETE', null, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
@@ -950,11 +994,11 @@ export class AppController {
     @Param('id') id: string,
     @Body() body: { idvendor?: string },
     @Headers() headers: Record<string, string>,
-    @Req() req: Request
+    @Req() req: any
   ) {
     // Map idvendor to vendorId for consistency with internal API
     const requestBody = body?.idvendor ? { vendorId: body.idvendor } : null;
-    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', requestBody, headers, req.user);
+    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', requestBody, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
@@ -967,7 +1011,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async activateOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}/activate`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/orders/${id}/activate`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('orders')
@@ -980,7 +1024,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden' })
   async deactivateOrder(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/orders/${id}/deactivate`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/orders/${id}/deactivate`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   // ==================== User Profile Routes ====================
@@ -992,7 +1036,7 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getProfile(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/profile', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/profile', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('profile')
@@ -1004,7 +1048,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiBody({ description: 'Updated profile data', schema: { type: 'object' } })
   async updateProfile(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/profile', 'PUT', body, headers, req.user);
+    return this.gatewayService.forwardRequest('/profile', 'PUT', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   // ==================== Notification Routes ====================
@@ -1018,7 +1062,7 @@ export class AppController {
   @ApiResponse({ status: 200, description: 'Notifications retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getNotifications(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/notifications', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/notifications', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('notifications')
@@ -1031,7 +1075,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 404, description: 'Notification not found' })
   async markNotificationRead(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest(`/notifications/${id}/read`, 'PATCH', null, headers, req.user);
+    return this.gatewayService.forwardRequest(`/notifications/${id}/read`, 'PATCH', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('notifications')
@@ -1080,7 +1124,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getUserStats(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/stats/users', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/stats/users', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('statistics')
@@ -1095,7 +1139,7 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getOrderStats(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/stats/orders', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/stats/orders', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('statistics')
@@ -1110,6 +1154,6 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
   async getArticleStats(@Headers() headers: Record<string, string>, @Req() req: Request) {
-    return this.gatewayService.forwardRequest('/stats/articles', 'GET', null, headers, req.user);
+    return this.gatewayService.forwardRequest('/stats/articles', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 }
