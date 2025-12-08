@@ -72,7 +72,7 @@ interface OrderResponse {
 export interface GetOrdersParams {
   search?: string;
   status?: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
-  vendorId?: string;
+  vendorId: string;
   isActive?: boolean;
   limit?: number;
   offset?: number;
@@ -112,22 +112,33 @@ function transformOrderResponse(order: OrderResponse): Order {
   };
 }
 
-export async function getOrders(params?: GetOrdersParams): Promise<PaginatedOrdersResponse | undefined> {
+export async function getOrders(params: GetOrdersParams): Promise<PaginatedOrdersResponse | undefined> {
+  // Ensure vendorId is always a string
+  if (!params.vendorId || typeof params.vendorId !== 'string') {
+    throw new Error('vendorId is required and must be a string');
+  }
+  
+  // Convert vendorId to string if it's not already (handles edge cases)
+  const vendorId = String(params.vendorId);
+  
   // Generate cache key from params
   const cacheKey = generateOrdersCacheKey({
-    vendorId: params?.vendorId,
-    status: params?.status,
-    search: params?.search,
-    page: params?.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
-    pageSize: params?.limit,
+    vendorId: vendorId,
+    status: params.status,
+    search: params.search,
+    page: params.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
+    pageSize: params.limit,
   });
   
   // Get cached data from store
   const { getCachedOrders, setCachedOrders } = useOrdersStore.getState();
   const cachedData = getCachedOrders(cacheKey);
   
-  // Make API call
-  const response = await get<OrderResponse[] | { items: OrderResponse[]; total: number; limit: number; offset: number }>('/api/orders', params);
+  // Make API call with vendorId as string
+  const response = await get<OrderResponse[] | { items: OrderResponse[]; total: number; limit: number; offset: number }>('/api/orders', {
+    ...params,
+    vendorId: vendorId,
+  });
   
   // If response is undefined (304 Not Modified), return cached data from store
   if (!response) {
@@ -152,8 +163,8 @@ export async function getOrders(params?: GetOrdersParams): Promise<PaginatedOrde
     result = {
       items: response.map(transformOrderResponse),
       total: response.length,
-      limit: params?.limit || 20,
-      offset: params?.offset || 0,
+      limit: params.limit || 20,
+      offset: params.offset || 0,
     };
   } else {
     // Paginated response format

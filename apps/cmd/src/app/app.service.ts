@@ -20,7 +20,8 @@ export class AppService {
     if (query.customerName) where.customerName = ILike(`%${query.customerName}%`);
     if (query.customerEmail) where.customerEmail = ILike(`%${query.customerEmail}%`);
     if (query.customerPhone) where.customerPhone = ILike(`%${query.customerPhone}%`);
-    if (query.vendorId) where.vendorId = query.vendorId;
+    // vendorId is now required, always set it in the where clause
+    where.vendorId = query.vendorId;
     if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
     return this.repo.find({ where, take: query.limit, skip: query.offset, order: { createdAt: 'DESC' } });
   }

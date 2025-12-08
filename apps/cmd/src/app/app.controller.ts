@@ -23,7 +23,7 @@ export class AppController {
   @ApiQuery({ name: 'search', required: false, description: 'Order number contains' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING','CONFIRMED','SHIPPED','DELIVERED','CANCELLED'] })
   @ApiQuery({ name: 'customerId', required: false })
-  @ApiQuery({ name: 'vendorId', required: false })
+  @ApiQuery({ name: 'vendorId', required: true, description: 'Filter by vendor ID (required)' })
   @ApiQuery({ name: 'isActive', required: false })
   @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
   @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })

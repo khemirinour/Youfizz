@@ -886,14 +886,23 @@ export class AppController {
   })
   @ApiQuery({ name: 'search', required: false, description: 'Search by order number' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING', 'CONFIRMED', 'SHIPPED', 'DELIVERED', 'CANCELLED'], description: 'Filter by status' })
-  @ApiQuery({ name: 'vendorId', required: false, description: 'Filter by vendor ID' })
+  @ApiQuery({ name: 'vendorId', required: true, description: 'Filter by vendor ID (required)' })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
   @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Offset for pagination (default: 0)' })
   @ApiResponse({ status: 200, description: 'Orders retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   async getOrders(@Query() query: any, @Headers() headers: Record<string, string>, @Req() req: any) {
-    return this.gatewayService.forwardRequest('/orders', 'GET', null, headers, req.user, false, false, req.cookies);
+    // Build query string from query parameters
+    const queryParams = new URLSearchParams();
+    Object.keys(query).forEach(key => {
+      if (query[key] !== undefined && query[key] !== null) {
+        queryParams.append(key, String(query[key]));
+      }
+    });
+    const queryString = queryParams.toString();
+    const path = queryString ? `/orders?${queryString}` : '/orders';
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')
