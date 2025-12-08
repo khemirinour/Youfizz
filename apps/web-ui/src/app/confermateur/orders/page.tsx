@@ -52,12 +52,31 @@ const ConfermateurOrdersPage = () => {
     return () => unsub?.();
   }, []);
 
+  // Verify authentication and refresh token if needed
   useEffect(() => {
-    // Redirect non-confermateurs to sign in (after hydration)
     if (!hydrated) return;
-    if (!isAuthenticated || user?.role !== 'confermateur') {
-      router.replace('/signin');
-    }
+    
+    const verifyAuth = async () => {
+      // If we think we're authenticated but tokens might be missing, try to refresh
+      if (isAuthenticated && user?.role === 'confermateur') {
+        try {
+          // Attempt to refresh token to verify we still have valid cookies
+          const refreshed = await useAuthStore.getState().refreshToken();
+          if (!refreshed) {
+            // Refresh failed, redirect to signin
+            router.replace('/signin');
+          }
+        } catch (error) {
+          // Refresh failed, redirect to signin
+          router.replace('/signin');
+        }
+      } else {
+        // Not authenticated, redirect to signin
+        router.replace('/signin');
+      }
+    };
+
+    verifyAuth();
   }, [hydrated, isAuthenticated, user?.role, router]);
 
   // Fetch vendors for the confermateur
