@@ -548,14 +548,54 @@ const ConfermateurOrdersPage = () => {
               </div>
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Order Items</Label>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {selectedOrder.items.map((item, index) => (
-                    <div key={index} className="p-3 bg-secondary/50 rounded-lg flex justify-between">
-                      <div>
-                        <p className="font-medium">Article ID: {item.articleId}</p>
-                        <p className="text-sm text-muted-foreground">Qty: {item.qty} × {item.price} TND</p>
+                    <div key={index} className="p-4 bg-secondary/50 rounded-lg border">
+                      <div className="flex gap-4">
+                        {/* Article Image */}
+                        {item.article?.images && item.article.images.length > 0 && (
+                          <div className="flex-shrink-0">
+                            <img
+                              src={item.article.images[0]}
+                              alt={item.article.title || 'Article image'}
+                              className="w-20 h-20 object-cover rounded-md"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          </div>
+                        )}
+                        {/* Article Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start gap-4">
+                            <div className="flex-1">
+                              <p className="font-semibold text-base">
+                                {item.article?.title || `Article ID: ${item.articleId}`}
+                              </p>
+                              {item.article?.description && (
+                                <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+                                  {item.article.description}
+                                </p>
+                              )}
+                              <div className="flex gap-4 mt-2 text-sm text-muted-foreground">
+                                {item.article?.sku && (
+                                  <span>SKU: {item.article.sku}</span>
+                                )}
+                                <span>Qty: {item.qty}</span>
+                                <span>Price: {item.price} TND</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-semibold text-lg">
+                                {(parseFloat(item.price) * item.qty).toFixed(2)} TND
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {item.qty} × {item.price} TND
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      <p className="font-semibold">{(parseFloat(item.price) * item.qty).toFixed(2)} TND</p>
                     </div>
                   ))}
                 </div>

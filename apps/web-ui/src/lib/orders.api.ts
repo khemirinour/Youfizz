@@ -1,10 +1,21 @@
 import { post, get, patch, put, del } from './http';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
 
+export interface ArticleDetails {
+  id: string;
+  title: string;
+  description?: string;
+  images?: string[];
+  sku?: string;
+  status?: string;
+  isActive?: boolean;
+}
+
 export interface OrderItemDto {
   articleId: string;
   qty: number;
   price: string; // Decimal string
+  article?: ArticleDetails | null; // Article details when available
 }
 
 export interface CreateOrderDto {
@@ -42,7 +53,7 @@ export interface Order {
 interface OrderResponse {
   id: string;
   number: string; // Backend uses 'number' not 'orderNumber'
-  items: OrderItemDto[];
+  items: OrderItemDto[]; // Items may include article details
   total: string;
   customerId?: string;
   customerName?: string;

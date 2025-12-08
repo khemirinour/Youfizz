@@ -25,7 +25,61 @@ export class AppService {
     return this.repo.find({ where, take: query.limit, skip: query.offset, order: { createdAt: 'DESC' } });
   }
 
-  findOne(id: string) { return this.repo.findOne({ where: { id } }); }
+  async findOne(id: string) {
+    const order = await this.repo.findOne({ where: { id } });
+    
+    if (!order) {
+      return null;
+    }
+    
+    // Enrich items with article details
+    if (order.items && order.items.length > 0) {
+      const enrichedItems = await Promise.all(
+        order.items.map(async (item) => {
+          try {
+            // Fetch article details from article service
+            const articleResponse = await axios.get(`http://localhost:3004/api/articles/${item.articleId}`, {
+              timeout: 5000,
+            });
+            
+            if (articleResponse.data) {
+              const article = articleResponse.data;
+              return {
+                ...item,
+                article: {
+                  id: article.id,
+                  title: article.title,
+                  description: article.description,
+                  images: article.images || [],
+                  sku: article.sku,
+                  status: article.status,
+                  isActive: article.isActive,
+                },
+              };
+            }
+          } catch (e: any) {
+            this.logger.warn(`Failed to fetch article details for ${item.articleId}:`, {
+              error: e?.message,
+              status: e?.response?.status,
+            });
+            // Return item without article details if fetch fails
+            return {
+              ...item,
+              article: null,
+            };
+          }
+        })
+      );
+      
+      // Return order with enriched items
+      return {
+        ...order,
+        items: enrichedItems,
+      };
+    }
+    
+    return order;
+  }
 
   async create(data: Partial<Order>) {
     const lastOrders = await this.repo.find({
@@ -150,6 +204,45 @@ export class AppService {
     // Only update order status if quota was successfully consumed (or if role doesn't require quota)
     this.logger.log(`Updating order ${id} status to CONFIRMED`);
     await this.repo.update({ id }, { status: OrderStatus.CONFIRMED, isActive: true });
+    
+    // Decrement article stock for each item in the order
+    if (order.items && order.items.length > 0) {
+      this.logger.log(`Decrementing stock for ${order.items.length} item(s) in order ${id}`);
+      
+      for (const item of order.items) {
+        try {
+          // Get current article stock using internal endpoint (article service runs on port 3004)
+          const articleResponse = await axios.get(`http://localhost:3004/api/internal/articles/${item.articleId}`, {
+            timeout: 5000,
+          });
+          
+          if (articleResponse.data) {
+            const currentStock = articleResponse.data.stock || 0;
+            const newStock = Math.max(0, currentStock - item.qty); // Prevent negative stock
+            
+            this.logger.log(`Updating stock for article ${item.articleId}: ${currentStock} -> ${newStock} (qty: ${item.qty})`);
+            
+            // Update article stock using internal endpoint
+            const updateResponse = await axios.patch(`http://localhost:3004/api/internal/articles/${item.articleId}/stock`, {
+              stock: newStock,
+            }, {
+              timeout: 5000,
+            });
+            
+            this.logger.log(`Successfully decremented stock for article ${item.articleId}: ${currentStock} -> ${updateResponse.data?.stock || newStock} (qty: ${item.qty})`);
+          }
+        } catch (e: any) {
+          this.logger.error(`Failed to update stock for article ${item.articleId} in order ${id}:`, {
+            error: e?.message,
+            response: e?.response?.data,
+            status: e?.response?.status,
+            url: e?.config?.url,
+          });
+          // Continue with other items even if one fails - don't fail the entire confirmation
+        }
+      }
+    }
+    
     return this.findOne(id);
   }
 
