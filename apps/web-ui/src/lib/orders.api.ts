@@ -209,19 +209,27 @@ export async function deleteOrder(id: string): Promise<{ message?: string } | un
 
 export async function confirmOrder(id: string, idvendor?: string): Promise<Order | undefined> {
   const body = idvendor ? { idvendor } : {};
-  const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, body);
-  
-  if (!response) {
-    return undefined;
+  try {
+    const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, body);
+    
+    if (!response) {
+      return undefined;
+    }
+    
+    const transformed = transformOrderResponse(response);
+    
+    // Clear cache to force refresh
+    const { clearCache } = useOrdersStore.getState();
+    clearCache();
+    
+    return transformed;
+  } catch (err: any) {
+    // Extract error message from axios error response
+    const errorMessage = err?.response?.data?.message || err?.message || 'Failed to confirm order';
+    const error = new Error(errorMessage);
+    (error as any).statusCode = err?.response?.status;
+    throw error;
   }
-  
-  const transformed = transformOrderResponse(response);
-  
-  // Clear cache to force refresh
-  const { clearCache } = useOrdersStore.getState();
-  clearCache();
-  
-  return transformed;
 }
 
 export async function activateOrder(id: string): Promise<Order | undefined> {

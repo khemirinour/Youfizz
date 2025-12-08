@@ -204,14 +204,35 @@ const ConfermateurDashboard = () => {
       setConfirming(orderId);
       // Get vendorId from the order if available
       const order = orders.find(o => o.id === orderId);
+      
+      // Check if order is already confirmed
+      if (order?.status === 'CONFIRMED') {
+        toast({
+          title: 'Error',
+          description: 'Order is already confirmed',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       const idvendor = order?.vendorId;
       const updated = await confirmOrder(orderId, idvendor);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
       toast({ title: 'Success', description: 'Order confirmed successfully' });
     } catch (e: any) {
+      // Show specific error messages
+      const errorMessage = e?.message || 'Failed to confirm order';
+      let title = 'Error';
+      
+      if (errorMessage.includes('already confirmed')) {
+        title = 'Already Confirmed';
+      } else if (errorMessage.includes('no remaining confirmations') || errorMessage.includes('nbrCmdConf')) {
+        title = 'No Confirmations Available';
+      }
+      
       toast({ 
-        title: 'Error', 
-        description: e?.message || 'Failed to confirm order', 
+        title, 
+        description: errorMessage, 
         variant: 'destructive' 
       });
     } finally {
@@ -346,7 +367,7 @@ const ConfermateurDashboard = () => {
                       <Button
                         size="sm"
                         onClick={() => handleConfirm(order.id)}
-                        disabled={confirming === order.id}
+                        disabled={confirming === order.id || order.status === 'CONFIRMED'}
                       >
                         {confirming === order.id ? 'Confirming...' : 'Confirm'}
                       </Button>

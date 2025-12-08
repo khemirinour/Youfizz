@@ -66,6 +66,11 @@ export class AppService {
       throw new NotFoundException('Order not found');
     }
 
+    // Check if order is already confirmed
+    if (order.status === OrderStatus.CONFIRMED) {
+      throw new BadRequestException('Order is already confirmed');
+    }
+
     // DEBUG: Log what we received
     this.logger.log(`Confirm order ${id} - confirmer: ${JSON.stringify(confirmer)}`);
 

@@ -453,6 +453,17 @@ const VendorOrdersPage = () => {
       setActioning(orderId);
       // Get vendorId from the order if available
       const order = orders.find(o => o.id === orderId);
+      
+      // Check if order is already confirmed
+      if (order?.status === 'CONFIRMED') {
+        toast({
+          title: 'Error',
+          description: 'Order is already confirmed',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
       const idvendor = order?.vendorId || vendorId;
       await confirmOrder(orderId, idvendor);
       toast({
@@ -461,9 +472,19 @@ const VendorOrdersPage = () => {
       });
       await refreshOrders();
     } catch (e: any) {
+      // Show specific error messages
+      const errorMessage = e?.message || 'Failed to confirm order';
+      let title = 'Error';
+      
+      if (errorMessage.includes('already confirmed')) {
+        title = 'Already Confirmed';
+      } else if (errorMessage.includes('no remaining confirmations') || errorMessage.includes('nbrCmdConf')) {
+        title = 'No Confirmations Available';
+      }
+      
       toast({
-        title: 'Error',
-        description: e?.message || 'Failed to confirm order',
+        title,
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -741,7 +762,7 @@ const VendorOrdersPage = () => {
                                 <Button
                                   size="sm"
                                   onClick={() => handleConfirm(order.id)}
-                                  disabled={actioning === order.id}
+                                  disabled={actioning === order.id || order.status === 'CONFIRMED'}
                                 >
                                   {actioning === order.id ? '...' : 'Confirm'}
                                 </Button>
