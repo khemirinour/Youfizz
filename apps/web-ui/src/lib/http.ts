@@ -127,20 +127,83 @@ function createHttp(): AxiosInstance {
 			}
 
 			// Handle 401 - Unauthorized (no token or invalid token)
-			if (status === 401) {
+			if (status === 401 && originalRequest && !originalRequest._retry) {
 				// Don't redirect for public endpoints - let the error propagate
 				if (isPublicEndpoint) {
 					return Promise.reject(error);
 				}
 
-				try {
-					useAuthStore.getState().logout();
-				} catch {}
-				if (typeof window !== 'undefined') {
-					const currentPath = window.location.pathname;
-					if (!currentPath.startsWith('/signin')) {
-						window.location.assign('/signin');
+				// Prevent infinite loop if refresh endpoint also returns 401
+				if (originalRequest.url?.includes('/auth/refresh')) {
+					try {
+						useAuthStore.getState().logout();
+					} catch {}
+					if (typeof window !== 'undefined') {
+						const currentPath = window.location.pathname;
+						if (!currentPath.startsWith('/signin')) {
+							window.location.assign('/signin');
+						}
 					}
+					return Promise.reject(error);
+				}
+
+				// If already refreshing, queue this request
+				if (isRefreshing) {
+					return new Promise((resolve, reject) => {
+						failedQueue.push({ resolve, reject });
+					})
+						.then(() => {
+							// Retry original request (cookies will be sent automatically)
+							return httpInstance!.request(originalRequest);
+						})
+						.catch((err) => {
+							return Promise.reject(err);
+						});
+				}
+
+				// Try to refresh token before logging out
+				originalRequest._retry = true;
+				isRefreshing = true;
+
+				try {
+					const refreshed = await useAuthStore.getState().refreshToken();
+					
+					if (refreshed) {
+						// Token refresh successful, new tokens are in cookies
+						// No need to update headers - cookies are sent automatically
+						processQueue(null, null);
+						
+						// Retry original request (cookies will be sent automatically)
+						return httpInstance!.request(originalRequest);
+					} else {
+						// Refresh failed, logout
+						processQueue(error, null);
+						try {
+							useAuthStore.getState().logout();
+						} catch {}
+						if (typeof window !== 'undefined') {
+							const currentPath = window.location.pathname;
+							if (!currentPath.startsWith('/signin')) {
+								window.location.assign('/signin');
+							}
+						}
+						return Promise.reject(error);
+					}
+				} catch (refreshError) {
+					// Refresh failed, logout
+					processQueue(refreshError, null);
+					try {
+						useAuthStore.getState().logout();
+					} catch {}
+					if (typeof window !== 'undefined') {
+						const currentPath = window.location.pathname;
+						if (!currentPath.startsWith('/signin')) {
+							window.location.assign('/signin');
+						}
+					}
+					return Promise.reject(refreshError);
+				} finally {
+					isRefreshing = false;
 				}
 			}
 
