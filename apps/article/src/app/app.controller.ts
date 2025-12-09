@@ -31,13 +31,28 @@ export class AppController {
   @ApiOperation({ summary: 'List articles', description: 'Returns paginated list of articles. Use filters for search, category, vendor, status, and visibility.' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by title (ILIKE %search%)' })
   @ApiQuery({ name: 'categoryId', required: false })
+  @ApiQuery({ name: 'categoryIds', required: false, type: [String], isArray: true, description: 'Array of category IDs' })
   @ApiQuery({ name: 'vendorId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['DRAFT','PUBLISHED','ARCHIVED'] })
   @ApiQuery({ name: 'isActive', required: false, description: 'true to show only active, false for inactive' })
+  @ApiQuery({ name: 'minPrice', required: false })
+  @ApiQuery({ name: 'maxPrice', required: false })
+  @ApiQuery({ name: 'minStock', required: false })
+  @ApiQuery({ name: 'maxStock', required: false })
+  @ApiQuery({ name: 'sortBy', required: false })
+  @ApiQuery({ name: 'sortOrder', required: false })
   @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
   @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
   @ApiOkResponse({ description: 'Articles retrieved', type: [ArticleResponseDto] })
-  list(@Query() query: QueryArticlesDto) {
+  list(@Query() query: QueryArticlesDto, @Req() req: Request) {
+    // Handle categoryIds[] format from query string
+    const rawQuery = req.query as any;
+    if (rawQuery['categoryIds[]']) {
+      const categoryIdsArray = Array.isArray(rawQuery['categoryIds[]']) 
+        ? rawQuery['categoryIds[]'] 
+        : [rawQuery['categoryIds[]']];
+      query.categoryIds = categoryIdsArray.filter((id: any) => id);
+    }
     return this.appService.findAll(query);
   }
 

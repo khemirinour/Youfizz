@@ -590,14 +590,38 @@ export class AppController {
   })
   @ApiQuery({ name: 'search', required: false, description: 'Search by title' })
   @ApiQuery({ name: 'categoryId', required: false, description: 'Filter by category ID' })
+  @ApiQuery({ name: 'categoryIds', required: false, type: [String], isArray: true, description: 'Array of category IDs' })
   @ApiQuery({ name: 'vendorId', required: false, description: 'Filter by vendor ID' })
   @ApiQuery({ name: 'status', required: false, enum: ['DRAFT', 'PUBLISHED', 'ARCHIVED'], description: 'Filter by status' })
   @ApiQuery({ name: 'isActive', required: false, type: Boolean, description: 'Filter by active status' })
+  @ApiQuery({ name: 'minPrice', required: false, description: 'Minimum price' })
+  @ApiQuery({ name: 'maxPrice', required: false, description: 'Maximum price' })
+  @ApiQuery({ name: 'minStock', required: false, description: 'Minimum stock' })
+  @ApiQuery({ name: 'maxStock', required: false, description: 'Maximum stock' })
+  @ApiQuery({ name: 'sortBy', required: false, description: 'Sort field' })
+  @ApiQuery({ name: 'sortOrder', required: false, description: 'Sort order' })
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Items per page (default: 20)' })
   @ApiQuery({ name: 'offset', required: false, type: Number, description: 'Offset for pagination (default: 0)' })
   @ApiResponse({ status: 200, description: 'Articles retrieved successfully' })
   async getArticles(@Query() query: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/articles', 'GET', null, headers);
+    // Build query string from all query parameters
+    const queryParams = new URLSearchParams();
+    Object.keys(query).forEach(key => {
+      const value = query[key];
+      if (value !== undefined && value !== null && value !== '') {
+        if (Array.isArray(value)) {
+          // Handle array parameters (e.g., categoryIds[])
+          value.forEach((item: any) => {
+            queryParams.append(key, String(item));
+          });
+        } else {
+          queryParams.append(key, String(value));
+        }
+      }
+    });
+    const queryString = queryParams.toString();
+    const path = queryString ? `/articles?${queryString}` : '/articles';
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers);
   }
 
   @ApiTags('articles')
@@ -873,6 +897,85 @@ export class AppController {
       headers,
       req.user,
     );
+  }
+
+  // ==================== Category Service Routes ====================
+  @ApiTags('categories')
+  @Get('categories')
+  @ApiOperation({ 
+    summary: 'List categories',
+    description: 'Get list of all categories (flat list)'
+  })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive categories' })
+  @ApiResponse({ status: 200, description: 'Categories retrieved successfully' })
+  async getCategories(@Query() query: any, @Headers() headers: Record<string, string>) {
+    const queryString = query.includeInactive ? `?includeInactive=${query.includeInactive}` : '';
+    return this.gatewayService.forwardRequest(`/categories${queryString}`, 'GET', null, headers);
+  }
+
+  @ApiTags('categories')
+  @Get('categories/tree')
+  @ApiOperation({ 
+    summary: 'Get category tree',
+    description: 'Get hierarchical tree structure of categories'
+  })
+  @ApiQuery({ name: 'includeInactive', required: false, type: Boolean, description: 'Include inactive categories' })
+  @ApiResponse({ status: 200, description: 'Category tree retrieved successfully' })
+  async getCategoryTree(@Query() query: any, @Headers() headers: Record<string, string>) {
+    const queryString = query.includeInactive ? `?includeInactive=${query.includeInactive}` : '';
+    return this.gatewayService.forwardRequest(`/categories/tree${queryString}`, 'GET', null, headers);
+  }
+
+  @ApiTags('categories')
+  @Get('categories/:id')
+  @ApiOperation({ summary: 'Get category by ID' })
+  @ApiParam({ name: 'id', description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Category retrieved successfully' })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  async getCategoryById(@Param('id') id: string, @Headers() headers: Record<string, string>) {
+    return this.gatewayService.forwardRequest(`/categories/${id}`, 'GET', null, headers);
+  }
+
+  @ApiTags('categories')
+  @Post('categories')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Create category' })
+  @ApiResponse({ status: 201, description: 'Category created successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient role' })
+  @ApiBody({ description: 'Category data', schema: { type: 'object' } })
+  async createCategory(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    return this.gatewayService.forwardRequest('/categories', 'POST', body, headers, req.user, false, false, (req as any).cookies);
+  }
+
+  @ApiTags('categories')
+  @Patch('categories/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update category' })
+  @ApiParam({ name: 'id', description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Category updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - insufficient role' })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  @ApiBody({ description: 'Category update data', schema: { type: 'object' } })
+  async updateCategory(@Param('id') id: string, @Body() body: any, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    return this.gatewayService.forwardRequest(`/categories/${id}`, 'PATCH', body, headers, req.user, false, false, (req as any).cookies);
+  }
+
+  @ApiTags('categories')
+  @Delete('categories/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete category (Admin only)' })
+  @ApiParam({ name: 'id', description: 'Category ID' })
+  @ApiResponse({ status: 200, description: 'Category deleted successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
+  @ApiResponse({ status: 404, description: 'Category not found' })
+  async deleteCategory(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    return this.gatewayService.forwardRequest(`/categories/${id}`, 'DELETE', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   // ==================== Order Service Routes ====================

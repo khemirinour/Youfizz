@@ -24,18 +24,36 @@ export function generateArticlesCacheKey(params?: {
   status?: string;
   search?: string;
   categoryId?: string;
+  categoryIds?: string[];
   isActive?: boolean;
+  minPrice?: string;
+  maxPrice?: string;
+  minStock?: number;
+  maxStock?: number;
+  sortBy?: string;
+  sortOrder?: string;
   page?: number;
   pageSize?: number;
 }): string {
   if (!params) return 'articles:default';
   
+  // Sort categoryIds array for consistent cache keys
+  const categoryIdsKey = params.categoryIds && params.categoryIds.length > 0
+    ? params.categoryIds.sort().join(',')
+    : (params.categoryId || 'all');
+  
   const parts = [
     params.vendorId || 'all',
     params.status || 'ALL',
     params.search || '',
-    params.categoryId || 'all',
+    categoryIdsKey,
     params.isActive !== undefined ? params.isActive.toString() : 'all',
+    params.minPrice || '',
+    params.maxPrice || '',
+    params.minStock?.toString() || '',
+    params.maxStock?.toString() || '',
+    params.sortBy || '',
+    params.sortOrder || '',
     params.page?.toString() || '0',
     params.pageSize?.toString() || '20',
   ];

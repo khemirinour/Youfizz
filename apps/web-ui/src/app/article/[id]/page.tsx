@@ -294,6 +294,40 @@ const ArticleDetailPage = () => {
               </div>
             )}
 
+            {/* Categories */}
+            {article.categories && article.categories.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                <span className="text-sm text-muted-foreground">Catégories:</span>
+                {article.categories.map((category) => (
+                  <span
+                    key={category.id}
+                    className="px-2 py-1 text-xs font-medium bg-primary/10 text-primary rounded-md"
+                  >
+                    {category.name}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Specifications */}
+            {article.specifications && Object.keys(article.specifications).length > 0 && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Spécifications</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    {Object.entries(article.specifications).map(([key, value]) => (
+                      <div key={key} className="flex justify-between py-2 border-b last:border-0">
+                        <span className="text-muted-foreground font-medium capitalize">{key}:</span>
+                        <span className="font-medium">{String(value)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             {/* Additional Details */}
             <Card>
               <CardHeader>

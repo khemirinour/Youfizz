@@ -30,7 +30,11 @@ export class CreateArticleDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
-  categoryId?: string;
+  categoryId?: string; // Kept for backward compatibility
+
+  @ApiPropertyOptional({ type: [String], description: 'Array of category IDs' })
+  @IsOptional()
+  categoryIds?: string[];
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -49,6 +53,10 @@ export class CreateArticleDto {
   @ApiPropertyOptional({ type: Object })
   @IsOptional()
   metadata?: Record<string, any>;
+
+  @ApiPropertyOptional({ type: Object, description: 'Product specifications/attributes' })
+  @IsOptional()
+  specifications?: Record<string, any>;
 }
 
 

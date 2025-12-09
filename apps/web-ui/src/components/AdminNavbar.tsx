@@ -3,13 +3,14 @@
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, BarChart3 } from 'lucide-react';
+import { LogOut, Users, BarChart3, FolderTree } from 'lucide-react';
+import Link from 'next/link';
 import Image from 'next/image';
 import logo from '@/assets/youfizz-logo.png';
 
 interface AdminNavbarProps {
-  activeTab?: 'users' | 'stats';
-  onTabChange?: (tab: 'users' | 'stats') => void;
+  activeTab?: 'users' | 'stats' | 'categories';
+  onTabChange?: (tab: 'users' | 'stats' | 'categories') => void;
 }
 
 export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminNavbarProps) {
@@ -56,24 +57,36 @@ export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminN
           <div className="flex items-center justify-between gap-2">
             {/* Navigation Tabs */}
             <div className="flex items-center gap-1.5 flex-1">
-              <Button
-                variant={activeTab === 'users' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onTabChange?.('users')}
-                className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-1 sm:flex-initial"
-              >
-                <Users className="h-4 w-4 shrink-0" />
-                <span className="text-xs sm:text-sm">Users</span>
-              </Button>
-              <Button
-                variant={activeTab === 'stats' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => onTabChange?.('stats')}
-                className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-1 sm:flex-initial"
-              >
-                <BarChart3 className="h-4 w-4 shrink-0" />
-                <span className="text-xs sm:text-sm">Stats</span>
-              </Button>
+              <Link href="/admin">
+                <Button
+                  variant={activeTab === 'users' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-1 sm:flex-initial"
+                >
+                  <Users className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-sm">Users</span>
+                </Button>
+              </Link>
+              <Link href="/admin?tab=stats">
+                <Button
+                  variant={activeTab === 'stats' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-1 sm:flex-initial"
+                >
+                  <BarChart3 className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-sm">Stats</span>
+                </Button>
+              </Link>
+              <Link href="/admin/categories">
+                <Button
+                  variant={activeTab === 'categories' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-1 sm:flex-initial"
+                >
+                  <FolderTree className="h-4 w-4 shrink-0" />
+                  <span className="text-xs sm:text-sm">Categories</span>
+                </Button>
+              </Link>
             </div>
             
             {/* User Info - Condensed */}
@@ -99,24 +112,36 @@ export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminN
 
           {/* Navigation Tabs */}
           <div className="flex items-center gap-2">
-            <Button
-              variant={activeTab === 'users' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onTabChange?.('users')}
-              className="flex items-center gap-2"
-            >
-              <Users className="h-4 w-4" />
-              <span>Users</span>
-            </Button>
-            <Button
-              variant={activeTab === 'stats' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onTabChange?.('stats')}
-              className="flex items-center gap-2"
-            >
-              <BarChart3 className="h-4 w-4" />
-              <span>Stats</span>
-            </Button>
+            <Link href="/admin">
+              <Button
+                variant={activeTab === 'users' ? 'default' : 'ghost'}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Users className="h-4 w-4" />
+                <span>Users</span>
+              </Button>
+            </Link>
+            <Link href="/admin?tab=stats">
+              <Button
+                variant={activeTab === 'stats' ? 'default' : 'ghost'}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span>Stats</span>
+              </Button>
+            </Link>
+            <Link href="/admin/categories">
+              <Button
+                variant={activeTab === 'categories' ? 'default' : 'ghost'}
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <FolderTree className="h-4 w-4" />
+                <span>Categories</span>
+              </Button>
+            </Link>
           </div>
 
           {/* Admin Info & Logout */}

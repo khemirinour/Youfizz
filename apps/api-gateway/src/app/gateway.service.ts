@@ -61,6 +61,14 @@ export class GatewayService {
     { service: 'article', path: '/articles/:id/images', method: 'DELETE', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
+    // Category service endpoints
+    { service: 'article', path: '/categories', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories/tree', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/categories/:id', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories/:id', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/categories/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    
     // CMD service endpoints
     { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: false }, // Changed to false - guest orders allowed

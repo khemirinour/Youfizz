@@ -16,6 +16,10 @@ import { Switch } from '@/components/ui/switch';
 import { ImageUpload } from '@/components/ImageUpload';
 import { ImageGallery } from '@/components/ImageGallery';
 import type { Article } from '@/lib/articles.api';
+import { getCategories, type Category } from '@/lib/categories.api';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronDown, Plus, X } from 'lucide-react';
 
 const EditArticlePage = () => {
   const params = useParams<{ id: string }>();
@@ -34,8 +38,12 @@ const EditArticlePage = () => {
     sku: '',
     status: 'DRAFT',
     categoryId: '',
+    categoryIds: [],
+    specifications: {},
   });
   const [makeActive, setMakeActive] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [specFields, setSpecFields] = useState<Array<{ key: string; value: string }>>([]);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -72,6 +80,20 @@ const EditArticlePage = () => {
     verifyAuth();
   }, [hydrated, isAuthenticated, user?.role, vendorId, router]);
 
+  // Load categories
+  useEffect(() => {
+    if (!hydrated) return;
+    const loadCategories = async () => {
+      try {
+        const cats = await getCategories();
+        setCategories(cats);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    };
+    loadCategories();
+  }, [hydrated]);
+
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !params.id) return;
     let cancelled = false;
@@ -89,8 +111,19 @@ const EditArticlePage = () => {
             sku: data.sku || '',
             status: data.status || 'DRAFT',
             categoryId: data.categoryId || '',
+            categoryIds: data.categories?.map((c) => c.id) || [],
+            specifications: data.specifications || {},
           });
           setMakeActive(data.isActive ?? false);
+          // Load specifications into specFields
+          if (data.specifications) {
+            setSpecFields(
+              Object.entries(data.specifications).map(([key, value]) => ({
+                key,
+                value: String(value),
+              }))
+            );
+          }
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -117,10 +150,19 @@ const EditArticlePage = () => {
 
     try {
       setSubmitting(true);
+      // Build specifications object from specFields
+      const specifications: Record<string, any> = {};
+      specFields.forEach((field) => {
+        if (field.key.trim()) {
+          specifications[field.key.trim()] = field.value.trim();
+        }
+      });
+
       const dataToSend: UpdateArticleDto = {
         ...formData,
         stock: formData.stock || 0,
         price: formData.price || '0',
+        specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
       };
       const updated = await updateArticle(params.id, dataToSend);
       if (makeActive && updated?.id) {
@@ -319,14 +361,103 @@ const EditArticlePage = () => {
               <Label htmlFor="makeActive">Active (Visible)</Label>
             </div>
 
+            {/* Categories Multi-Select */}
             <div className="space-y-2">
-              <Label htmlFor="categoryId">Category ID</Label>
-              <Input
-                id="categoryId"
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                placeholder="Enter category ID (optional)"
-              />
+              <Label>Catégories</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                  >
+                    {formData.categoryIds && formData.categoryIds.length > 0
+                      ? `${formData.categoryIds.length} catégorie(s) sélectionnée(s)`
+                      : 'Sélectionner des catégories'}
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <div className="max-h-60 overflow-y-auto p-2">
+                    {categories.map((category) => (
+                      <div key={category.id} className="flex items-center space-x-2 p-2 hover:bg-secondary/50 rounded">
+                        <Checkbox
+                          id={`cat-edit-${category.id}`}
+                          checked={formData.categoryIds?.includes(category.id) || false}
+                          onCheckedChange={(checked) => {
+                            const currentIds = formData.categoryIds || [];
+                            if (checked) {
+                              setFormData({ ...formData, categoryIds: [...currentIds, category.id] });
+                            } else {
+                              setFormData({ ...formData, categoryIds: currentIds.filter((id) => id !== category.id) });
+                            }
+                          }}
+                        />
+                        <label
+                          htmlFor={`cat-edit-${category.id}`}
+                          className="text-sm font-medium leading-none cursor-pointer flex-1"
+                        >
+                          {category.name}
+                        </label>
+                      </div>
+                    ))}
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Specifications */}
+            <div className="space-y-2">
+              <Label>Spécifications du produit</Label>
+              <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
+                {specFields.map((field, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Nom (ex: Couleur, Taille, Marque)"
+                      value={field.key}
+                      onChange={(e) => {
+                        const newFields = [...specFields];
+                        newFields[index].key = e.target.value;
+                        setSpecFields(newFields);
+                      }}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Valeur"
+                      value={field.value}
+                      onChange={(e) => {
+                        const newFields = [...specFields];
+                        newFields[index].value = e.target.value;
+                        setSpecFields(newFields);
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSpecFields(specFields.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSpecFields([...specFields, { key: '', value: '' }])}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter une spécification
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Exemples: Couleur, Taille, Marque, Poids, Matériau, etc.
+              </p>
             </div>
 
             <div className="flex items-center gap-4">

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import AdminNavbar from '@/components/AdminNavbar';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import AnimatedBackground from '@/components/background/AnimatedBackground';
 
 const AdminDashboard = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
@@ -29,7 +30,9 @@ const AdminDashboard = () => {
   const [incrementDialogOpen, setIncrementDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [incrementAmount, setIncrementAmount] = useState<string>('1');
-  const [activeTab, setActiveTab] = useState<'users' | 'stats'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats'>(
+    (searchParams.get('tab') as 'users' | 'stats') || 'users'
+  );
   const [statsLoading, setStatsLoading] = useState(false);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
@@ -42,6 +45,14 @@ const AdminDashboard = () => {
     const unsub = api?.onFinishHydration?.(() => setHydrated(true));
     return () => unsub?.();
   }, []);
+
+  // Sync activeTab with URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab') as 'users' | 'stats' | null;
+    if (tab === 'stats' || tab === 'users') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Redirect non-admins to sign in (after hydration)
@@ -111,7 +122,7 @@ const AdminDashboard = () => {
   return (
     <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
       <AnimatedBackground />
-      <AdminNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <AdminNavbar activeTab={activeTab} />
 
       <div className="relative z-20 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Stats Section */}

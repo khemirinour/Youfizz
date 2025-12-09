@@ -2,6 +2,20 @@ import { get, post, patch, del } from './http';
 import axios from 'axios';
 import { useArticlesStore, generateArticlesCacheKey } from '@/stores/articlesStore';
 
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  parentId?: string;
+  parent?: Category;
+  children?: Category[];
+  isActive: boolean;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Article {
   id: string;
   title: string;
@@ -12,9 +26,11 @@ export interface Article {
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   isActive?: boolean;
   vendorId?: string;
-  categoryId?: string;
+  categoryId?: string; // Kept for backward compatibility
+  categories?: Category[];
   images?: string[];
   metadata?: Record<string, any>;
+  specifications?: Record<string, any>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -27,19 +43,30 @@ export interface CreateArticleDto {
   sku?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   isActive?: boolean;
-  categoryId?: string;
+  categoryId?: string; // Kept for backward compatibility
+  categoryIds?: string[];
   images?: string[];
   metadata?: Record<string, any>;
+  specifications?: Record<string, any>;
 }
 
 export interface UpdateArticleDto extends Partial<CreateArticleDto> {}
 
 export interface QueryArticlesParams {
   search?: string;
-  categoryId?: string;
+  categoryId?: string; // Kept for backward compatibility
+  categoryIds?: string[];
   vendorId?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
   isActive?: boolean;
+  minPrice?: string;
+  maxPrice?: string;
+  minStock?: number;
+  maxStock?: number;
+  createdAfter?: string;
+  createdBefore?: string;
+  sortBy?: 'title' | 'price' | 'stock' | 'createdAt';
+  sortOrder?: 'ASC' | 'DESC';
   limit?: number;
   offset?: number;
 }
@@ -56,7 +83,14 @@ export async function getArticles(params?: QueryArticlesParams): Promise<Paginat
     status: params?.status,
     search: params?.search,
     categoryId: params?.categoryId,
+    categoryIds: params?.categoryIds,
     isActive: params?.isActive,
+    minPrice: params?.minPrice,
+    maxPrice: params?.maxPrice,
+    minStock: params?.minStock,
+    maxStock: params?.maxStock,
+    sortBy: params?.sortBy,
+    sortOrder: params?.sortOrder,
     page: params?.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
     pageSize: params?.limit,
   });
@@ -119,7 +153,14 @@ export async function getArticlesByVendor(vendorId: string, params?: Omit<QueryA
     status: params?.status,
     search: params?.search,
     categoryId: params?.categoryId,
+    categoryIds: params?.categoryIds,
     isActive: params?.isActive,
+    minPrice: params?.minPrice,
+    maxPrice: params?.maxPrice,
+    minStock: params?.minStock,
+    maxStock: params?.maxStock,
+    sortBy: params?.sortBy,
+    sortOrder: params?.sortOrder,
     page: params?.offset ? Math.floor(params.offset / (params.limit || 20)) : 0,
     pageSize: params?.limit,
   });
