@@ -106,11 +106,17 @@ export class AppService {
         if (query.categoryIds.length > 0) {
           categoryIds.push(...query.categoryIds);
         }
+      } else if (typeof query.categoryIds === 'string') {
+        // Handle comma-separated string (in case Transform didn't run)
+        const ids = (query.categoryIds as string).split(',').map(id => id.trim()).filter(id => id.length > 0);
+        if (ids.length > 0) {
+          categoryIds.push(...ids);
+        }
       } else {
-        // Handle single value (might come from query param parsing before Transform)
+        // Handle single value
         const categoryIdValue = query.categoryIds as any;
-        if (typeof categoryIdValue === 'string' && categoryIdValue.length > 0) {
-          categoryIds.push(categoryIdValue);
+        if (categoryIdValue && String(categoryIdValue).length > 0) {
+          categoryIds.push(String(categoryIdValue));
         }
       }
     }
@@ -128,8 +134,8 @@ export class AppService {
         `EXISTS (
           SELECT 1 
           FROM article_categories ac 
-          WHERE ac.articleId = article.id 
-          AND ac.categoryId IN (:...categoryIds)
+          WHERE ac."articleId" = "article"."id" 
+          AND ac."categoryId" IN (:...categoryIds)
         )`,
         { categoryIds }
       );

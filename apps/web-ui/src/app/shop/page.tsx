@@ -34,7 +34,24 @@ const ShopPage = () => {
     return pageParam ? parseInt(pageParam, 10) : 1;
   });
   
-  // Filter state
+  // Applied filters (used for fetching) - initialized from URL
+  const [appliedSearchQuery, setAppliedSearchQuery] = useState(searchParams.get('search') || '');
+  const [appliedCategories, setAppliedCategories] = useState<string[]>(() => {
+    const cats = searchParams.get('categories');
+    return cats ? cats.split(',') : [];
+  });
+  const [appliedMinPrice, setAppliedMinPrice] = useState(searchParams.get('minPrice') || '');
+  const [appliedMaxPrice, setAppliedMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [appliedMinStock, setAppliedMinStock] = useState(searchParams.get('minStock') || '');
+  const [appliedMaxStock, setAppliedMaxStock] = useState(searchParams.get('maxStock') || '');
+  const [appliedSortBy, setAppliedSortBy] = useState<'title' | 'price' | 'stock' | 'createdAt' | ''>(
+    (searchParams.get('sortBy') as any) || ''
+  );
+  const [appliedSortOrder, setAppliedSortOrder] = useState<'ASC' | 'DESC'>(
+    (searchParams.get('sortOrder') as 'ASC' | 'DESC') || 'DESC'
+  );
+
+  // Draft filters (what user is editing) - initialized from URL
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const cats = searchParams.get('categories');
@@ -64,9 +81,10 @@ const ShopPage = () => {
     loadCategories();
   }, []);
 
+  // Fetch articles only when applied filters or page changes
   const queryKey = useMemo(() => {
-    return `${searchQuery}|${selectedCategories.join(',')}|${minPrice}|${maxPrice}|${minStock}|${maxStock}|${sortBy}|${sortOrder}|${page}`;
-  }, [searchQuery, selectedCategories, minPrice, maxPrice, minStock, maxStock, sortBy, sortOrder, page]);
+    return `${appliedSearchQuery}|${appliedCategories.join(',')}|${appliedMinPrice}|${appliedMaxPrice}|${appliedMinStock}|${appliedMaxStock}|${appliedSortBy}|${appliedSortOrder}|${page}`;
+  }, [appliedSearchQuery, appliedCategories, appliedMinPrice, appliedMaxPrice, appliedMinStock, appliedMaxStock, appliedSortBy, appliedSortOrder, page]);
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -78,27 +96,27 @@ const ShopPage = () => {
           status: 'PUBLISHED',
           isActive: true,
         };
-        if (searchQuery.trim()) {
-          params.search = searchQuery.trim();
+        if (appliedSearchQuery.trim()) {
+          params.search = appliedSearchQuery.trim();
         }
-        if (selectedCategories.length > 0) {
-          params.categoryIds = selectedCategories;
+        if (appliedCategories.length > 0) {
+          params.categoryIds = appliedCategories;
         }
-        if (minPrice) {
-          params.minPrice = minPrice;
+        if (appliedMinPrice) {
+          params.minPrice = appliedMinPrice;
         }
-        if (maxPrice) {
-          params.maxPrice = maxPrice;
+        if (appliedMaxPrice) {
+          params.maxPrice = appliedMaxPrice;
         }
-        if (minStock) {
-          params.minStock = parseInt(minStock, 10);
+        if (appliedMinStock) {
+          params.minStock = parseInt(appliedMinStock, 10);
         }
-        if (maxStock) {
-          params.maxStock = parseInt(maxStock, 10);
+        if (appliedMaxStock) {
+          params.maxStock = parseInt(appliedMaxStock, 10);
         }
-        if (sortBy) {
-          params.sortBy = sortBy;
-          params.sortOrder = sortOrder;
+        if (appliedSortBy) {
+          params.sortBy = appliedSortBy;
+          params.sortOrder = appliedSortOrder;
         }
         const data = await getArticles(params);
         setArticles(data.items || []);
@@ -106,15 +124,15 @@ const ShopPage = () => {
         
         // Update URL after successful fetch
         const urlParams = new URLSearchParams();
-        if (searchQuery.trim()) urlParams.set('search', searchQuery.trim());
-        if (selectedCategories.length > 0) urlParams.set('categories', selectedCategories.join(','));
-        if (minPrice) urlParams.set('minPrice', minPrice);
-        if (maxPrice) urlParams.set('maxPrice', maxPrice);
-        if (minStock) urlParams.set('minStock', minStock);
-        if (maxStock) urlParams.set('maxStock', maxStock);
-        if (sortBy) {
-          urlParams.set('sortBy', sortBy);
-          urlParams.set('sortOrder', sortOrder);
+        if (appliedSearchQuery.trim()) urlParams.set('search', appliedSearchQuery.trim());
+        if (appliedCategories.length > 0) urlParams.set('categories', appliedCategories.join(','));
+        if (appliedMinPrice) urlParams.set('minPrice', appliedMinPrice);
+        if (appliedMaxPrice) urlParams.set('maxPrice', appliedMaxPrice);
+        if (appliedMinStock) urlParams.set('minStock', appliedMinStock);
+        if (appliedMaxStock) urlParams.set('maxStock', appliedMaxStock);
+        if (appliedSortBy) {
+          urlParams.set('sortBy', appliedSortBy);
+          urlParams.set('sortOrder', appliedSortOrder);
         }
         if (page > 1) urlParams.set('page', page.toString());
         router.replace(`/shop${urlParams.toString() ? `?${urlParams.toString()}` : ''}`, { scroll: false });
@@ -132,7 +150,21 @@ const ShopPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey]);
 
+  // Apply filters button handler
+  const handleApplyFilters = () => {
+    setAppliedSearchQuery(searchQuery);
+    setAppliedCategories([...selectedCategories]);
+    setAppliedMinPrice(minPrice);
+    setAppliedMaxPrice(maxPrice);
+    setAppliedMinStock(minStock);
+    setAppliedMaxStock(maxStock);
+    setAppliedSortBy(sortBy);
+    setAppliedSortOrder(sortOrder);
+    setPage(1); // Reset to first page when applying filters
+  };
+
   const handleSearch = () => {
+    setAppliedSearchQuery(searchQuery);
     setPage(1); // Reset to first page on new search
   };
 
@@ -144,7 +176,7 @@ const ShopPage = () => {
         return [...prev, categoryId];
       }
     });
-    setPage(1);
+    // Don't reset page here - wait for Apply button
   };
 
   const clearFilters = () => {
@@ -156,10 +188,27 @@ const ShopPage = () => {
     setMaxStock('');
     setSortBy('');
     setSortOrder('DESC');
+    // Also clear applied filters
+    setAppliedSearchQuery('');
+    setAppliedCategories([]);
+    setAppliedMinPrice('');
+    setAppliedMaxPrice('');
+    setAppliedMinStock('');
+    setAppliedMaxStock('');
+    setAppliedSortBy('');
+    setAppliedSortOrder('DESC');
     setPage(1);
   };
 
-  const hasActiveFilters = searchQuery || selectedCategories.length > 0 || minPrice || maxPrice || minStock || maxStock || sortBy;
+  const hasActiveFilters = appliedSearchQuery || appliedCategories.length > 0 || appliedMinPrice || appliedMaxPrice || appliedMinStock || appliedMaxStock || appliedSortBy;
+  const hasDraftFilters = searchQuery !== appliedSearchQuery || 
+    JSON.stringify([...selectedCategories].sort()) !== JSON.stringify([...appliedCategories].sort()) ||
+    minPrice !== appliedMinPrice ||
+    maxPrice !== appliedMaxPrice ||
+    minStock !== appliedMinStock ||
+    maxStock !== appliedMaxStock ||
+    sortBy !== appliedSortBy ||
+    sortOrder !== appliedSortOrder;
 
   const totalPages = Math.ceil(total / pageSize);
 
@@ -219,7 +268,7 @@ const ShopPage = () => {
                 Filters
                 {hasActiveFilters && (
                   <span className="ml-2 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                    {[searchQuery, selectedCategories.length, minPrice, maxPrice, minStock, maxStock, sortBy].filter(Boolean).length}
+                    {[appliedSearchQuery, appliedCategories.length, appliedMinPrice, appliedMaxPrice, appliedMinStock, appliedMaxStock, appliedSortBy].filter(Boolean).length}
                   </span>
                 )}
               </Button>
@@ -278,20 +327,14 @@ const ShopPage = () => {
                       type="number"
                       placeholder="Min"
                       value={minPrice}
-                      onChange={(e) => {
-                        setMinPrice(e.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(e) => setMinPrice(e.target.value)}
                       className="w-full"
                     />
                     <Input
                       type="number"
                       placeholder="Max"
                       value={maxPrice}
-                      onChange={(e) => {
-                        setMaxPrice(e.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(e) => setMaxPrice(e.target.value)}
                       className="w-full"
                     />
                   </div>
@@ -305,20 +348,14 @@ const ShopPage = () => {
                       type="number"
                       placeholder="Min"
                       value={minStock}
-                      onChange={(e) => {
-                        setMinStock(e.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(e) => setMinStock(e.target.value)}
                       className="w-full"
                     />
                     <Input
                       type="number"
                       placeholder="Max"
                       value={maxStock}
-                      onChange={(e) => {
-                        setMaxStock(e.target.value);
-                        setPage(1);
-                      }}
+                      onChange={(e) => setMaxStock(e.target.value)}
                       className="w-full"
                     />
                   </div>
@@ -331,7 +368,6 @@ const ShopPage = () => {
                     value={sortBy || '__default__'}
                     onValueChange={(value) => {
                       setSortBy(value === '__default__' ? '' : (value as any));
-                      setPage(1);
                     }}
                   >
                     <SelectTrigger>
@@ -350,7 +386,6 @@ const ShopPage = () => {
                       value={sortOrder}
                       onValueChange={(value) => {
                         setSortOrder(value as 'ASC' | 'DESC');
-                        setPage(1);
                       }}
                     >
                       <SelectTrigger>
@@ -363,6 +398,35 @@ const ShopPage = () => {
                     </Select>
                   )}
                 </div>
+              </div>
+              
+              {/* Apply Filters Button */}
+              <div className="mt-4 flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    // Reset draft filters to match applied filters
+                    setSearchQuery(appliedSearchQuery);
+                    // Create a new array to ensure React detects the change
+                    setSelectedCategories(appliedCategories.length > 0 ? [...appliedCategories] : []);
+                    setMinPrice(appliedMinPrice);
+                    setMaxPrice(appliedMaxPrice);
+                    setMinStock(appliedMinStock);
+                    setMaxStock(appliedMaxStock);
+                    setSortBy(appliedSortBy);
+                    setSortOrder(appliedSortOrder);
+                    clearFilters();
+                  }}
+                  disabled={!hasDraftFilters && !hasActiveFilters}
+                >
+                  Reset
+                </Button>
+                <Button
+                  onClick={handleApplyFilters}
+                  disabled={!hasDraftFilters}
+                >
+                  Apply Filters
+                </Button>
               </div>
             </Card>
           )}
@@ -383,7 +447,7 @@ const ShopPage = () => {
                 <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No articles found</h3>
                 <p className="text-muted-foreground">
-                  {searchQuery ? 'Try adjusting your search terms' : 'Check back later for new products'}
+                  {appliedSearchQuery ? 'Try adjusting your search terms' : 'Check back later for new products'}
                 </p>
               </div>
             ) : (

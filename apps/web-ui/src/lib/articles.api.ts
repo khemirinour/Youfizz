@@ -99,8 +99,13 @@ export async function getArticles(params?: QueryArticlesParams): Promise<Paginat
   const { getCachedArticles, setCachedArticles } = useArticlesStore.getState();
   const cachedData = getCachedArticles(cacheKey);
   
-  // Make API call
-  const response = await get<PaginatedArticlesResponse>('/api/articles', params);
+  // Make API call - convert categoryIds array to comma-separated string to avoid axios adding brackets
+  const apiParams: any = { ...params };
+  if (apiParams.categoryIds && Array.isArray(apiParams.categoryIds)) {
+    apiParams.categoryIds = apiParams.categoryIds.join(',');
+  }
+  
+  const response = await get<PaginatedArticlesResponse>('/api/articles', apiParams);
   
   // If response is undefined (304 Not Modified), return cached data from store
   if (!response) {
@@ -169,8 +174,13 @@ export async function getArticlesByVendor(vendorId: string, params?: Omit<QueryA
   const { getCachedArticles, setCachedArticles } = useArticlesStore.getState();
   const cachedData = getCachedArticles(cacheKey);
   
-  // Make API call
-  const response = await get<PaginatedArticlesResponse>(`/api/articles/vendor/${vendorId}`, params);
+  // Make API call - convert categoryIds array to comma-separated string to avoid axios adding brackets
+  const apiParams: any = { ...params };
+  if (apiParams.categoryIds && Array.isArray(apiParams.categoryIds)) {
+    apiParams.categoryIds = apiParams.categoryIds.join(',');
+  }
+  
+  const response = await get<PaginatedArticlesResponse>(`/api/articles/vendor/${vendorId}`, apiParams);
   
   // If response is undefined (304 Not Modified), return cached data from store
   if (!response) {
