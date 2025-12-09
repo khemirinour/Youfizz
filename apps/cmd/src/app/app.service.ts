@@ -13,7 +13,7 @@ export class AppService {
     @InjectRepository(Order) private readonly repo: Repository<Order>,
   ) {}
 
-  findAll(query: QueryOrdersDto) {
+  async findAll(query: QueryOrdersDto) {
     const where: any = {};
     if (query.search) where.number = ILike(`%${query.search}%`);
     if (query.status) where.status = query.status;
@@ -23,7 +23,45 @@ export class AppService {
     // vendorId is now required, always set it in the where clause
     where.vendorId = query.vendorId;
     if (typeof query.isActive === 'boolean') where.isActive = query.isActive;
-    return this.repo.find({ where, take: query.limit, skip: query.offset, order: { createdAt: 'DESC' } });
+    
+    const orders = await this.repo.find({ where, take: query.limit, skip: query.offset, order: { createdAt: 'DESC' } });
+    
+    // Check vendor's nbrCmdConf - get vendorId from filter
+    let shouldHideCustomerInfo = false;
+    try {
+      const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+        params: { vendorId: query.vendorId },
+        timeout: 5000,
+      });
+      
+      // If vendor's nbrCmdConf is 0, check if we should hide customer information
+      if (!quotaCheck?.data || quotaCheck.data.remaining === 0) {
+        this.logger.log(`Vendor ${query.vendorId} has nbrCmdConf = 0, checking order statuses for customer info hiding`);
+        shouldHideCustomerInfo = true;
+      }
+    } catch (e: any) {
+      this.logger.warn(`Failed to check vendor quota for ${query.vendorId}:`, {
+        error: e?.message,
+        status: e?.response?.status,
+      });
+      // If we can't check quota, hide customer info for safety
+      shouldHideCustomerInfo = true;
+    }
+    
+    // If nbrCmdConf is 0 AND status is not CONFIRMED, remove customer information from orders
+    if (shouldHideCustomerInfo) {
+      return orders.map(order => {
+        // Only hide customer info if status is NOT CONFIRMED
+        if (order.status !== OrderStatus.CONFIRMED) {
+          const { customerName, customerEmail, customerPhone, customerAddress, ...orderWithoutCustomer } = order;
+          return orderWithoutCustomer;
+        }
+        // If status is CONFIRMED, return order with customer info
+        return order;
+      });
+    }
+    
+    return orders;
   }
 
   async findOne(id: string) {
@@ -31,6 +69,31 @@ export class AppService {
     
     if (!order) {
       return null;
+    }
+
+    // Check vendor's nbrCmdConf from the order's vendorId in the database
+    let shouldHideCustomerInfo = false;
+    if (order.vendorId) {
+      try {
+        const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+          params: { vendorId: order.vendorId },
+          timeout: 5000,
+        });
+        
+        // If vendor's nbrCmdConf is 0, check if we should hide customer information
+        if (!quotaCheck?.data || quotaCheck.data.remaining === 0) {
+          this.logger.log(`Vendor ${order.vendorId} has nbrCmdConf = 0, checking order status for customer info hiding for order ${id}`);
+          shouldHideCustomerInfo = true;
+        }
+      } catch (e: any) {
+        this.logger.warn(`Failed to check vendor quota for order ${id}:`, {
+          error: e?.message,
+          status: e?.response?.status,
+          vendorId: order.vendorId,
+        });
+        // If we can't check quota, hide customer info for safety
+        shouldHideCustomerInfo = true;
+      }
     }
     
     // Enrich items with article details
@@ -73,10 +136,24 @@ export class AppService {
       );
       
       // Return order with enriched items
-      return {
+      const enrichedOrder = {
         ...order,
         items: enrichedItems,
       };
+      
+      // If nbrCmdConf is 0 AND status is not CONFIRMED, remove customer information
+      if (shouldHideCustomerInfo && enrichedOrder.status !== OrderStatus.CONFIRMED) {
+        const { customerName, customerEmail, customerPhone, customerAddress, ...orderWithoutCustomer } = enrichedOrder;
+        return orderWithoutCustomer;
+      }
+      
+      return enrichedOrder;
+    }
+    
+    // If nbrCmdConf is 0 AND status is not CONFIRMED, remove customer information
+    if (shouldHideCustomerInfo && order.status !== OrderStatus.CONFIRMED) {
+      const { customerName, customerEmail, customerPhone, customerAddress, ...orderWithoutCustomer } = order;
+      return orderWithoutCustomer;
     }
     
     return order;

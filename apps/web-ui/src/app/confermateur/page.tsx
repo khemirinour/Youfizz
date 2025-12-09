@@ -372,7 +372,20 @@ const ConfermateurDashboard = () => {
                       </span>
                     </div>
                     <div className="text-sm text-muted-foreground">
-                      <p>Customer: {order.customerName || order.customerEmail || 'N/A'}</p>
+                      <p>
+                        Customer:{' '}
+                        {(() => {
+                          const isHidden = !order.customerName && !order.customerEmail;
+                          const fakeName = 'John Doe';
+                          const fakeEmail = 'customer@example.com';
+                          const display = order.customerName || order.customerEmail || fakeName;
+                          return (
+                            <span className={isHidden ? 'blur-sm select-none' : ''}>
+                              {display}
+                            </span>
+                          );
+                        })()}
+                      </p>
                       <p>Total: {order.total} TND</p>
                       {order.createdAt && (
                         <p className="text-xs mt-1">

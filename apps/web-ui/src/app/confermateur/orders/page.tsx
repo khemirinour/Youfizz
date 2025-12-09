@@ -389,8 +389,21 @@ const ConfermateurOrdersPage = () => {
                           <td className="px-4 py-3 font-medium text-foreground">#{order.orderNumber}</td>
                           <td className="px-4 py-3 text-foreground">
                             <div>
-                              <p className="font-medium">{order.customerName || 'N/A'}</p>
-                              <p className="text-xs text-muted-foreground">{order.customerEmail}</p>
+                              {(() => {
+                                const isHidden = !order.customerName && !order.customerEmail;
+                                const fakeName = 'John Doe';
+                                const fakeEmail = 'customer@example.com';
+                                return (
+                                  <>
+                                    <p className={`font-medium ${isHidden ? 'blur-sm select-none' : ''}`}>
+                                      {order.customerName || fakeName}
+                                    </p>
+                                    <p className={`text-xs text-muted-foreground ${isHidden ? 'blur-sm select-none' : ''}`}>
+                                      {order.customerEmail || fakeEmail}
+                                    </p>
+                                  </>
+                                );
+                              })()}
                             </div>
                           </td>
                           <td className="px-4 py-3 text-foreground">{order.total} TND</td>
@@ -555,14 +568,42 @@ const ConfermateurOrdersPage = () => {
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Customer Information</Label>
                 <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
-                  <p><span className="font-medium">Name:</span> {selectedOrder.customerName || 'N/A'}</p>
-                  <p><span className="font-medium">Email:</span> {selectedOrder.customerEmail || 'N/A'}</p>
-                  {selectedOrder.customerPhone && (
-                    <p><span className="font-medium">Phone:</span> {selectedOrder.customerPhone}</p>
-                  )}
-                  {selectedOrder.customerAddress && (
-                    <p><span className="font-medium">Address:</span> {selectedOrder.customerAddress}</p>
-                  )}
+                  {(() => {
+                    const isHidden = !selectedOrder.customerName && !selectedOrder.customerEmail;
+                    const fakeName = 'John Doe';
+                    const fakeEmail = 'customer@example.com';
+                    const fakePhone = '+216 12 345 678';
+                    const fakeAddress = '123 Main Street, Tunis, Tunisia';
+                    
+                    return (
+                      <>
+                        <p>
+                          <span className="font-medium">Name:</span>{' '}
+                          <span className={isHidden ? 'blur-sm select-none' : ''}>
+                            {selectedOrder.customerName || fakeName}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-medium">Email:</span>{' '}
+                          <span className={isHidden ? 'blur-sm select-none' : ''}>
+                            {selectedOrder.customerEmail || fakeEmail}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-medium">Phone:</span>{' '}
+                          <span className={isHidden ? 'blur-sm select-none' : ''}>
+                            {selectedOrder.customerPhone || fakePhone}
+                          </span>
+                        </p>
+                        <p>
+                          <span className="font-medium">Address:</span>{' '}
+                          <span className={isHidden ? 'blur-sm select-none' : ''}>
+                            {selectedOrder.customerAddress || fakeAddress}
+                          </span>
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
               <div className="space-y-2">
