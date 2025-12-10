@@ -68,7 +68,6 @@ const AdminCategoriesPage = () => {
       if (viewMode === 'tree') {
         const tree = await getCategoryTree(true);
         setCategoryTree(tree);
-        // Don't expand all by default - let users expand manually
         setExpandedCategories(new Set());
       } else {
         const list = await getCategories(true);
@@ -191,24 +190,33 @@ const AdminCategoriesPage = () => {
     });
   };
 
-  // Helper function to check if a category should be shown
-  const shouldShowCategory = (category: Category): boolean => {
+  // Helper function to find a category in the tree recursively
+  const findCategoryInTree = (tree: Category[], id: string): Category | null => {
+    for (const category of tree) {
+      if (category.id === id) return category;
+      if (category.children) {
+        const found = findCategoryInTree(category.children, id);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Helper function to check if a category should be shown (recursive check)
+  const shouldShowCategory = (category: Category, tree: Category[]): boolean => {
     // Always show root categories (no parent)
     if (!category.parentId) return true;
     
-    // Show if parent is expanded
-    const parent = categoryTree.find(cat => cat.id === category.parentId);
+    // Find parent in tree
+    const parent = findCategoryInTree(tree, category.parentId);
     if (parent && expandedCategories.has(category.parentId)) return true;
     
-    // Show if any ancestor is expanded
-    const findAncestor = (cat: Category | undefined): boolean => {
-      if (!cat || !cat.parentId) return false;
-      if (expandedCategories.has(cat.parentId)) return true;
-      const ancestor = categoryTree.find(c => c.id === cat.parentId);
-      return findAncestor(ancestor);
-    };
+    // Recursively check ancestors
+    if (parent && parent.parentId) {
+      return shouldShowCategory(parent, tree);
+    }
     
-    return findAncestor(category);
+    return false;
   };
 
   // Get root categories (categories without parents)
@@ -216,10 +224,28 @@ const AdminCategoriesPage = () => {
     return categoryTree.filter(cat => !cat.parentId);
   }, [categoryTree]);
 
+  // Flatten tree for parent selection (with indentation info)
+  const flattenCategoriesForSelect = useMemo(() => {
+    const result: Array<{ category: Category; depth: number; path: string }> = [];
+    
+    const traverse = (cats: Category[], depth: number = 0, path: string = '') => {
+      cats.forEach(cat => {
+        const currentPath = path ? `${path} > ${cat.name}` : cat.name;
+        result.push({ category: cat, depth, path: currentPath });
+        if (cat.children && cat.children.length > 0) {
+          traverse(cat.children, depth + 1, currentPath);
+        }
+      });
+    };
+    
+    traverse(categoryTree);
+    return result;
+  }, [categoryTree]);
+
   const renderCategoryTree = (category: Category, level: number = 0) => {
     const hasChildren = category.children && category.children.length > 0;
     const isExpanded = expandedCategories.has(category.id);
-    const childrenToShow = category.children?.filter(child => shouldShowCategory(child)) || [];
+    const childrenToShow = category.children?.filter(child => shouldShowCategory(child, categoryTree)) || [];
 
     return (
       <div key={category.id} className="border-b border-border/50 last:border-b-0">
@@ -232,9 +258,10 @@ const AdminCategoriesPage = () => {
               <button
                 onClick={() => toggleExpand(category.id)}
                 className="flex-shrink-0 w-6 h-6 flex items-center justify-center hover:bg-secondary rounded transition-transform"
+                type="button"
               >
                 <ChevronRight 
-                  className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                  className={`h-4 w-4 text-muted-foreground transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}
                 />
               </button>
             ) : (
@@ -324,12 +351,12 @@ const AdminCategoriesPage = () => {
             </div>
           ) : viewMode === 'tree' ? (
             <div className="space-y-0">
-              {categoryTree.length === 0 ? (
+              {rootCategories.length === 0 ? (
                 <div className="text-center py-12 text-muted-foreground">
                   Aucune catégorie trouvée. Créez votre première catégorie !
                 </div>
               ) : (
-                categoryTree.map(category => renderCategoryTree(category))
+                rootCategories.map(category => renderCategoryTree(category))
               )}
             </div>
           ) : (
@@ -448,40 +475,19 @@ const AdminCategoriesPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Aucune (catégorie racine)</SelectItem>
-                  {rootCategories
-                    .filter(cat => !editingCategory || cat.id !== editingCategory.id)
-                    .map(cat => {
-                      const renderCategoryOption = (category: Category, depth: number = 0): JSX.Element => {
-                        const indent = depth * 20;
-                        const hasChildren = category.children && category.children.length > 0;
-                        const isExpanded = expandedCategories.has(category.id);
-                        const childrenToShow = category.children?.filter(child => shouldShowCategory(child)) || [];
-
-                        return (
-                          <div key={category.id}>
-                            <SelectItem 
-                              value={category.id}
-                              style={{ paddingLeft: `${12 + indent}px` }}
-                            >
-                              <div className="flex items-center gap-2">
-                                {hasChildren && (
-                                  <ChevronRight 
-                                    className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                                  />
-                                )}
-                                <span className={depth === 0 ? 'font-medium' : ''}>{category.name}</span>
-                              </div>
-                            </SelectItem>
-                            {hasChildren && isExpanded && childrenToShow.length > 0 && (
-                              <>
-                                {childrenToShow.map(child => renderCategoryOption(child, depth + 1))}
-                              </>
-                            )}
-                          </div>
-                        );
-                      };
-                      return renderCategoryOption(cat);
-                    })}
+                  {flattenCategoriesForSelect
+                    .filter(item => !editingCategory || item.category.id !== editingCategory.id)
+                    .map(item => (
+                      <SelectItem 
+                        key={item.category.id} 
+                        value={item.category.id}
+                        style={{ paddingLeft: `${12 + item.depth * 20}px` }}
+                      >
+                        <span className={item.depth === 0 ? 'font-medium' : ''}>
+                          {item.depth > 0 ? '└─ ' : ''}{item.category.name}
+                        </span>
+                      </SelectItem>
+                    ))}
                 </SelectContent>
               </Select>
             </div>
