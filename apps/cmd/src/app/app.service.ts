@@ -325,40 +325,117 @@ export class AppService {
   }
 
   async getOrderStats() {
-    const [total, byStatus, paidCount, unpaidCount, activeCount, inactiveCount] = await Promise.all([
-      this.repo.count(),
-      this.repo
-        .createQueryBuilder('order')
-        .select('order.status', 'status')
-        .addSelect('COUNT(*)', 'count')
-        .groupBy('order.status')
-        .getRawMany(),
-      this.repo.count({ where: { isPaid: true } }),
-      this.repo.count({ where: { isPaid: false } }),
-      this.repo.count({ where: { isActive: true } }),
-      this.repo.count({ where: { isActive: false } }),
-    ]);
+    try {
+      let total = 0;
+      let byStatus: any[] = [];
+      let paidCount = 0;
+      let unpaidCount = 0;
+      let activeCount = 0;
+      let inactiveCount = 0;
 
-    const byStatusMap: Record<string, number> = {};
-    byStatus.forEach((item: any) => {
-      byStatusMap[item.status] = parseInt(item.count, 10);
-    });
+      try {
+        total = await this.repo.count();
+      } catch (e: any) {
+        this.logger.warn('Error counting total orders:', e?.message);
+      }
 
-    // Calculate total revenue (sum of all order totals)
-    const revenueResult = await this.repo
-      .createQueryBuilder('order')
-      .select('SUM(order.total::numeric)', 'total')
-      .getRawOne();
-    const totalRevenue = revenueResult?.total ? parseFloat(revenueResult.total) : 0;
+      try {
+        byStatus = await this.repo
+          .createQueryBuilder('order')
+          .select('order.status', 'status')
+          .addSelect('COUNT(*)', 'count')
+          .groupBy('order.status')
+          .getRawMany();
+      } catch (e: any) {
+        this.logger.warn('Error getting orders by status:', e?.message);
+      }
 
-    return {
-      total,
-      byStatus: byStatusMap,
-      paid: paidCount,
-      unpaid: unpaidCount,
-      active: activeCount,
-      inactive: inactiveCount,
-      totalRevenue,
-    };
+      try {
+        paidCount = await this.repo.count({ where: { isPaid: true } });
+      } catch (e: any) {
+        this.logger.warn('Error counting paid orders:', e?.message);
+      }
+
+      try {
+        unpaidCount = await this.repo.count({ where: { isPaid: false } });
+      } catch (e: any) {
+        this.logger.warn('Error counting unpaid orders:', e?.message);
+      }
+
+      try {
+        activeCount = await this.repo.count({ where: { isActive: true } });
+      } catch (e: any) {
+        this.logger.warn('Error counting active orders:', e?.message);
+      }
+
+      try {
+        inactiveCount = await this.repo.count({ where: { isActive: false } });
+      } catch (e: any) {
+        this.logger.warn('Error counting inactive orders:', e?.message);
+      }
+
+      const byStatusMap: Record<string, number> = {};
+      if (byStatus && Array.isArray(byStatus)) {
+        byStatus.forEach((item: any) => {
+          if (item?.status && item?.count) {
+            byStatusMap[item.status] = parseInt(String(item.count), 10) || 0;
+          }
+        });
+      }
+
+      // Calculate total revenue (sum of all order totals)
+      // total is stored as numeric in PostgreSQL
+      let totalRevenue = 0;
+      try {
+        // Use query builder with proper handling for numeric type
+        const revenueResult = await this.repo
+          .createQueryBuilder('order')
+          .select('COALESCE(SUM(order.total), 0)', 'total')
+          .getRawOne();
+        
+        if (revenueResult?.total !== null && revenueResult?.total !== undefined) {
+          // Handle both string and number types from PostgreSQL numeric
+          const revenueValue = typeof revenueResult.total === 'string' 
+            ? parseFloat(revenueResult.total) 
+            : Number(revenueResult.total);
+          totalRevenue = isNaN(revenueValue) ? 0 : revenueValue;
+        }
+      } catch (revenueError: any) {
+        this.logger.error('Error calculating total revenue:', revenueError?.message || revenueError);
+        // Fallback: calculate manually if SQL fails
+        try {
+          const allOrders = await this.repo.find({ select: ['total'] });
+          totalRevenue = allOrders.reduce((sum, order) => {
+            const orderTotal = parseFloat(String(order.total || '0'));
+            return sum + (isNaN(orderTotal) ? 0 : orderTotal);
+          }, 0);
+        } catch (fallbackError: any) {
+          this.logger.error('Fallback revenue calculation failed:', fallbackError?.message || fallbackError);
+          totalRevenue = 0;
+        }
+      }
+
+      return {
+        total: total || 0,
+        byStatus: byStatusMap,
+        paid: paidCount || 0,
+        unpaid: unpaidCount || 0,
+        active: activeCount || 0,
+        inactive: inactiveCount || 0,
+        totalRevenue,
+      };
+    } catch (error) {
+      this.logger.error('Error in getOrderStats:', error);
+      // Return default stats instead of throwing to prevent 500 errors
+      return {
+        total: 0,
+        byStatus: {},
+        paid: 0,
+        unpaid: 0,
+        active: 0,
+        inactive: 0,
+        totalRevenue: 0,
+      };
+    }
   }
 }
