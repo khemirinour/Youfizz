@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import AdminNavbar from '@/components/AdminNavbar';
@@ -16,7 +16,7 @@ import { getCategories, getCategoryTree, createCategory, updateCategory, deleteC
 import type { Category } from '@/lib/articles.api';
 import type { CreateCategoryDto } from '@/lib/categories.api';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
-import { Plus, Edit, Trash2, ChevronRight, Folder, FolderOpen } from 'lucide-react';
+import { Plus, Edit, Trash2, ChevronRight } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 
 const AdminCategoriesPage = () => {
@@ -68,18 +68,8 @@ const AdminCategoriesPage = () => {
       if (viewMode === 'tree') {
         const tree = await getCategoryTree(true);
         setCategoryTree(tree);
-        // Expand all by default
-        const allIds = new Set<string>();
-        const collectIds = (cats: Category[]) => {
-          cats.forEach(cat => {
-            allIds.add(cat.id);
-            if (cat.children && cat.children.length > 0) {
-              collectIds(cat.children);
-            }
-          });
-        };
-        collectIds(tree);
-        setExpandedCategories(allIds);
+        // Don't expand all by default - let users expand manually
+        setExpandedCategories(new Set());
       } else {
         const list = await getCategories(true);
         setCategories(list);
@@ -201,35 +191,60 @@ const AdminCategoriesPage = () => {
     });
   };
 
+  // Helper function to check if a category should be shown
+  const shouldShowCategory = (category: Category): boolean => {
+    // Always show root categories (no parent)
+    if (!category.parentId) return true;
+    
+    // Show if parent is expanded
+    const parent = categoryTree.find(cat => cat.id === category.parentId);
+    if (parent && expandedCategories.has(category.parentId)) return true;
+    
+    // Show if any ancestor is expanded
+    const findAncestor = (cat: Category | undefined): boolean => {
+      if (!cat || !cat.parentId) return false;
+      if (expandedCategories.has(cat.parentId)) return true;
+      const ancestor = categoryTree.find(c => c.id === cat.parentId);
+      return findAncestor(ancestor);
+    };
+    
+    return findAncestor(category);
+  };
+
+  // Get root categories (categories without parents)
+  const rootCategories = useMemo(() => {
+    return categoryTree.filter(cat => !cat.parentId);
+  }, [categoryTree]);
+
   const renderCategoryTree = (category: Category, level: number = 0) => {
     const hasChildren = category.children && category.children.length > 0;
     const isExpanded = expandedCategories.has(category.id);
-    const indent = level * 24;
+    const childrenToShow = category.children?.filter(child => shouldShowCategory(child)) || [];
 
     return (
       <div key={category.id} className="border-b border-border/50 last:border-b-0">
         <div
           className="flex items-center gap-2 py-3 px-4 hover:bg-secondary/50 transition-colors"
-          style={{ paddingLeft: `${16 + indent}px` }}
+          style={{ paddingLeft: `${16 + level * 24}px` }}
         >
           <div className="flex items-center gap-2 flex-1 min-w-0">
             {hasChildren ? (
               <button
                 onClick={() => toggleExpand(category.id)}
-                className="flex-shrink-0 w-6 h-6 flex items-center justify-center hover:bg-secondary rounded"
+                className="flex-shrink-0 w-6 h-6 flex items-center justify-center hover:bg-secondary rounded transition-transform"
               >
-                {isExpanded ? (
-                  <FolderOpen className="h-4 w-4 text-primary" />
-                ) : (
-                  <Folder className="h-4 w-4 text-muted-foreground" />
-                )}
+                <ChevronRight 
+                  className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                />
               </button>
             ) : (
               <div className="w-6" />
             )}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <span className="font-medium text-foreground">{category.name}</span>
+                <span className={`font-medium text-foreground ${level === 0 ? 'text-base' : 'text-sm'}`}>
+                  {category.name}
+                </span>
                 {!category.isActive && (
                   <span className="text-xs px-2 py-0.5 rounded bg-muted text-muted-foreground">Inactive</span>
                 )}
@@ -260,9 +275,9 @@ const AdminCategoriesPage = () => {
             </Button>
           </div>
         </div>
-        {hasChildren && isExpanded && (
-          <div>
-            {category.children!.map(child => renderCategoryTree(child, level + 1))}
+        {hasChildren && isExpanded && childrenToShow.length > 0 && (
+          <div className="ml-4 border-l-2 border-muted/50">
+            {childrenToShow.map(child => renderCategoryTree(child, level + 1))}
           </div>
         )}
       </div>
@@ -433,13 +448,40 @@ const AdminCategoriesPage = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="__none__">Aucune (catégorie racine)</SelectItem>
-                  {categories
+                  {rootCategories
                     .filter(cat => !editingCategory || cat.id !== editingCategory.id)
-                    .map(cat => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
+                    .map(cat => {
+                      const renderCategoryOption = (category: Category, depth: number = 0): JSX.Element => {
+                        const indent = depth * 20;
+                        const hasChildren = category.children && category.children.length > 0;
+                        const isExpanded = expandedCategories.has(category.id);
+                        const childrenToShow = category.children?.filter(child => shouldShowCategory(child)) || [];
+
+                        return (
+                          <div key={category.id}>
+                            <SelectItem 
+                              value={category.id}
+                              style={{ paddingLeft: `${12 + indent}px` }}
+                            >
+                              <div className="flex items-center gap-2">
+                                {hasChildren && (
+                                  <ChevronRight 
+                                    className={`h-3 w-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
+                                  />
+                                )}
+                                <span className={depth === 0 ? 'font-medium' : ''}>{category.name}</span>
+                              </div>
+                            </SelectItem>
+                            {hasChildren && isExpanded && childrenToShow.length > 0 && (
+                              <>
+                                {childrenToShow.map(child => renderCategoryOption(child, depth + 1))}
+                              </>
+                            )}
+                          </div>
+                        );
+                      };
+                      return renderCategoryOption(cat);
+                    })}
                 </SelectContent>
               </Select>
             </div>

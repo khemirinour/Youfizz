@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingBag, Filter, X, ChevronDown } from 'lucide-react';
+import { Search, ShoppingBag, Filter, X, ChevronDown, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -225,6 +225,83 @@ const ShopPage = () => {
     return result;
   };
 
+  // Helper function to check if a category has any selected children
+  const hasSelectedChildren = (category: Category): boolean => {
+    if (!category.children || category.children.length === 0) return false;
+    return category.children.some(child => 
+      selectedCategories.includes(child.id) || hasSelectedChildren(child)
+    );
+  };
+
+  // Helper function to check if a category should be shown
+  const shouldShowCategory = (category: Category): boolean => {
+    // Always show root categories (no parent)
+    if (!category.parentId) return true;
+    
+    // Show if parent is selected
+    const parent = categories.find(cat => cat.id === category.parentId);
+    if (parent && selectedCategories.includes(category.parentId)) return true;
+    
+    // Show if any ancestor is selected
+    const findAncestor = (cat: Category | undefined): boolean => {
+      if (!cat || !cat.parentId) return false;
+      if (selectedCategories.includes(cat.parentId)) return true;
+      const ancestor = categories.find(c => c.id === cat.parentId);
+      return findAncestor(ancestor);
+    };
+    
+    return findAncestor(category);
+  };
+
+  // Get root categories (categories without parents)
+  const rootCategories = useMemo(() => {
+    return categories.filter(cat => !cat.parentId);
+  }, [categories]);
+
+  // Render category with children recursively
+  const renderCategory = (category: Category, level: number = 0): JSX.Element => {
+    const isSelected = selectedCategories.includes(category.id);
+    const hasChildren = category.children && category.children.length > 0;
+    const showChildren = isSelected && hasChildren;
+    const childrenToShow = category.children?.filter(child => shouldShowCategory(child)) || [];
+
+    return (
+      <div key={category.id}>
+        <div 
+          className={`flex items-center space-x-2 py-1.5 ${level > 0 ? 'pl-6' : ''}`}
+          style={{ paddingLeft: `${level * 1.5}rem` }}
+        >
+          <Checkbox
+            id={`cat-${category.id}`}
+            checked={isSelected}
+            onCheckedChange={() => handleCategoryToggle(category.id)}
+          />
+          <Label
+            htmlFor={`cat-${category.id}`}
+            className="text-sm font-normal cursor-pointer flex-1 flex items-center gap-2"
+          >
+            {hasChildren && (
+              <ChevronRight 
+                className={`h-4 w-4 transition-transform ${showChildren ? 'rotate-90' : ''}`}
+              />
+            )}
+            <span className={level === 0 ? 'font-medium' : ''}>{category.name}</span>
+            {category.description && (
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                ({category.description})
+              </span>
+            )}
+          </Label>
+        </div>
+        {showChildren && childrenToShow.length > 0 && (
+          <div className="ml-4 border-l-2 border-muted pl-2">
+            {childrenToShow.map(child => renderCategory(child, level + 1))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   const flatCategories = useMemo(() => flattenCategories(categories), [categories]);
 
   return (
@@ -287,8 +364,8 @@ const ShopPage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Categories */}
                 <div className="space-y-2">
-                  <Label>Categories</Label>
-                  <Collapsible>
+                  <Label className="text-base font-semibold">Categories</Label>
+                  <Collapsible defaultOpen>
                     <CollapsibleTrigger asChild>
                       <Button variant="outline" className="w-full justify-between">
                         <span className="text-sm">
@@ -299,22 +376,14 @@ const ShopPage = () => {
                         <ChevronDown className="h-4 w-4" />
                       </Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2 max-h-60 overflow-y-auto border rounded-md p-2 space-y-2">
-                      {flatCategories.map((category) => (
-                        <div key={category.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`cat-${category.id}`}
-                            checked={selectedCategories.includes(category.id)}
-                            onCheckedChange={() => handleCategoryToggle(category.id)}
-                          />
-                          <Label
-                            htmlFor={`cat-${category.id}`}
-                            className="text-sm font-normal cursor-pointer flex-1"
-                          >
-                            {category.name}
-                          </Label>
+                    <CollapsibleContent className="mt-2 max-h-96 overflow-y-auto border rounded-md p-3 space-y-1 bg-muted/30">
+                      {rootCategories.length === 0 ? (
+                        <div className="text-sm text-muted-foreground py-4 text-center">
+                          No categories available
                         </div>
-                      ))}
+                      ) : (
+                        rootCategories.map(category => renderCategory(category))
+                      )}
                     </CollapsibleContent>
                   </Collapsible>
                 </div>

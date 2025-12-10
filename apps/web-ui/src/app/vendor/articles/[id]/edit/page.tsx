@@ -16,10 +16,11 @@ import { Switch } from '@/components/ui/switch';
 import { ImageUpload } from '@/components/ImageUpload';
 import { ImageGallery } from '@/components/ImageGallery';
 import type { Article } from '@/lib/articles.api';
-import { getCategories, type Category } from '@/lib/categories.api';
+import { getCategoryTree, type Category } from '@/lib/categories.api';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronDown, Plus, X } from 'lucide-react';
+import { CategoryTree } from '@/components/CategoryTree';
 
 const EditArticlePage = () => {
   const params = useParams<{ id: string }>();
@@ -85,7 +86,7 @@ const EditArticlePage = () => {
     if (!hydrated) return;
     const loadCategories = async () => {
       try {
-        const cats = await getCategories();
+        const cats = await getCategoryTree();
         setCategories(cats);
       } catch (error) {
         console.error('Failed to load categories:', error);
@@ -378,29 +379,19 @@ const EditArticlePage = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0">
-                  <div className="max-h-60 overflow-y-auto p-2">
-                    {categories.map((category) => (
-                      <div key={category.id} className="flex items-center space-x-2 p-2 hover:bg-secondary/50 rounded">
-                        <Checkbox
-                          id={`cat-edit-${category.id}`}
-                          checked={formData.categoryIds?.includes(category.id) || false}
-                          onCheckedChange={(checked) => {
-                            const currentIds = formData.categoryIds || [];
-                            if (checked) {
-                              setFormData({ ...formData, categoryIds: [...currentIds, category.id] });
-                            } else {
-                              setFormData({ ...formData, categoryIds: currentIds.filter((id) => id !== category.id) });
-                            }
-                          }}
-                        />
-                        <label
-                          htmlFor={`cat-edit-${category.id}`}
-                          className="text-sm font-medium leading-none cursor-pointer flex-1"
-                        >
-                          {category.name}
-                        </label>
-                      </div>
-                    ))}
+                  <div className="max-h-60 overflow-y-auto p-3 bg-muted/30">
+                    <CategoryTree
+                      categories={categories}
+                      selectedIds={formData.categoryIds || []}
+                      onToggle={(categoryId) => {
+                        const currentIds = formData.categoryIds || [];
+                        if (currentIds.includes(categoryId)) {
+                          setFormData({ ...formData, categoryIds: currentIds.filter((id) => id !== categoryId) });
+                        } else {
+                          setFormData({ ...formData, categoryIds: [...currentIds, categoryId] });
+                        }
+                      }}
+                    />
                   </div>
                 </PopoverContent>
               </Popover>

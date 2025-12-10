@@ -30,6 +30,8 @@ import { format } from 'date-fns';
 import { getCategories } from '@/lib/categories.api';
 import { Category } from '@/lib/articles.api';
 import { Checkbox } from '@/components/ui/checkbox';
+import { CategoryTree } from '@/components/CategoryTree';
+import { getCategoryTree } from '@/lib/categories.api';
 
 const ArticlesListPage = () => {
   const router = useRouter();
@@ -119,7 +121,7 @@ const ArticlesListPage = () => {
     if (!hydrated) return;
     const loadCategories = async () => {
       try {
-        const cats = await getCategories();
+        const cats = await getCategoryTree();
         setCategories(cats);
       } catch (error) {
         console.error('Failed to load categories:', error);
@@ -371,12 +373,12 @@ const ArticlesListPage = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {/* Categories Multi-Select */}
                   <div className="space-y-2">
-                    <Label className="text-muted-foreground">Catégories</Label>
+                    <Label>Catégories</Label>
                     <Popover>
                       <PopoverTrigger asChild>
                         <Button
                           variant="outline"
-                          className="w-full justify-between bg-secondary/80 border-border text-foreground"
+                          className="w-full justify-between"
                         >
                           {selectedCategories.length > 0
                             ? `${selectedCategories.length} sélectionnée(s)`
@@ -385,28 +387,18 @@ const ArticlesListPage = () => {
                         </Button>
                       </PopoverTrigger>
                       <PopoverContent className="w-full p-0 bg-card border-border">
-                        <div className="max-h-60 overflow-y-auto p-2">
-                          {categories.map((category) => (
-                            <div key={category.id} className="flex items-center space-x-2 p-2 hover:bg-secondary/50 rounded">
-                              <Checkbox
-                                id={`cat-${category.id}`}
-                                checked={selectedCategories.includes(category.id)}
-                                onCheckedChange={(checked) => {
-                                  if (checked) {
-                                    setSelectedCategories([...selectedCategories, category.id]);
-                                  } else {
-                                    setSelectedCategories(selectedCategories.filter((id) => id !== category.id));
-                                  }
-                                }}
-                              />
-                              <label
-                                htmlFor={`cat-${category.id}`}
-                                className="text-sm font-medium leading-none cursor-pointer flex-1"
-                              >
-                                {category.name}
-                              </label>
-                            </div>
-                          ))}
+                        <div className="max-h-60 overflow-y-auto p-3 bg-muted/30">
+                          <CategoryTree
+                            categories={categories}
+                            selectedIds={selectedCategories}
+                            onToggle={(categoryId) => {
+                              if (selectedCategories.includes(categoryId)) {
+                                setSelectedCategories(selectedCategories.filter((id) => id !== categoryId));
+                              } else {
+                                setSelectedCategories([...selectedCategories, categoryId]);
+                              }
+                            }}
+                          />
                         </div>
                       </PopoverContent>
                     </Popover>
@@ -422,6 +414,7 @@ const ArticlesListPage = () => {
                       onChange={(e) => setMinPrice(e.target.value)}
                       className="bg-secondary/80 border-border text-foreground"
                     />
+                    
                   </div>
                   <div className="space-y-2">
                     <Label className="text-muted-foreground">Prix max</Label>
