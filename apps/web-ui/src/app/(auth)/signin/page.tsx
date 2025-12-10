@@ -17,7 +17,7 @@ const SignIn = () => {
   const router = useRouter();
   const { toast } = useToast();
   const { t, ready } = useTranslation();
-  const { login, isLoading } = useAuthStore();
+  const { login, isLoading, user } = useAuthStore();
   const [mounted, setMounted] = useState(false);
   const [formData, setFormData] = useState({
     email: "",
@@ -51,11 +51,25 @@ const SignIn = () => {
 
     try {
       await login(formData.email, formData.password);
+      
+      // Get the user from the store after login
+      const currentUser = useAuthStore.getState().user;
+      
+      // Redirect based on role
+      let redirectPath = "/";
+      if (currentUser?.role === 'admin') {
+        redirectPath = "/admin";
+      } else if (currentUser?.role === 'vendeur') {
+        redirectPath = "/vendor";
+      } else if (currentUser?.role === 'confermateur') {
+        redirectPath = "/confermateur";
+      }
+      
       toast({
         title: t('toast.success'),
         description: t('toast.signInSuccess'),
       });
-      router.push("/");
+      router.push(redirectPath);
     } catch (error: any) {
       const message = error?.response?.data?.message || 'Sign in failed';
       const description = Array.isArray(message) ? message.join(', ') : message;
