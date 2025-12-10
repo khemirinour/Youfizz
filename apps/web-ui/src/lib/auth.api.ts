@@ -72,7 +72,7 @@ export async function apiRequestPasswordReset(email: string) {
 }
 
 export async function apiConfirmPasswordReset(token: string) {
-	return post<{ valid: boolean; message?: string }>('/api/auth/password-reset/confirm', { token });
+	return post<{ isValid: boolean; email?: string; expiresAt?: Date; message: string }>('/api/auth/password-reset/confirm', { token });
 }
 
 export async function apiResetPassword(token: string, newPassword: string) {

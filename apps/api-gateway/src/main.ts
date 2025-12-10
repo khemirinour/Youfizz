@@ -7,6 +7,9 @@ import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app/app.module';
+import * as http from 'http';
+import * as https from 'https';
+import { URL } from 'url';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +17,108 @@ async function bootstrap() {
   // Enable cookie parser middleware to read cookies from requests
   const cookieParser = require('cookie-parser');
   app.use(cookieParser());
+  
+  // Determine Next.js frontend URL
+  // If FRONTEND_URL points to the same port as API Gateway, use port 4200 instead
+  const gatewayPort = 3000;
+  const frontendUrlEnv = process.env.FRONTEND_URL || 'http://localhost:4200';
+  let frontendUrl = frontendUrlEnv;
+  
+  // Check if FRONTEND_URL points to the same port as the gateway (would cause redirect loop)
+  if (frontendUrlEnv.includes(`:${gatewayPort}`) || frontendUrlEnv.includes(':3000')) {
+    // Use default Next.js port instead
+    frontendUrl = 'http://localhost:4200';
+    Logger.warn(`FRONTEND_URL points to gateway port (${gatewayPort}), using port 4200 for Next.js proxy instead`);
+  }
+  
+  Logger.log(`Frontend proxy target: ${frontendUrl}`);
+  
+  // Proxy non-API routes to Next.js frontend
+  app.use(async (req: any, res: any, next: any) => {
+    const path = req.path;
+    // Only proxy if it's not an API route, health check, or Swagger docs
+    if (!path.startsWith('/api') && path !== '/health' && !path.startsWith('/api-docs')) {
+      try {
+        const targetUrl = new URL(req.url, frontendUrl);
+        const client = targetUrl.protocol === 'https:' ? https : http;
+        
+        const options = {
+          hostname: targetUrl.hostname,
+          port: targetUrl.port || (targetUrl.protocol === 'https:' ? 443 : 80),
+          path: targetUrl.pathname + targetUrl.search,
+          method: req.method,
+          headers: {
+            ...req.headers,
+            host: targetUrl.host,
+            'x-forwarded-for': req.ip || req.connection.remoteAddress,
+            'x-forwarded-proto': req.protocol || 'http',
+            'x-forwarded-host': req.get('host'),
+          },
+        };
+        
+        const proxyReq = client.request(options, (proxyRes) => {
+          // Copy status code
+          res.statusCode = proxyRes.statusCode || 200;
+          
+          // Copy headers
+          Object.keys(proxyRes.headers).forEach((key) => {
+            const value = proxyRes.headers[key];
+            if (value) {
+              if (Array.isArray(value)) {
+                res.setHeader(key, value);
+              } else {
+                res.setHeader(key, value);
+              }
+            }
+          });
+          
+          // Pipe the response
+          proxyRes.pipe(res);
+        });
+        
+        proxyReq.on('error', (err) => {
+          Logger.error(`Proxy error for ${req.url}: ${err.message}`);
+          if (!res.headersSent) {
+            res.status(502).json({
+              message: 'Frontend service unavailable. Please ensure Next.js is running.',
+              error: 'Bad Gateway',
+              statusCode: 502,
+            });
+          }
+        });
+        
+        // Pipe the request body (works for both GET and POST requests)
+        req.pipe(proxyReq);
+        
+        // Handle request errors
+        req.on('error', (err) => {
+          Logger.error(`Request error: ${err.message}`);
+          if (!res.headersSent) {
+            proxyReq.destroy();
+            res.status(500).json({
+              message: 'Request error',
+              error: 'Internal Server Error',
+              statusCode: 500,
+            });
+          }
+        });
+        
+        // Don't call next() - we're handling the request via proxy
+        return;
+      } catch (error: any) {
+        Logger.error(`Proxy setup error: ${error.message}`);
+        if (!res.headersSent) {
+          res.status(502).json({
+            message: 'Frontend service unavailable',
+            error: 'Bad Gateway',
+            statusCode: 502,
+          });
+        }
+        return;
+      }
+    }
+    next();
+  });
   
   app.enableCors({
     origin: [

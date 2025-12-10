@@ -97,7 +97,7 @@ export class AuthService {
   // Private method to send password reset email asynchronously
   private async sendPasswordResetEmailAsync(email: string, token: string, firstName?: string): Promise<void> {
     try {
-      await this.emailService.sendPasswordResetEmail({ email, resetToken: token, firstName });
+      await this.notificationClient.sendPasswordResetEmail({ email, resetToken: token, firstName });
       console.log(`Password reset email sent successfully to ${email}`);
     } catch (error) {
       // Log error but don't fail the request for security reasons

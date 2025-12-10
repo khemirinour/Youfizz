@@ -1290,4 +1290,5 @@ export class AppController {
   async getArticleStats(@Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest('/stats/articles', 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
+
 }

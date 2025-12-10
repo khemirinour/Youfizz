@@ -1045,7 +1045,7 @@ export class AppController {
 
   @Post('password-reset/confirm')
   @UseGuards(CustomThrottlerGuard)
-  @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 token confirmations per minute
+  @Throttle({ medium: { limit: 30, ttl: 10000 } }) // 30 token confirmations per 10 seconds (more lenient for page loads)
   @ApiOperation({ 
     summary: 'Confirm password reset token validity',
     description: 'Verify if password reset token is valid and not expired.'
