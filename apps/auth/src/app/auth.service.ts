@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailService } from '@you-fizz/shared';
@@ -16,6 +16,7 @@ import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -503,6 +504,34 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
     user.isActive = isActive;
+    await this.userRepo.save(user);
+    return this.toUserResponseDto(user);
+  }
+
+  async updateUserProfile(id: string, updateData: { firstName?: string; lastName?: string; email?: string }): Promise<UserResponseDto> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update only provided fields
+    if (updateData.firstName !== undefined) {
+      user.firstName = updateData.firstName;
+    }
+    if (updateData.lastName !== undefined) {
+      user.lastName = updateData.lastName;
+    }
+    if (updateData.email !== undefined) {
+      // Check if email is already taken by another user
+      const existingUser = await this.userRepo.findOne({ 
+        where: { email: updateData.email } 
+      });
+      if (existingUser && existingUser.id !== id) {
+        throw new BadRequestException('Email is already taken');
+      }
+      user.email = updateData.email;
+    }
+
     await this.userRepo.save(user);
     return this.toUserResponseDto(user);
   }

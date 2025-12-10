@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { LogOut, Package, Plus, LayoutDashboard, ShoppingCart } from 'lucide-react';
+import { LogOut, Package, Plus, LayoutDashboard, ShoppingCart, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import logo from '@/assets/youfizz-logo.png';
@@ -164,12 +164,22 @@ export default function VendorNavbar() {
             </Link>
           </div>
 
-          {/* Vendor Info & Logout */}
+          {/* Vendor Info & Actions */}
           <div className="flex items-center gap-4">
             <div className="text-sm">
               <span className="text-muted-foreground">Welcome,</span>
               <span className="ml-2 font-medium">{vendorName}</span>
             </div>
+            <Link href="/profile">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <UserCircle className="h-4 w-4" />
+                <span>Profile</span>
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"

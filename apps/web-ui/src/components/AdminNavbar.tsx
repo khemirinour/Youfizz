@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { LogOut, Users, BarChart3, FolderTree } from 'lucide-react';
+import { LogOut, Users, BarChart3, FolderTree, UserCircle } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import logo from '@/assets/youfizz-logo.png';
@@ -144,12 +144,22 @@ export default function AdminNavbar({ activeTab = 'users', onTabChange }: AdminN
             </Link>
           </div>
 
-          {/* Admin Info & Logout */}
+          {/* Admin Info & Actions */}
           <div className="flex items-center gap-4">
             <div className="text-sm">
               <span className="text-muted-foreground">Welcome,</span>
               <span className="ml-2 font-medium">{adminName}</span>
             </div>
+            <Link href="/profile">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <UserCircle className="h-4 w-4" />
+                <span>Profile</span>
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"

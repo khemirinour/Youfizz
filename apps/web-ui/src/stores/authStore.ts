@@ -25,6 +25,7 @@ interface AuthActions {
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   refreshToken: () => Promise<boolean>;
+  updateUser: (userData: Partial<Omit<User, 'id' | 'role'>> & { id: string }) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -193,6 +194,20 @@ export const useAuthStore = create<AuthStore>()(
 
       setError: (error: string | null) => {
         set({ error });
+      },
+
+      updateUser: (userData) => {
+        const currentUser = get().user;
+        if (currentUser && currentUser.id === userData.id) {
+          set({
+            user: {
+              ...currentUser,
+              ...userData,
+              // Preserve role - it cannot be updated by users
+              role: currentUser.role,
+            },
+          });
+        }
       },
 
       clearError: () => {

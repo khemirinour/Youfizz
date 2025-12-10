@@ -20,6 +20,7 @@ import { Paginated } from '../dto/paginated.dto';
 import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @ApiTags('auth')
 @Controller()
@@ -310,12 +311,11 @@ export class AppController {
     return user;
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @Get('users/:id')
   @ApiOperation({ 
     summary: 'Get user by ID',
-    description: 'Retrieve specific user by ID. Admin only.'
+    description: 'Retrieve specific user by ID. Admin can access any user, regular users can only access their own profile.'
   })
   @ApiBearerAuth()
   @ApiOkResponse({ 
@@ -329,9 +329,55 @@ export class AppController {
     description: 'User not found'
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
-  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  async findOne(@Param('id') id: string, @Req() req: any): Promise<UserResponseDto> {
+    const currentUser = req.user;
+    
+    // Allow if user is admin OR if user is accessing their own profile
+    if (currentUser.role !== UserRole.ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException('You can only access your own profile');
+    }
+    
     return this.authService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('users/:id')
+  @ApiOperation({ 
+    summary: 'Update user profile',
+    description: 'Update user profile information (firstName, lastName, email). Admin can update any user, regular users can only update their own profile. Role cannot be updated via this endpoint.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'User updated successfully', 
+    type: UserResponseDto
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Invalid user ID or email already taken'
+  })
+  @ApiNotFoundResponse({ 
+    description: 'User not found'
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  async updateUser(
+    @Param('id') id: string,
+    @Body(ValidationPipe) updateData: UpdateUserDto,
+    @Req() req: any
+  ): Promise<UserResponseDto> {
+    const currentUser = req.user;
+    
+    // Allow if user is admin OR if user is updating their own profile
+    if (currentUser.role !== UserRole.ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException('You can only update your own profile');
+    }
+
+    // Prevent role updates via this endpoint
+    if ((updateData as any).role) {
+      throw new ForbiddenException('Role cannot be updated via this endpoint');
+    }
+
+    return this.authService.updateUserProfile(id, updateData);
   }
 
   @Get('roles')

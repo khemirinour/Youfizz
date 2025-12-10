@@ -4,7 +4,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Logo from './Logo';
 import { Button } from '@/components/ui/button';
-import { ShoppingBag, BookOpen, HelpCircle, Menu, X, Home, LogIn, User } from 'lucide-react';
+import { ShoppingBag, BookOpen, HelpCircle, Menu, X, Home, LogIn, User, UserCircle } from 'lucide-react';
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/stores/authStore';
 import {
@@ -126,6 +126,12 @@ export default function PublicNavbar() {
                         </div>
                       </DropdownMenuLabel>
                       <DropdownMenuSeparator />
+                      <DropdownMenuItem asChild>
+                        <Link href="/profile" className="cursor-pointer">
+                          <UserCircle className="mr-2 h-4 w-4" />
+                          <span>Profile</span>
+                        </Link>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <Link href={getDashboardPath()} className="cursor-pointer">
                           <User className="mr-2 h-4 w-4" />

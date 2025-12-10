@@ -160,14 +160,36 @@ export class AppController {
   @Get('auth/users/:id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth('JWT-auth')
-  @ApiOperation({ summary: 'Get user by ID (Admin only)', description: 'Retrieve detailed information about a specific user' })
+  @ApiOperation({ summary: 'Get user by ID', description: 'Retrieve detailed information about a specific user. Admin can access any user, regular users can only access their own profile.' })
   @ApiParam({ name: 'id', description: 'User ID' })
   @ApiResponse({ status: 200, description: 'User retrieved successfully' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
-  @ApiResponse({ status: 403, description: 'Forbidden - Admin role required' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Cannot access other users\' profiles' })
   @ApiResponse({ status: 404, description: 'User not found' })
   async getUser(@Param('id') id: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
     return this.gatewayService.forwardRequest(`/users/${id}`, 'GET', null, headers, req.user, false, false, (req as any).cookies);
+  }
+
+  @ApiTags('auth')
+  @Patch('auth/users/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Update user profile', 
+    description: 'Update user profile information (firstName, lastName, email). Admin can update any user, regular users can only update their own profile.' 
+  })
+  @ApiParam({ name: 'id', description: 'User ID' })
+  @ApiResponse({ status: 200, description: 'User updated successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Cannot update other users\' profiles' })
+  @ApiResponse({ status: 404, description: 'User not found' })
+  async updateUser(
+    @Param('id') id: string, 
+    @Body() body: any, 
+    @Headers() headers: Record<string, string>, 
+    @Req() req: Request
+  ) {
+    return this.gatewayService.forwardRequest(`/users/${id}`, 'PATCH', body, headers, req.user, false, false, (req as any).cookies);
   }
 
   @ApiTags('auth')
