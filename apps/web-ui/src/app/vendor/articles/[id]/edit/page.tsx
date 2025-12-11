@@ -35,6 +35,7 @@ const EditArticlePage = () => {
     title: '',
     description: '',
     price: '',
+    priceAfterDiscount: '',
     stock: 0,
     sku: '',
     status: 'DRAFT',
@@ -108,6 +109,7 @@ const EditArticlePage = () => {
             title: data.title || '',
             description: data.description || '',
             price: data.price || '',
+            priceAfterDiscount: data.priceAfterDiscount || '',
             stock: data.stock || 0,
             sku: data.sku || '',
             status: data.status || 'DRAFT',
@@ -312,6 +314,19 @@ const EditArticlePage = () => {
                 />
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="priceAfterDiscount">Price After Discount</Label>
+                <Input
+                  id="priceAfterDiscount"
+                  type="text"
+                  value={formData.priceAfterDiscount}
+                  onChange={(e) => setFormData({ ...formData, priceAfterDiscount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="stock">Stock</Label>
                 <Input

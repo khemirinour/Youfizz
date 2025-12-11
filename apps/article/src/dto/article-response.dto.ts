@@ -15,6 +15,9 @@ export class ArticleResponseDto {
   @ApiProperty({ description: 'Decimal string' })
   price!: string;
 
+  @ApiProperty({ required: false, nullable: true, description: 'Decimal string. Optional price after discount' })
+  priceAfterDiscount?: string | null;
+
   @ApiProperty()
   stock!: number;
 
@@ -57,6 +60,7 @@ export class ArticleResponseDto {
       title: entity.title,
       description: entity.description ?? null,
       price: entity.price,
+      priceAfterDiscount: entity.priceAfterDiscount ?? null,
       stock: entity.stock,
       sku: entity.sku ?? null,
       categoryId: entity.categoryId ?? null,

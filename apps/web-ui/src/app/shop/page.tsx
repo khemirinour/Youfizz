@@ -304,6 +304,15 @@ const ShopPage = () => {
 
   const flatCategories = useMemo(() => flattenCategories(categories), [categories]);
 
+  // Helper function to calculate discount percentage
+  const calculateDiscountPercentage = (price: string, priceAfterDiscount?: string): number | null => {
+    if (!priceAfterDiscount || !price) return null;
+    const originalPrice = parseFloat(price);
+    const discountedPrice = parseFloat(priceAfterDiscount);
+    if (originalPrice <= 0 || discountedPrice >= originalPrice) return null;
+    return Math.round(((originalPrice - discountedPrice) / originalPrice) * 100);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <PublicNavbar />
@@ -525,46 +534,74 @@ const ShopPage = () => {
                   Showing {((page - 1) * pageSize) + 1} - {Math.min(page * pageSize, total)} of {total} articles
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 mb-8">
-                  {articles.map((article) => (
-                    <Link key={article.id} href={`/article/${article.id}`}>
-                      <Card className="h-full flex flex-col hover:shadow-lg transition-shadow cursor-pointer">
-                        <CardHeader className="p-0">
-                          <div className="relative w-full h-48 bg-muted rounded-t-lg overflow-hidden">
-                            {article.images && article.images.length > 0 ? (
-                              <Image
-                                src={article.images[0]}
-                                alt={article.title}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                  {articles.map((article) => {
+                    const discountPercent = calculateDiscountPercentage(article.price || '', article.priceAfterDiscount);
+                    const hasDiscount = discountPercent !== null && discountPercent > 0;
+                    
+                    return (
+                      <Link key={article.id} href={`/article/${article.id}`}>
+                        <Card className="h-full flex flex-col hover:shadow-lg transition-shadow cursor-pointer relative">
+                          {/* Discount Badge */}
+                          {hasDiscount && (
+                            <div className="absolute top-2 right-2 z-10 bg-red-500 text-white px-2 py-1 rounded-md text-xs font-bold shadow-lg">
+                              -{discountPercent}%
+                            </div>
+                          )}
+                          <CardHeader className="p-0">
+                            <div className="relative w-full h-48 bg-muted rounded-t-lg overflow-hidden">
+                              {article.images && article.images.length > 0 ? (
+                                <Image
+                                  src={article.images[0]}
+                                  alt={article.title}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <ShoppingBag className="h-12 w-12 text-muted-foreground" />
+                                </div>
+                              )}
+                            </div>
+                          </CardHeader>
+                          <CardContent className="flex-1 p-4">
+                            <CardTitle className="text-lg mb-2 line-clamp-2">{article.title}</CardTitle>
+                            {article.description && (
+                              <CardDescription className="line-clamp-2 mb-2">
+                                {article.description}
+                              </CardDescription>
+                            )}
+                            {article.price && (
+                              <div className="mt-2">
+                                {hasDiscount && article.priceAfterDiscount ? (
+                                  <div className="space-y-1">
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-2xl font-bold text-primary">
+                                        ${article.priceAfterDiscount}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-sm text-muted-foreground line-through">
+                                        ${article.price}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-2xl font-bold text-primary">
+                                    ${article.price}
+                                  </div>
+                                )}
                               </div>
                             )}
-                          </div>
-                        </CardHeader>
-                        <CardContent className="flex-1 p-4">
-                          <CardTitle className="text-lg mb-2 line-clamp-2">{article.title}</CardTitle>
-                          {article.description && (
-                            <CardDescription className="line-clamp-2 mb-2">
-                              {article.description}
-                            </CardDescription>
-                          )}
-                          {article.price && (
-                            <div className="text-2xl font-bold text-primary mt-2">
-                              ${article.price}
-                            </div>
-                          )}
-                          {typeof article.stock === 'number' && (
-                            <div className="text-sm text-muted-foreground mt-1">
-                              {article.stock > 0 ? `${article.stock} in stock` : 'Out of stock'}
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </Link>
-                  ))}
+                            {typeof article.stock === 'number' && (
+                              <div className="text-sm text-muted-foreground mt-1">
+                                {article.stock > 0 ? `${article.stock} in stock` : 'Out of stock'}
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </Link>
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}

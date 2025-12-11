@@ -20,6 +20,9 @@ export class Article extends BaseEntity {
   @Column({ type: 'numeric', precision: 12, scale: 2, default: 0 })
   price!: string;
 
+  @Column({ type: 'numeric', precision: 12, scale: 2, nullable: true })
+  priceAfterDiscount?: string;
+
   @Column({ type: 'int', default: 0 })
   stock!: number;
 

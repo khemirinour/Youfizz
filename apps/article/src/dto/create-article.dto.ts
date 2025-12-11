@@ -17,6 +17,11 @@ export class CreateArticleDto {
   @IsNumberString()
   price!: string;
 
+  @ApiPropertyOptional({ description: 'Decimal string, e.g. 15.99. Optional price after discount' })
+  @IsOptional()
+  @IsNumberString()
+  priceAfterDiscount?: string;
+
   @ApiPropertyOptional()
   @IsOptional()
   @IsInt()

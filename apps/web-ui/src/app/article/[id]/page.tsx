@@ -35,6 +35,15 @@ const ArticleDetailPage = () => {
 
   const articleId = params.id as string;
 
+  // Helper function to calculate discount percentage
+  const calculateDiscountPercentage = (price: string | undefined, priceAfterDiscount?: string): number | null => {
+    if (!priceAfterDiscount || !price) return null;
+    const originalPrice = parseFloat(price);
+    const discountedPrice = parseFloat(priceAfterDiscount);
+    if (originalPrice <= 0 || discountedPrice >= originalPrice) return null;
+    return Math.round(((originalPrice - discountedPrice) / originalPrice) * 100);
+  };
+
   useEffect(() => {
     const fetchArticle = async () => {
       if (!articleId) return;
@@ -121,12 +130,18 @@ const ArticleDetailPage = () => {
     return `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Calculate total
+  // Calculate total - use discounted price if available
   const calculateTotal = () => {
     if (!article?.price) return '0.00';
-    const price = parseFloat(article.price);
-    const total = price * quantity;
+    const priceToUse = article.priceAfterDiscount ? parseFloat(article.priceAfterDiscount) : parseFloat(article.price);
+    const total = priceToUse * quantity;
     return total.toFixed(2);
+  };
+
+  // Get the effective price (discounted or regular)
+  const getEffectivePrice = () => {
+    if (!article?.price) return '';
+    return article.priceAfterDiscount || article.price;
   };
 
   // Validate form
@@ -163,12 +178,15 @@ const ArticleDetailPage = () => {
         return;
       }
 
+      // Use discounted price if available, otherwise use regular price
+      const effectivePrice = article.priceAfterDiscount || article.price;
+      
       const orderData: CreateOrderDto = {
         items: [
           {
             articleId: article.id,
             qty: quantity,
-            price: article.price,
+            price: effectivePrice,
           },
         ],
         total: calculateTotal(),
@@ -223,13 +241,23 @@ const ArticleDetailPage = () => {
             {/* Main Image */}
             <div className="relative w-full h-96 bg-muted rounded-lg overflow-hidden">
               {mainImage ? (
-                <Image
-                  src={mainImage}
-                  alt={article.title}
-                  fill
-                  className="object-cover"
-                  priority
-                />
+                <>
+                  <Image
+                    src={mainImage}
+                    alt={article.title}
+                    fill
+                    className="object-cover"
+                    priority
+                  />
+                  {(() => {
+                    const discountPercent = calculateDiscountPercentage(article.price, article.priceAfterDiscount);
+                    return discountPercent !== null && discountPercent > 0 ? (
+                      <div className="absolute top-4 right-4 z-10 bg-red-500 text-white px-3 py-1.5 rounded-md text-sm font-bold shadow-lg">
+                        -{discountPercent}%
+                      </div>
+                    ) : null;
+                  })()}
+                </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
                   <ShoppingBag className="h-24 w-24 text-muted-foreground" />
@@ -271,11 +299,38 @@ const ArticleDetailPage = () => {
               )}
             </div>
 
-            {article.price && (
-              <div className="text-4xl font-bold text-primary">
-                ${article.price}
-              </div>
-            )}
+            {article.price && (() => {
+              const discountPercent = calculateDiscountPercentage(article.price, article.priceAfterDiscount);
+              const hasDiscount = discountPercent !== null && discountPercent > 0;
+              
+              return (
+                <div className="space-y-2">
+                  {hasDiscount && article.priceAfterDiscount ? (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <span className="text-4xl font-bold text-primary">
+                          ${article.priceAfterDiscount}
+                        </span>
+                        {discountPercent !== null && (
+                          <span className="px-3 py-1 bg-red-500 text-white rounded-md text-sm font-bold">
+                            -{discountPercent}%
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl text-muted-foreground line-through">
+                          ${article.price}
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-4xl font-bold text-primary">
+                      ${article.price}
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Stock Information */}
             {typeof article.stock === 'number' && (

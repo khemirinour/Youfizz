@@ -21,6 +21,7 @@ export interface Article {
   title: string;
   description?: string;
   price?: string;
+  priceAfterDiscount?: string;
   stock?: number;
   sku?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
@@ -39,6 +40,7 @@ export interface CreateArticleDto {
   title: string;
   description?: string;
   price?: string;
+  priceAfterDiscount?: string;
   stock?: number;
   sku?: string;
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
