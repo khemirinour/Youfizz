@@ -37,6 +37,8 @@ export class AppController {
   @ApiQuery({ name: 'isActive', required: false, description: 'true to show only active, false for inactive' })
   @ApiQuery({ name: 'minPrice', required: false })
   @ApiQuery({ name: 'maxPrice', required: false })
+  @ApiQuery({ name: 'minPriceAfterDiscount', required: false })
+  @ApiQuery({ name: 'maxPriceAfterDiscount', required: false })
   @ApiQuery({ name: 'minStock', required: false })
   @ApiQuery({ name: 'maxStock', required: false })
   @ApiQuery({ name: 'sortBy', required: false })

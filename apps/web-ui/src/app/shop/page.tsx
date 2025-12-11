@@ -16,6 +16,7 @@ import { Search, ShoppingBag, Filter, X, ChevronDown, ChevronRight } from 'lucid
 import Link from 'next/link';
 import Image from 'next/image';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const ShopPage = () => {
   const router = useRouter();
@@ -25,7 +26,8 @@ const ShopPage = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
+  const [filtersDialogOpen, setFiltersDialogOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   
   // Pagination state
   const pageSize = 12;
@@ -42,6 +44,8 @@ const ShopPage = () => {
   });
   const [appliedMinPrice, setAppliedMinPrice] = useState(searchParams.get('minPrice') || '');
   const [appliedMaxPrice, setAppliedMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [appliedMinPriceAfterDiscount, setAppliedMinPriceAfterDiscount] = useState(searchParams.get('minPriceAfterDiscount') || '');
+  const [appliedMaxPriceAfterDiscount, setAppliedMaxPriceAfterDiscount] = useState(searchParams.get('maxPriceAfterDiscount') || '');
   const [appliedMinStock, setAppliedMinStock] = useState(searchParams.get('minStock') || '');
   const [appliedMaxStock, setAppliedMaxStock] = useState(searchParams.get('maxStock') || '');
   const [appliedSortBy, setAppliedSortBy] = useState<'title' | 'price' | 'stock' | 'createdAt' | ''>(
@@ -59,6 +63,8 @@ const ShopPage = () => {
   });
   const [minPrice, setMinPrice] = useState(searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState(searchParams.get('maxPrice') || '');
+  const [minPriceAfterDiscount, setMinPriceAfterDiscount] = useState(searchParams.get('minPriceAfterDiscount') || '');
+  const [maxPriceAfterDiscount, setMaxPriceAfterDiscount] = useState(searchParams.get('maxPriceAfterDiscount') || '');
   const [minStock, setMinStock] = useState(searchParams.get('minStock') || '');
   const [maxStock, setMaxStock] = useState(searchParams.get('maxStock') || '');
   const [sortBy, setSortBy] = useState<'title' | 'price' | 'stock' | 'createdAt' | ''>(
@@ -83,8 +89,8 @@ const ShopPage = () => {
 
   // Fetch articles only when applied filters or page changes
   const queryKey = useMemo(() => {
-    return `${appliedSearchQuery}|${appliedCategories.join(',')}|${appliedMinPrice}|${appliedMaxPrice}|${appliedMinStock}|${appliedMaxStock}|${appliedSortBy}|${appliedSortOrder}|${page}`;
-  }, [appliedSearchQuery, appliedCategories, appliedMinPrice, appliedMaxPrice, appliedMinStock, appliedMaxStock, appliedSortBy, appliedSortOrder, page]);
+    return `${appliedSearchQuery}|${appliedCategories.join(',')}|${appliedMinPrice}|${appliedMaxPrice}|${appliedMinPriceAfterDiscount}|${appliedMaxPriceAfterDiscount}|${appliedMinStock}|${appliedMaxStock}|${appliedSortBy}|${appliedSortOrder}|${page}`;
+  }, [appliedSearchQuery, appliedCategories, appliedMinPrice, appliedMaxPrice, appliedMinPriceAfterDiscount, appliedMaxPriceAfterDiscount, appliedMinStock, appliedMaxStock, appliedSortBy, appliedSortOrder, page]);
 
   useEffect(() => {
     const fetchArticles = async () => {
@@ -108,6 +114,12 @@ const ShopPage = () => {
         if (appliedMaxPrice) {
           params.maxPrice = appliedMaxPrice;
         }
+        if (appliedMinPriceAfterDiscount) {
+          params.minPriceAfterDiscount = appliedMinPriceAfterDiscount;
+        }
+        if (appliedMaxPriceAfterDiscount) {
+          params.maxPriceAfterDiscount = appliedMaxPriceAfterDiscount;
+        }
         if (appliedMinStock) {
           params.minStock = parseInt(appliedMinStock, 10);
         }
@@ -128,6 +140,8 @@ const ShopPage = () => {
         if (appliedCategories.length > 0) urlParams.set('categories', appliedCategories.join(','));
         if (appliedMinPrice) urlParams.set('minPrice', appliedMinPrice);
         if (appliedMaxPrice) urlParams.set('maxPrice', appliedMaxPrice);
+        if (appliedMinPriceAfterDiscount) urlParams.set('minPriceAfterDiscount', appliedMinPriceAfterDiscount);
+        if (appliedMaxPriceAfterDiscount) urlParams.set('maxPriceAfterDiscount', appliedMaxPriceAfterDiscount);
         if (appliedMinStock) urlParams.set('minStock', appliedMinStock);
         if (appliedMaxStock) urlParams.set('maxStock', appliedMaxStock);
         if (appliedSortBy) {
@@ -156,6 +170,8 @@ const ShopPage = () => {
     setAppliedCategories([...selectedCategories]);
     setAppliedMinPrice(minPrice);
     setAppliedMaxPrice(maxPrice);
+    setAppliedMinPriceAfterDiscount(minPriceAfterDiscount);
+    setAppliedMaxPriceAfterDiscount(maxPriceAfterDiscount);
     setAppliedMinStock(minStock);
     setAppliedMaxStock(maxStock);
     setAppliedSortBy(sortBy);
@@ -184,6 +200,8 @@ const ShopPage = () => {
     setSelectedCategories([]);
     setMinPrice('');
     setMaxPrice('');
+    setMinPriceAfterDiscount('');
+    setMaxPriceAfterDiscount('');
     setMinStock('');
     setMaxStock('');
     setSortBy('');
@@ -193,6 +211,8 @@ const ShopPage = () => {
     setAppliedCategories([]);
     setAppliedMinPrice('');
     setAppliedMaxPrice('');
+    setAppliedMinPriceAfterDiscount('');
+    setAppliedMaxPriceAfterDiscount('');
     setAppliedMinStock('');
     setAppliedMaxStock('');
     setAppliedSortBy('');
@@ -200,11 +220,13 @@ const ShopPage = () => {
     setPage(1);
   };
 
-  const hasActiveFilters = appliedSearchQuery || appliedCategories.length > 0 || appliedMinPrice || appliedMaxPrice || appliedMinStock || appliedMaxStock || appliedSortBy;
+  const hasActiveFilters = appliedSearchQuery || appliedCategories.length > 0 || appliedMinPrice || appliedMaxPrice || appliedMinPriceAfterDiscount || appliedMaxPriceAfterDiscount || appliedMinStock || appliedMaxStock || appliedSortBy;
   const hasDraftFilters = searchQuery !== appliedSearchQuery || 
     JSON.stringify([...selectedCategories].sort()) !== JSON.stringify([...appliedCategories].sort()) ||
     minPrice !== appliedMinPrice ||
     maxPrice !== appliedMaxPrice ||
+    minPriceAfterDiscount !== appliedMinPriceAfterDiscount ||
+    maxPriceAfterDiscount !== appliedMaxPriceAfterDiscount ||
     minStock !== appliedMinStock ||
     maxStock !== appliedMaxStock ||
     sortBy !== appliedSortBy ||
@@ -348,13 +370,17 @@ const ShopPage = () => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => setShowFilters(!showFilters)}
+                onClick={() => {
+                  // Open categories collapsible only if there are selected categories
+                  setCategoriesOpen(selectedCategories.length > 0);
+                  setFiltersDialogOpen(true);
+                }}
               >
                 <Filter className="h-4 w-4 mr-2" />
                 Filters
                 {hasActiveFilters && (
                   <span className="ml-2 px-2 py-0.5 text-xs bg-primary text-primary-foreground rounded-full">
-                    {[appliedSearchQuery, appliedCategories.length, appliedMinPrice, appliedMaxPrice, appliedMinStock, appliedMaxStock, appliedSortBy].filter(Boolean).length}
+                    {[appliedSearchQuery, appliedCategories.length, appliedMinPrice, appliedMaxPrice, appliedMinPriceAfterDiscount, appliedMaxPriceAfterDiscount, appliedMinStock, appliedMaxStock, appliedSortBy].filter(Boolean).length}
                   </span>
                 )}
               </Button>
@@ -367,14 +393,23 @@ const ShopPage = () => {
             </div>
           </div>
 
-          {/* Filters Panel */}
-          {showFilters && (
-            <Card className="p-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Filters Dialog */}
+          <Dialog open={filtersDialogOpen} onOpenChange={setFiltersDialogOpen}>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Filters</DialogTitle>
+                <DialogDescription>
+                  Filter articles by categories, price, discount price, stock, and more
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 py-4">
                 {/* Categories */}
                 <div className="space-y-2">
                   <Label className="text-base font-semibold">Categories</Label>
-                  <Collapsible defaultOpen>
+                  <Collapsible 
+                    open={categoriesOpen} 
+                    onOpenChange={setCategoriesOpen}
+                  >
                     <CollapsibleTrigger asChild>
                       <Button variant="outline" className="w-full justify-between">
                         <span className="text-sm">
@@ -413,6 +448,27 @@ const ShopPage = () => {
                       placeholder="Max"
                       value={maxPrice}
                       onChange={(e) => setMaxPrice(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                {/* Discount Price Range */}
+                <div className="space-y-2">
+                  <Label>Discount Price Range</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      type="number"
+                      placeholder="Min"
+                      value={minPriceAfterDiscount}
+                      onChange={(e) => setMinPriceAfterDiscount(e.target.value)}
+                      className="w-full"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Max"
+                      value={maxPriceAfterDiscount}
+                      onChange={(e) => setMaxPriceAfterDiscount(e.target.value)}
                       className="w-full"
                     />
                   </div>
@@ -477,9 +533,7 @@ const ShopPage = () => {
                   )}
                 </div>
               </div>
-              
-              {/* Apply Filters Button */}
-              <div className="mt-4 flex justify-end gap-2">
+              <DialogFooter className="flex justify-between sm:justify-between">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -489,6 +543,8 @@ const ShopPage = () => {
                     setSelectedCategories(appliedCategories.length > 0 ? [...appliedCategories] : []);
                     setMinPrice(appliedMinPrice);
                     setMaxPrice(appliedMaxPrice);
+                    setMinPriceAfterDiscount(appliedMinPriceAfterDiscount);
+                    setMaxPriceAfterDiscount(appliedMaxPriceAfterDiscount);
                     setMinStock(appliedMinStock);
                     setMaxStock(appliedMaxStock);
                     setSortBy(appliedSortBy);
@@ -499,15 +555,26 @@ const ShopPage = () => {
                 >
                   Reset
                 </Button>
-                <Button
-                  onClick={handleApplyFilters}
-                  disabled={!hasDraftFilters}
-                >
-                  Apply Filters
-                </Button>
-              </div>
-            </Card>
-          )}
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setFiltersDialogOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      handleApplyFilters();
+                      setFiltersDialogOpen(false);
+                    }}
+                    disabled={!hasDraftFilters}
+                  >
+                    Apply Filters
+                  </Button>
+                </div>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Loading State */}

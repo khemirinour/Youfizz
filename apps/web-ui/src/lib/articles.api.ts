@@ -63,6 +63,8 @@ export interface QueryArticlesParams {
   isActive?: boolean;
   minPrice?: string;
   maxPrice?: string;
+  minPriceAfterDiscount?: string;
+  maxPriceAfterDiscount?: string;
   minStock?: number;
   maxStock?: number;
   createdAfter?: string;

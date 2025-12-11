@@ -72,6 +72,16 @@ export class QueryArticlesDto {
   @IsNumberString()
   maxPrice?: string;
 
+  @ApiPropertyOptional({ description: 'Minimum price after discount (decimal string)' })
+  @IsOptional()
+  @IsNumberString()
+  minPriceAfterDiscount?: string;
+
+  @ApiPropertyOptional({ description: 'Maximum price after discount (decimal string)' })
+  @IsOptional()
+  @IsNumberString()
+  maxPriceAfterDiscount?: string;
+
   @ApiPropertyOptional({ description: 'Minimum stock level' })
   @IsOptional()
   @Type(() => Number)

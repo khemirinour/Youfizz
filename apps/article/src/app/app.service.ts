@@ -79,6 +79,20 @@ export class AppService {
       }
     }
 
+    // Price after discount range filtering
+    if (query.minPriceAfterDiscount) {
+      const minPriceAfterDiscountNum = parseFloat(query.minPriceAfterDiscount);
+      if (!isNaN(minPriceAfterDiscountNum)) {
+        qb.andWhere('article.priceAfterDiscount >= :minPriceAfterDiscount', { minPriceAfterDiscount: minPriceAfterDiscountNum });
+      }
+    }
+    if (query.maxPriceAfterDiscount) {
+      const maxPriceAfterDiscountNum = parseFloat(query.maxPriceAfterDiscount);
+      if (!isNaN(maxPriceAfterDiscountNum)) {
+        qb.andWhere('article.priceAfterDiscount <= :maxPriceAfterDiscount', { maxPriceAfterDiscount: maxPriceAfterDiscountNum });
+      }
+    }
+
     // Stock range filtering
     if (query.minStock !== undefined && query.minStock !== null) {
       qb.andWhere('article.stock >= :minStock', { minStock: query.minStock });
