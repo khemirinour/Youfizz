@@ -43,6 +43,7 @@ const ConfermateurOrdersPage = () => {
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [orderNotes, setOrderNotes] = useState<Record<string, string>>({});
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -187,9 +188,16 @@ const ConfermateurOrdersPage = () => {
       }
       
       const idvendor = order?.vendorId;
-      const updated = await confirmOrder(orderId, idvendor);
+      const notes = orderNotes[orderId] || undefined;
+      const updated = await confirmOrder(orderId, idvendor, notes);
       if (updated) {
         setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+        // Clear notes for this order after successful confirmation
+        setOrderNotes(prev => {
+          const newNotes = { ...prev };
+          delete newNotes[orderId];
+          return newNotes;
+        });
       }
       toast({ title: 'Success', description: 'Order confirmed successfully' });
     } catch (e: any) {
@@ -380,6 +388,7 @@ const ConfermateurOrdersPage = () => {
                         <th className="px-4 py-3 text-xs font-medium uppercase">Status</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Active</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Notes</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase text-right">Actions</th>
                       </tr>
                     </thead>
@@ -450,6 +459,21 @@ const ConfermateurOrdersPage = () => {
                               <span className="text-green-600 dark:text-green-400 text-xs font-medium">Active</span>
                             ) : (
                               <span className="text-red-600 dark:text-red-400 text-xs font-medium">Inactive</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {order.status === 'CONFIRMED' ? (
+                              <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                                {order.notes || '-'}
+                              </div>
+                            ) : (
+                              <Input
+                                placeholder="Add notes..."
+                                value={orderNotes[order.id] || ''}
+                                onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                className="w-[200px] h-8 text-sm"
+                                disabled={actioning === order.id}
+                              />
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">

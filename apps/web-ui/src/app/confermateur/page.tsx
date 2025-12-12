@@ -6,6 +6,7 @@ import { useAuthStore } from '@/stores/authStore';
 import ConfermateurNavbar from '@/components/ConfermateurNavbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { getOrders, confirmOrder, type Order } from '@/lib/orders.api';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, Clock, Package, ShoppingCart } from 'lucide-react';
@@ -23,6 +24,7 @@ const ConfermateurDashboard = () => {
   const [confirming, setConfirming] = useState<string | null>(null);
   const [vendors, setVendors] = useState<ConfermateurVendeur[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
+  const [orderNotes, setOrderNotes] = useState<Record<string, string>>({});
 
   const hasFetchedOrders = useRef(false);
   const vendorsFetchController = useRef<AbortController | null>(null);
@@ -235,8 +237,15 @@ const ConfermateurDashboard = () => {
       }
       
       const idvendor = order?.vendorId;
-      const updated = await confirmOrder(orderId, idvendor);
+      const notes = orderNotes[orderId] || undefined;
+      const updated = await confirmOrder(orderId, idvendor, notes);
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      // Clear notes for this order after successful confirmation
+      setOrderNotes(prev => {
+        const newNotes = { ...prev };
+        delete newNotes[orderId];
+        return newNotes;
+      });
       toast({ title: 'Success', description: 'Order confirmed successfully' });
     } catch (e: any) {
       // Show specific error messages
@@ -387,12 +396,28 @@ const ConfermateurDashboard = () => {
                         })()}
                       </p>
                       <p>Total: {order.total} TND</p>
+                      {order.status === 'CONFIRMED' && order.notes && (
+                        <p className="text-xs mt-1">
+                          Notes: {order.notes}
+                        </p>
+                      )}
                       {order.createdAt && (
                         <p className="text-xs mt-1">
                           Created: {new Date(order.createdAt).toLocaleDateString()}
                         </p>
                       )}
                     </div>
+                    {order.status === 'PENDING' && (
+                      <div className="mt-2">
+                        <Input
+                          placeholder="Add notes (optional)..."
+                          value={orderNotes[order.id] || ''}
+                          onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                          className="w-full text-sm"
+                          disabled={confirming === order.id}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     {order.status === 'PENDING' && (

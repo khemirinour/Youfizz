@@ -1115,6 +1115,10 @@ export class AppController {
           type: 'string',
           format: 'uuid',
           description: 'Vendor ID (optional - will use JWT token vendorId if not provided)'
+        },
+        notes: {
+          type: 'string',
+          description: 'Optional notes to attach when confirming the order'
         }
       },
       required: []
@@ -1126,13 +1130,19 @@ export class AppController {
   @ApiResponse({ status: 404, description: 'Order not found' })
   async confirmOrder(
     @Param('id') id: string,
-    @Body() body: { idvendor?: string },
+    @Body() body: { idvendor?: string; notes?: string },
     @Headers() headers: Record<string, string>,
     @Req() req: any
   ) {
     // Map idvendor to vendorId for consistency with internal API
-    const requestBody = body?.idvendor ? { vendorId: body.idvendor } : null;
-    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', requestBody, headers, req.user, false, false, req.cookies);
+    const requestBody: any = {};
+    if (body?.idvendor) {
+      requestBody.vendorId = body.idvendor;
+    }
+    if (body?.notes !== undefined) {
+      requestBody.notes = body.notes;
+    }
+    return this.gatewayService.forwardRequest(`/orders/${id}/confirm`, 'PATCH', Object.keys(requestBody).length > 0 ? requestBody : null, headers, req.user, false, false, req.cookies);
   }
 
   @ApiTags('orders')

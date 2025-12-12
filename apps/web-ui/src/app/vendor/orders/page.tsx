@@ -70,6 +70,7 @@ const VendorOrdersPage = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [actioning, setActioning] = useState<string | null>(null);
+  const [orderNotes, setOrderNotes] = useState<Record<string, string>>({});
   
   // Create/Edit form state
   const [formData, setFormData] = useState<CreateOrderDto>({
@@ -465,10 +466,17 @@ const VendorOrdersPage = () => {
       }
       
       const idvendor = order?.vendorId || vendorId;
-      await confirmOrder(orderId, idvendor);
+      const notes = orderNotes[orderId] || undefined;
+      await confirmOrder(orderId, idvendor, notes);
       toast({
         title: 'Success',
         description: 'Order confirmed successfully',
+      });
+      // Clear notes for this order after successful confirmation
+      setOrderNotes(prev => {
+        const newNotes = { ...prev };
+        delete newNotes[orderId];
+        return newNotes;
       });
       await refreshOrders();
     } catch (e: any) {
@@ -653,6 +661,7 @@ const VendorOrdersPage = () => {
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Active</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Date</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Notes</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase text-right">Actions</th>
                       </tr>
                     </thead>
@@ -759,6 +768,21 @@ const VendorOrdersPage = () => {
                               </span>
                             ) : (
                               <span className="text-xs text-muted-foreground">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {order.status === 'CONFIRMED' ? (
+                              <div className="text-sm text-muted-foreground max-w-[200px] truncate">
+                                {order.notes || '-'}
+                              </div>
+                            ) : (
+                              <Input
+                                placeholder="Add notes..."
+                                value={orderNotes[order.id] || ''}
+                                onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                className="w-[200px] h-8 text-sm"
+                                disabled={actioning === order.id}
+                              />
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">

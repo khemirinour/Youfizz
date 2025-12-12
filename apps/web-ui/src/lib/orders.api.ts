@@ -45,6 +45,7 @@ export interface Order {
   status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   isPaid: boolean;
   isActive: boolean;
+  notes?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -64,6 +65,7 @@ interface OrderResponse {
   status: 'PENDING' | 'CONFIRMED' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
   isPaid: boolean;
   isActive: boolean;
+  notes?: string;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
@@ -229,8 +231,14 @@ export async function deleteOrder(id: string): Promise<{ message?: string } | un
   return response;
 }
 
-export async function confirmOrder(id: string, idvendor?: string): Promise<Order | undefined> {
-  const body = idvendor ? { idvendor } : {};
+export async function confirmOrder(id: string, idvendor?: string, notes?: string): Promise<Order | undefined> {
+  const body: any = {};
+  if (idvendor) {
+    body.idvendor = idvendor;
+  }
+  if (notes !== undefined) {
+    body.notes = notes;
+  }
   try {
     const response = await patch<OrderResponse>(`/api/orders/${id}/confirm`, body);
     

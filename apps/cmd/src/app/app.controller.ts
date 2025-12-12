@@ -80,7 +80,7 @@ export class AppController {
   @ApiOkResponse({ description: 'Order confirmed', type: Order })
   confirm(
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Body() body: { vendorId?: string },
+    @Body() body: { vendorId?: string; notes?: string },
     @Req() req: Request
   ) {
     // Extract user data from JWT token (same logic as login token)
@@ -101,7 +101,7 @@ export class AppController {
     // DEBUG: Log what we're passing to the service
     console.log('DEBUG - UserData being passed to service:', JSON.stringify(userData));
     
-    return this.appService.confirm(id, userData);
+    return this.appService.confirm(id, userData, body?.notes);
   }
 
   @Patch(':id/activate')

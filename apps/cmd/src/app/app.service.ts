@@ -192,7 +192,7 @@ export class AppService {
     return this.findOne(id);
   }
 
-  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string }) {
+  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string }, notes?: string) {
     const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException('Order not found');
@@ -281,7 +281,11 @@ export class AppService {
     
     // Only update order status if quota was successfully consumed (or if role doesn't require quota)
     this.logger.log(`Updating order ${id} status to CONFIRMED`);
-    await this.repo.update({ id }, { status: OrderStatus.CONFIRMED, isActive: true });
+    const updateData: any = { status: OrderStatus.CONFIRMED, isActive: true };
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+    await this.repo.update({ id }, updateData);
     
     // Decrement article stock for each item in the order
     if (order.items && order.items.length > 0) {
