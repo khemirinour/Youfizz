@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { getOrders, confirmOrder, activateOrder, deactivateOrder, updateOrderStatus, getOrder, type Order } from '@/lib/orders.api';
+import { getOrders, confirmOrder, activateOrder, deactivateOrder, updateOrderStatus, getOrder, updateOrder, type Order } from '@/lib/orders.api';
 import { getVendeursForConfermateur, type ConfermateurVendeur } from '@/lib/confermateur.api';
 import { useToast } from '@/hooks/use-toast';
 import { useOrdersStore, generateOrdersCacheKey } from '@/stores/ordersStore';
@@ -467,13 +467,48 @@ const ConfermateurOrdersPage = () => {
                                 {order.notes || '-'}
                               </div>
                             ) : (
-                              <Input
-                                placeholder="Add notes..."
-                                value={orderNotes[order.id] || ''}
-                                onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                className="w-[200px] h-8 text-sm"
-                                disabled={actioning === order.id}
-                              />
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Add or edit notes..."
+                                  value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')}
+                                  onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                  className="w-[200px] h-8 text-sm"
+                                  disabled={actioning === order.id}
+                                />
+                                {orderNotes[order.id] !== undefined && orderNotes[order.id] !== (order.notes || '') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        setActioning(order.id);
+                                        const updated = await updateOrder(order.id, { notes: orderNotes[order.id] || null });
+                                        if (updated) {
+                                          setOrders(prev => prev.map(o => o.id === order.id ? updated : o));
+                                          // Clear the local note state after successful update
+                                          setOrderNotes(prev => {
+                                            const newNotes = { ...prev };
+                                            delete newNotes[order.id];
+                                            return newNotes;
+                                          });
+                                          toast({ title: 'Success', description: 'Notes updated successfully' });
+                                        }
+                                      } catch (e: any) {
+                                        toast({ 
+                                          title: 'Error', 
+                                          description: e?.message || 'Failed to update notes', 
+                                          variant: 'destructive' 
+                                        });
+                                      } finally {
+                                        setActioning(null);
+                                      }
+                                    }}
+                                    disabled={actioning === order.id}
+                                  >
+                                    Save
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">

@@ -7,7 +7,7 @@ import ConfermateurNavbar from '@/components/ConfermateurNavbar';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { getOrders, confirmOrder, type Order } from '@/lib/orders.api';
+import { getOrders, confirmOrder, updateOrder, type Order } from '@/lib/orders.api';
 import { useToast } from '@/hooks/use-toast';
 import { CheckCircle2, Clock, Package, ShoppingCart } from 'lucide-react';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
@@ -396,26 +396,62 @@ const ConfermateurDashboard = () => {
                         })()}
                       </p>
                       <p>Total: {order.total} TND</p>
-                      {order.status === 'CONFIRMED' && order.notes && (
-                        <p className="text-xs mt-1">
-                          Notes: {order.notes}
-                        </p>
-                      )}
                       {order.createdAt && (
                         <p className="text-xs mt-1">
                           Created: {new Date(order.createdAt).toLocaleDateString()}
                         </p>
                       )}
                     </div>
-                    {order.status === 'PENDING' && (
+                    {order.status === 'CONFIRMED' ? (
+                      order.notes && (
+                        <div className="mt-2 text-xs text-muted-foreground">
+                          Notes: {order.notes}
+                        </div>
+                      )
+                    ) : (
                       <div className="mt-2">
-                        <Input
-                          placeholder="Add notes (optional)..."
-                          value={orderNotes[order.id] || ''}
-                          onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
-                          className="w-full text-sm"
-                          disabled={confirming === order.id}
-                        />
+                        <div className="flex items-center gap-2">
+                          <Input
+                            placeholder="Add or edit notes (optional)..."
+                            value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')}
+                            onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                            className="flex-1 text-sm"
+                            disabled={confirming === order.id}
+                          />
+                          {orderNotes[order.id] !== undefined && orderNotes[order.id] !== (order.notes || '') && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={async () => {
+                                try {
+                                  setConfirming(order.id);
+                                  const updated = await updateOrder(order.id, { notes: orderNotes[order.id] || null });
+                                  if (updated) {
+                                    setOrders(prev => prev.map(o => o.id === order.id ? updated : o));
+                                    // Clear the local note state after successful update
+                                    setOrderNotes(prev => {
+                                      const newNotes = { ...prev };
+                                      delete newNotes[order.id];
+                                      return newNotes;
+                                    });
+                                    toast({ title: 'Success', description: 'Notes updated successfully' });
+                                  }
+                                } catch (e: any) {
+                                  toast({ 
+                                    title: 'Error', 
+                                    description: e?.message || 'Failed to update notes', 
+                                    variant: 'destructive' 
+                                  });
+                                } finally {
+                                  setConfirming(null);
+                                }
+                              }}
+                              disabled={confirming === order.id}
+                            >
+                              Save
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

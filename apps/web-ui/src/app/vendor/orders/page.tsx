@@ -776,13 +776,51 @@ const VendorOrdersPage = () => {
                                 {order.notes || '-'}
                               </div>
                             ) : (
-                              <Input
-                                placeholder="Add notes..."
-                                value={orderNotes[order.id] || ''}
-                                onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                className="w-[200px] h-8 text-sm"
-                                disabled={actioning === order.id}
-                              />
+                              <div className="flex items-center gap-2">
+                                <Input
+                                  placeholder="Add or edit notes..."
+                                  value={orderNotes[order.id] !== undefined ? orderNotes[order.id] : (order.notes || '')}
+                                  onChange={(e) => setOrderNotes(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                  className="w-[200px] h-8 text-sm"
+                                  disabled={actioning === order.id}
+                                />
+                                {orderNotes[order.id] !== undefined && orderNotes[order.id] !== (order.notes || '') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={async () => {
+                                      try {
+                                        setActioning(order.id);
+                                        const updated = await updateOrder(order.id, { notes: orderNotes[order.id] || null });
+                                        if (updated) {
+                                          // Clear the local note state after successful update
+                                          setOrderNotes(prev => {
+                                            const newNotes = { ...prev };
+                                            delete newNotes[order.id];
+                                            return newNotes;
+                                          });
+                                          toast({ 
+                                            title: 'Success', 
+                                            description: 'Notes updated successfully' 
+                                          });
+                                          await refreshOrders();
+                                        }
+                                      } catch (e: any) {
+                                        toast({ 
+                                          title: 'Error', 
+                                          description: e?.message || 'Failed to update notes', 
+                                          variant: 'destructive' 
+                                        });
+                                      } finally {
+                                        setActioning(null);
+                                      }
+                                    }}
+                                    disabled={actioning === order.id}
+                                  >
+                                    Save
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3 text-right">
