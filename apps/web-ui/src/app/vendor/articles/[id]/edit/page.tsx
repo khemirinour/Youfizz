@@ -165,6 +165,7 @@ const EditArticlePage = () => {
         ...formData,
         stock: formData.stock || 0,
         price: formData.price || '0',
+        priceAfterDiscount: formData.priceAfterDiscount?.trim() || undefined,
         specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
       };
       const updated = await updateArticle(params.id, dataToSend);
@@ -315,7 +316,7 @@ const EditArticlePage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="priceAfterDiscount">Price After Discount</Label>
+                <Label htmlFor="priceAfterDiscount">Price After Discount (Optional)</Label>
                 <Input
                   id="priceAfterDiscount"
                   type="text"

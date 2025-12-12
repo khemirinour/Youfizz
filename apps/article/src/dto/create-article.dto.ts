@@ -1,5 +1,6 @@
 import { IsEnum, IsInt, IsNumberString, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { ArticleStatus } from '../entities/article.entity';
 
 export class CreateArticleDto {
@@ -19,6 +20,7 @@ export class CreateArticleDto {
 
   @ApiPropertyOptional({ description: 'Decimal string, e.g. 15.99. Optional price after discount' })
   @IsOptional()
+  @Transform(({ value }) => (value === '' || value === null ? undefined : value))
   @IsNumberString()
   priceAfterDiscount?: string;
 

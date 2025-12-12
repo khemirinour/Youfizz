@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import VendorNavbar from '@/components/VendorNavbar';
-import { createArticle, activateArticle, type CreateArticleDto } from '@/lib/articles.api';
+import { createArticle, activateArticle, deactivateArticle, uploadArticleImage, uploadMultipleArticleImages, removeArticleImage, getArticleById, type CreateArticleDto, type Article } from '@/lib/articles.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,12 +13,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Switch } from '@/components/ui/switch';
-import { getCategories, type Category } from '@/lib/categories.api';
+import { ImageUpload } from '@/components/ImageUpload';
+import { ImageGallery } from '@/components/ImageGallery';
+import { getCategoryTree } from '@/lib/categories.api';
+import type { Category } from '@/lib/articles.api';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ChevronDown, Plus, X } from 'lucide-react';
 import { CategoryTree } from '@/components/CategoryTree';
-import { getCategoryTree } from '@/lib/categories.api';
 
 const NewArticlePage = () => {
   const router = useRouter();
@@ -26,6 +28,7 @@ const NewArticlePage = () => {
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [article, setArticle] = useState<Article | null>(null);
   const [formData, setFormData] = useState<CreateArticleDto>({
     title: '',
     description: '',
@@ -41,6 +44,7 @@ const NewArticlePage = () => {
   const [makeActive, setMakeActive] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [specFields, setSpecFields] = useState<Array<{ key: string; value: string }>>([]);
+  const imageUploadCardRef = useRef<HTMLDivElement>(null);
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -110,22 +114,45 @@ const NewArticlePage = () => {
         vendorId: vendorId,
         stock: formData.stock || 0,
         price: formData.price || '0',
+        priceAfterDiscount: formData.priceAfterDiscount?.trim() || undefined,
         specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
       };
       const created = await createArticle(dataToSend);
-      if (makeActive && created?.id) {
-        await activateArticle(created.id);
+      if (!created?.id) {
+        toast({
+          title: 'Error',
+          description: 'Article was created but no ID was returned',
+          variant: 'destructive',
+        });
+        return;
       }
+
+      // Fetch the created article to get full data including images
+      const fetchedArticle = await getArticleById(created.id);
+      if (fetchedArticle) {
+        setArticle(fetchedArticle);
+      }
+
+      // Handle activation/deactivation
+      if (makeActive) {
+        await activateArticle(created.id);
+        if (fetchedArticle) {
+          setArticle({ ...fetchedArticle, isActive: true });
+        }
+      }
+
       toast({ 
         title: 'Success', 
-        description: 'Article created successfully. You can now upload images on the edit page.' 
+        description: 'Article created successfully. You can now upload images.' 
       });
-      // Redirect to edit page to allow image upload
-      if (created?.id) {
-        router.push(`/vendor/articles/${created.id}/edit`);
-      } else {
-        router.push('/vendor/articles');
-      }
+
+      // Scroll to image upload card after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        imageUploadCardRef.current?.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start' 
+        });
+      }, 100);
     } catch (e: any) {
       toast({
         title: 'Error',
@@ -137,6 +164,54 @@ const NewArticlePage = () => {
     }
   };
 
+  const handleImageUpload = async (files: File[]) => {
+    if (!article?.id || files.length === 0) return;
+
+    try {
+      let updated: Article;
+      if (files.length === 1) {
+        updated = await uploadArticleImage(article.id, files[0]);
+      } else {
+        updated = await uploadMultipleArticleImages(article.id, files);
+      }
+      
+      // Refresh article data
+      setArticle(updated);
+      toast({ 
+        title: 'Success', 
+        description: `${files.length} image${files.length > 1 ? 's' : ''} uploaded successfully` 
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.response?.data?.message || e?.message || 'Failed to upload images',
+        variant: 'destructive',
+      });
+      throw e; // Re-throw to let ImageUpload component handle it
+    }
+  };
+
+  const handleImageRemove = async (imageUrl: string) => {
+    if (!article?.id) return;
+
+    try {
+      const updated = await removeArticleImage(article.id, imageUrl);
+      // Refresh article data
+      setArticle(updated);
+      toast({ 
+        title: 'Success', 
+        description: 'Image removed successfully' 
+      });
+    } catch (e: any) {
+      toast({
+        title: 'Error',
+        description: e?.response?.data?.message || e?.message || 'Failed to remove image',
+        variant: 'destructive',
+      });
+      throw e; // Re-throw to let ImageGallery component handle it
+    }
+  };
+
   if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return null;
 
   return (
@@ -144,14 +219,15 @@ const NewArticlePage = () => {
       <div className="absolute inset-0 z-0" style={{ background: 'var(--gradient-radial)' }} />
       <VendorNavbar />
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
-        <div>
+      <div className="relative z-10 max-w-7xl mx-auto px-4 py-8 animate-fade-in">
+        <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Create Article</h1>
           <p className="text-muted-foreground">Add a new product to your inventory</p>
         </div>
 
-        <Card className="card-glass rounded-xl p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <Card className="card-glass rounded-xl p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="title">Title *</Label>
               <Input
@@ -189,7 +265,7 @@ const NewArticlePage = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="priceAfterDiscount">Price After Discount</Label>
+                <Label htmlFor="priceAfterDiscount">Price After Discount (Optional)</Label>
                 <Input
                   id="priceAfterDiscount"
                   type="text"
@@ -248,7 +324,7 @@ const NewArticlePage = () => {
                 checked={makeActive}
                 onCheckedChange={setMakeActive}
               />
-              <Label htmlFor="makeActive">Activate after create</Label>
+              <Label htmlFor="makeActive">Active (Visible)</Label>
             </div>
 
             {/* Categories Multi-Select */}
@@ -340,15 +416,9 @@ const NewArticlePage = () => {
               </p>
             </div>
 
-            <div className="rounded-lg border border-border bg-muted/50 p-4">
-              <p className="text-sm text-muted-foreground">
-                💡 <strong>Tip:</strong> After creating the article, you'll be redirected to the edit page where you can upload images.
-              </p>
-            </div>
-
             <div className="flex items-center gap-4">
-              <Button type="submit" disabled={submitting}>
-                {submitting ? 'Creating...' : 'Create Article'}
+              <Button type="submit" disabled={submitting || !!article?.id}>
+                {submitting ? 'Creating...' : article?.id ? 'Article Created' : 'Create Article'}
               </Button>
               <Button
                 type="button"
@@ -359,7 +429,40 @@ const NewArticlePage = () => {
               </Button>
             </div>
           </form>
-        </Card>
+          </Card>
+
+          <Card ref={imageUploadCardRef} className="card-glass rounded-xl p-6">
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-xl font-semibold mb-2">Article Images</h2>
+                <p className="text-sm text-muted-foreground">Upload and manage images for this article</p>
+              </div>
+
+              {!article?.id && (
+                <div className="rounded-lg border border-primary/30 bg-primary/10 p-4">
+                  <p className="text-sm text-primary">
+                    <strong>Note:</strong> You must submit the form first to create the article before you can upload images.
+                  </p>
+                </div>
+              )}
+
+              <ImageGallery
+                images={article?.images || []}
+                onRemove={handleImageRemove}
+                disabled={!article?.id || submitting}
+              />
+              
+              <div className="border-t pt-6">
+                <ImageUpload
+                  onUpload={handleImageUpload}
+                  multiple={true}
+                  maxFiles={10}
+                  disabled={!article?.id || submitting}
+                />
+              </div>
+            </div>
+          </Card>
+        </div>
       </div>
     </div>
   );

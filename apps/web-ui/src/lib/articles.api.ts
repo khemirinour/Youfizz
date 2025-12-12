@@ -47,6 +47,7 @@ export interface CreateArticleDto {
   isActive?: boolean;
   categoryId?: string; // Kept for backward compatibility
   categoryIds?: string[];
+  vendorId?: string;
   images?: string[];
   metadata?: Record<string, any>;
   specifications?: Record<string, any>;

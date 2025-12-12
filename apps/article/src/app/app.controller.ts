@@ -178,9 +178,19 @@ export class AppController {
       throw new BadRequestException('No file provided');
     }
     // Get authorization header from request (handle both lowercase and capitalized)
-    const authHeader = authorization || 
+    let authHeader = authorization || 
       (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
       (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    
+    // If no authorization header, try to extract token from cookies
+    if (!authHeader && req) {
+      const token = (req as any).cookies?.accessToken || 
+        (req.headers.cookie?.split(';').find((c: string) => c.trim().startsWith('accessToken='))?.split('=')[1]?.trim());
+      if (token) {
+        authHeader = `Bearer ${token}`;
+      }
+    }
+    
     const imageUrl = await this.appService.uploadImage(file, id, authHeader);
     return this.appService.addImageToArticle(id, imageUrl);
   }
@@ -222,9 +232,19 @@ export class AppController {
       throw new BadRequestException('No files provided');
     }
     // Get authorization header from request (handle both lowercase and capitalized)
-    const authHeader = authorization || 
+    let authHeader = authorization || 
       (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
       (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    
+    // If no authorization header, try to extract token from cookies
+    if (!authHeader && req) {
+      const token = (req as any).cookies?.accessToken || 
+        (req.headers.cookie?.split(';').find((c: string) => c.trim().startsWith('accessToken='))?.split('=')[1]?.trim());
+      if (token) {
+        authHeader = `Bearer ${token}`;
+      }
+    }
+    
     const imageUrls = await this.appService.uploadMultipleImages(files, id, authHeader);
     return this.appService.addImagesToArticle(id, imageUrls);
   }
