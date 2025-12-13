@@ -218,6 +218,31 @@ export class AppService {
   }
 
   async update(id: string, dto: UpdateOrderDto) {
+    // If items are being updated, recalculate total including delivery prices
+    if (dto.items && dto.items.length > 0) {
+      const calculatedTotal = dto.items.reduce((sum, item) => {
+        const itemTotal = parseFloat(item.price) * item.qty;
+        const deliveryTotal = item.hasDelivery && item.deliveryPrice 
+          ? parseFloat(item.deliveryPrice) * item.qty 
+          : 0;
+        return sum + itemTotal + deliveryTotal;
+      }, 0);
+
+      // Validate delivery information if provided
+      for (const item of dto.items) {
+        if (item.hasDelivery) {
+          if (!item.destination) {
+            throw new BadRequestException(`Item with articleId ${item.articleId} has delivery enabled but no destination provided`);
+          }
+          if (!item.deliveryPrice) {
+            throw new BadRequestException(`Item with articleId ${item.articleId} has delivery enabled but no deliveryPrice provided`);
+          }
+        }
+      }
+
+      dto.total = calculatedTotal.toFixed(2);
+    }
+
     await this.repo.update({ id }, dto);
     return this.findOne(id);
   }
