@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import PublicNavbar from '@/components/PublicNavbar';
 import { getArticleById, type Article } from '@/lib/articles.api';
-import { createOrder, type CreateOrderDto } from '@/lib/orders.api';
+import { createOrder, type CreateOrderDto, type OrderItemDto } from '@/lib/orders.api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useSeoMeta } from '@/hooks/use-seo-meta';
 import { getArticleUrl } from '@/lib/utils/url';
 import { ArrowLeft, ShoppingBag, Package, ShoppingCart } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import Link from 'next/link';
 
@@ -31,6 +33,8 @@ const ArticleDetailPage = () => {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [hasDelivery, setHasDelivery] = useState(false);
+  const [selectedDestination, setSelectedDestination] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const articleId = params.id as string;
@@ -130,11 +134,18 @@ const ArticleDetailPage = () => {
     return `guest-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   };
 
-  // Calculate total - use discounted price if available
+  // Calculate total - use discounted price if available, include delivery if selected
   const calculateTotal = () => {
     if (!article?.price) return '0.00';
     const priceToUse = article.priceAfterDiscount ? parseFloat(article.priceAfterDiscount) : parseFloat(article.price);
-    const total = priceToUse * quantity;
+    let total = priceToUse * quantity;
+    
+    // Add delivery price if delivery is selected
+    if (hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
+      const deliveryPrice = parseFloat(article.deliveryPrices[selectedDestination]);
+      total += deliveryPrice * quantity;
+    }
+    
     return total.toFixed(2);
   };
 
@@ -181,14 +192,21 @@ const ArticleDetailPage = () => {
       // Use discounted price if available, otherwise use regular price
       const effectivePrice = article.priceAfterDiscount || article.price;
       
+      const orderItem: OrderItemDto = {
+        articleId: article.id,
+        qty: quantity,
+        price: effectivePrice,
+      };
+      
+      // Add delivery information if selected
+      if (hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
+        orderItem.hasDelivery = true;
+        orderItem.destination = selectedDestination;
+        orderItem.deliveryPrice = article.deliveryPrices[selectedDestination];
+      }
+      
       const orderData: CreateOrderDto = {
-        items: [
-          {
-            articleId: article.id,
-            qty: quantity,
-            price: effectivePrice,
-          },
-        ],
+        items: [orderItem],
         total: calculateTotal(),
         customerId: generateCustomerId(),
         customerName: customerName.trim(),
@@ -211,6 +229,8 @@ const ArticleDetailPage = () => {
       setCustomerEmail('');
       setCustomerPhone('');
       setCustomerAddress('');
+      setHasDelivery(false);
+      setSelectedDestination('');
     } catch (e: any) {
       toast({
         title: 'Error',
@@ -471,6 +491,61 @@ const ArticleDetailPage = () => {
                       )}
                     </div>
 
+                    {/* Delivery Selection */}
+                    {article.deliveryRegions && article.deliveryRegions.length > 0 && (
+                      <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="hasDelivery"
+                            checked={hasDelivery}
+                            onCheckedChange={(checked) => {
+                              setHasDelivery(checked);
+                              if (!checked) {
+                                setSelectedDestination('');
+                              } else if (article.deliveryRegions && article.deliveryRegions.length > 0) {
+                                setSelectedDestination(article.deliveryRegions[0]);
+                              }
+                            }}
+                            disabled={submitting}
+                          />
+                          <Label htmlFor="hasDelivery">Include Delivery</Label>
+                        </div>
+
+                        {hasDelivery && (
+                          <div className="space-y-2">
+                            <Label htmlFor="destination">Delivery Destination *</Label>
+                            <Select
+                              value={selectedDestination}
+                              onValueChange={setSelectedDestination}
+                              disabled={submitting}
+                              required={hasDelivery}
+                            >
+                              <SelectTrigger id="destination">
+                                <SelectValue placeholder="Select destination" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {article.deliveryRegions.map((region) => (
+                                  <SelectItem key={region} value={region}>
+                                    {region}
+                                    {article.deliveryPrices?.[region] && (
+                                      <span className="ml-2 text-muted-foreground">
+                                        (${article.deliveryPrices[region]})
+                                      </span>
+                                    )}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            {selectedDestination && article.deliveryPrices?.[selectedDestination] && (
+                              <p className="text-sm text-muted-foreground">
+                                Delivery price: ${article.deliveryPrices[selectedDestination]} per item
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Customer Name */}
                     <div className="space-y-2">
                       <Label htmlFor="customerName">Full Name *</Label>
@@ -526,8 +601,26 @@ const ArticleDetailPage = () => {
                     </div>
 
                     {/* Total */}
-                    <div className="pt-4 border-t">
-                      <div className="flex justify-between items-center mb-4">
+                    <div className="pt-4 border-t space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">Subtotal:</span>
+                        <span className="font-medium">
+                          ${(() => {
+                            if (!article?.price) return '0.00';
+                            const priceToUse = article.priceAfterDiscount ? parseFloat(article.priceAfterDiscount) : parseFloat(article.price);
+                            return (priceToUse * quantity).toFixed(2);
+                          })()}
+                        </span>
+                      </div>
+                      {hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination] && (
+                        <div className="flex justify-between items-center">
+                          <span className="text-muted-foreground">Delivery:</span>
+                          <span className="font-medium">
+                            ${(parseFloat(article.deliveryPrices[selectedDestination]) * quantity).toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex justify-between items-center pt-2 border-t">
                         <span className="text-lg font-semibold">Total:</span>
                         <span className="text-2xl font-bold text-primary">
                           ${calculateTotal()}

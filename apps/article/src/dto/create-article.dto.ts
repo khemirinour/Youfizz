@@ -64,6 +64,20 @@ export class CreateArticleDto {
   @ApiPropertyOptional({ type: Object, description: 'Product specifications/attributes' })
   @IsOptional()
   specifications?: Record<string, any>;
+
+  @ApiPropertyOptional({ 
+    type: Object, 
+    description: 'Delivery prices per region. Key is region name, value is price as decimal string, e.g. {"Tunis": "5.00", "Sfax": "7.50"}' 
+  })
+  @IsOptional()
+  deliveryPrices?: Record<string, string>;
+
+  @ApiPropertyOptional({ 
+    type: [String], 
+    description: 'Available delivery regions for this article, e.g. ["Tunis", "Sfax", "Sousse"]' 
+  })
+  @IsOptional()
+  deliveryRegions?: string[];
 }
 
 

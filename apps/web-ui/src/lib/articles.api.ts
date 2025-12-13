@@ -32,6 +32,8 @@ export interface Article {
   images?: string[];
   metadata?: Record<string, any>;
   specifications?: Record<string, any>;
+  deliveryPrices?: Record<string, string>;
+  deliveryRegions?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -51,6 +53,8 @@ export interface CreateArticleDto {
   images?: string[];
   metadata?: Record<string, any>;
   specifications?: Record<string, any>;
+  deliveryPrices?: Record<string, string>;
+  deliveryRegions?: string[];
 }
 
 export interface UpdateArticleDto extends Partial<CreateArticleDto> {}

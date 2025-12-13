@@ -44,6 +44,10 @@ const NewArticlePage = () => {
   const [makeActive, setMakeActive] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
   const [specFields, setSpecFields] = useState<Array<{ key: string; value: string }>>([]);
+  const [enableDelivery, setEnableDelivery] = useState(false);
+  const [deliveryRegions, setDeliveryRegions] = useState<string[]>([]);
+  const [deliveryPrices, setDeliveryPrices] = useState<Record<string, string>>({});
+  const [newRegion, setNewRegion] = useState('');
   const imageUploadCardRef = useRef<HTMLDivElement>(null);
 
   // Wait for Zustand persist hydration
@@ -116,6 +120,8 @@ const NewArticlePage = () => {
         price: formData.price || '0',
         priceAfterDiscount: formData.priceAfterDiscount?.trim() || undefined,
         specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
+        deliveryRegions: enableDelivery && deliveryRegions.length > 0 ? deliveryRegions : undefined,
+        deliveryPrices: enableDelivery && Object.keys(deliveryPrices).length > 0 ? deliveryPrices : undefined,
       };
       const created = await createArticle(dataToSend);
       if (!created?.id) {
@@ -414,6 +420,110 @@ const NewArticlePage = () => {
               <p className="text-xs text-muted-foreground">
                 Exemples: Couleur, Taille, Marque, Poids, Matériau, etc.
               </p>
+            </div>
+
+            {/* Delivery Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enableDelivery"
+                  checked={enableDelivery}
+                  onCheckedChange={setEnableDelivery}
+                />
+                <Label htmlFor="enableDelivery">Enable Delivery</Label>
+              </div>
+
+              {enableDelivery && (
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                  <div className="space-y-2">
+                    <Label>Delivery Regions</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter region name (e.g., Tunis, Sfax)"
+                        value={newRegion}
+                        onChange={(e) => setNewRegion(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newRegion.trim() && !deliveryRegions.includes(newRegion.trim())) {
+                              setDeliveryRegions([...deliveryRegions, newRegion.trim()]);
+                              setNewRegion('');
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newRegion.trim() && !deliveryRegions.includes(newRegion.trim())) {
+                            setDeliveryRegions([...deliveryRegions, newRegion.trim()]);
+                            setNewRegion('');
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
+                    </div>
+                    {deliveryRegions.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {deliveryRegions.map((region) => (
+                          <div
+                            key={region}
+                            className="flex items-center gap-2 bg-background border rounded px-2 py-1"
+                          >
+                            <span className="text-sm">{region}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4"
+                              onClick={() => {
+                                setDeliveryRegions(deliveryRegions.filter((r) => r !== region));
+                                const newPrices = { ...deliveryPrices };
+                                delete newPrices[region];
+                                setDeliveryPrices(newPrices);
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {deliveryRegions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Delivery Prices per Region</Label>
+                      <div className="space-y-2">
+                        {deliveryRegions.map((region) => (
+                          <div key={region} className="flex items-center gap-2">
+                            <Label className="w-32 text-sm">{region}:</Label>
+                            <Input
+                              type="text"
+                              placeholder="0.00"
+                              value={deliveryPrices[region] || ''}
+                              onChange={(e) => {
+                                setDeliveryPrices({
+                                  ...deliveryPrices,
+                                  [region]: e.target.value,
+                                });
+                              }}
+                              className="flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Enter delivery price for each region in decimal format (e.g., 5.00, 7.50)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4">

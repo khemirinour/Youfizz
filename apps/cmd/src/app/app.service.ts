@@ -5,6 +5,7 @@ import { ILike, Repository } from 'typeorm';
 import { Order, OrderStatus } from '../entities/order.entity';
 import { QueryOrdersDto } from '../dto/query-orders.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
+import { CreateOrderDto } from '../dto/create-order.dto';
 
 @Injectable()
 export class AppService {
@@ -159,21 +160,60 @@ export class AppService {
     return order;
   }
 
-  async create(data: Partial<Order>) {
+  async create(dto: CreateOrderDto) {
+    // Calculate total including delivery prices
+    const calculatedTotal = dto.items.reduce((sum, item) => {
+      const itemTotal = parseFloat(item.price) * item.qty;
+      const deliveryTotal = item.hasDelivery && item.deliveryPrice 
+        ? parseFloat(item.deliveryPrice) * item.qty 
+        : 0;
+      return sum + itemTotal + deliveryTotal;
+    }, 0);
+
+    // Validate that provided total matches calculated total (with small tolerance for floating point)
+    const providedTotal = parseFloat(dto.total);
+    const difference = Math.abs(calculatedTotal - providedTotal);
+    if (difference > 0.01) {
+      this.logger.warn(`Order total mismatch: provided ${dto.total}, calculated ${calculatedTotal.toFixed(2)}`);
+      // Use calculated total for accuracy
+    }
+
+    // Validate delivery information if provided
+    for (const item of dto.items) {
+      if (item.hasDelivery) {
+        if (!item.destination) {
+          throw new BadRequestException(`Item with articleId ${item.articleId} has delivery enabled but no destination provided`);
+        }
+        if (!item.deliveryPrice) {
+          throw new BadRequestException(`Item with articleId ${item.articleId} has delivery enabled but no deliveryPrice provided`);
+        }
+      }
+    }
+
     const lastOrders = await this.repo.find({
       order: { createdAt: 'DESC' },
       take: 1,
     });
 
+    const orderData: Partial<Order> = {
+      items: dto.items,
+      total: calculatedTotal.toFixed(2),
+      customerName: dto.customerName,
+      customerEmail: dto.customerEmail,
+      customerPhone: dto.customerPhone,
+      customerAddress: dto.customerAddress,
+      vendorId: dto.vendorId,
+    };
+
     if (lastOrders.length > 0) {
       const lastOrder = lastOrders[0];
       const lastNumber = parseInt(lastOrder.number.split('-')[1]);
-      data.number = `ORDER-${(lastNumber + 1).toString().padStart(3, '0')}`;
+      orderData.number = `ORDER-${(lastNumber + 1).toString().padStart(3, '0')}`;
     } else {
-      data.number = 'ORDER-001';
+      orderData.number = 'ORDER-001';
     }
     
-    const entity = this.repo.create(data);
+    const entity = this.repo.create(orderData);
     return this.repo.save(entity);
   }
 

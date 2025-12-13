@@ -48,6 +48,12 @@ export class ArticleResponseDto {
   @ApiProperty({ type: Object, required: false, nullable: true, description: 'Product specifications/attributes' })
   specifications?: Record<string, any> | null;
 
+  @ApiProperty({ type: Object, required: false, nullable: true, description: 'Delivery prices per region. Key is region name, value is price as decimal string' })
+  deliveryPrices?: Record<string, string> | null;
+
+  @ApiProperty({ type: [String], required: false, nullable: true, description: 'Available delivery regions for this article' })
+  deliveryRegions?: string[] | null;
+
   @ApiProperty()
   createdAt!: Date;
 
@@ -70,6 +76,8 @@ export class ArticleResponseDto {
       isActive: entity.isActive,
       metadata: entity.metadata ?? null,
       specifications: entity.specifications ?? null,
+      deliveryPrices: entity.deliveryPrices ?? null,
+      deliveryRegions: entity.deliveryRegions ?? null,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };

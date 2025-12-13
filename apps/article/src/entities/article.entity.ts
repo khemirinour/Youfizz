@@ -50,6 +50,12 @@ export class Article extends BaseEntity {
   @Column({ type: 'jsonb', nullable: true })
   specifications?: Record<string, any>;
 
+  @Column({ type: 'jsonb', nullable: true })
+  deliveryPrices?: Record<string, string>;
+
+  @Column({ type: 'jsonb', nullable: true })
+  deliveryRegions?: string[];
+
   @OneToMany(() => ArticleCategory, (articleCategory) => articleCategory.article)
   articleCategories?: ArticleCategory[];
 }

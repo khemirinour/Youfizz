@@ -15,6 +15,9 @@ export interface OrderItemDto {
   articleId: string;
   qty: number;
   price: string; // Decimal string
+  hasDelivery?: boolean;
+  destination?: string;
+  deliveryPrice?: string;
   article?: ArticleDetails | null; // Article details when available
 }
 
