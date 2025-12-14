@@ -7,11 +7,11 @@ export const metadata = {
   description: 'Your trusted company for buying and selling quality products',
   icons: {
     icon: [
-      { url: '/favicon.ico', sizes: 'any' },
-      { url: '/favicon.png', type: 'image/png', sizes: '32x32' },
+      { url: '/logopub.png', sizes: 'any' },
+      { url: '/logopub.png', type: 'image/png', sizes: '32x32' },
     ],
-    shortcut: '/favicon.ico',
-    apple: '/favicon.png',
+    shortcut: '/logopub.png',
+    apple: '/logopub.png',
   },
 };
 

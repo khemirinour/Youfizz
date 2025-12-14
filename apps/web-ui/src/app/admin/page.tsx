@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import AdminNavbar from '@/components/AdminNavbar';
 import { Button } from '@/components/ui/button';
@@ -9,14 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { getUsers, updateUserRole, setUserActive, deleteUser, incrementVendeurNbrCmdConf, getUserStats, getOrderStats, getArticleStats } from '@/lib/admin.api';
 import type { AdminUser, UserRole } from '@/types/user';
 import type { UserStats, OrderStats, ArticleStats } from '@/lib/admin.api';
 import AnimatedBackground from '@/components/background/AnimatedBackground';
+import { RefreshCw, Users, ShoppingCart, Package, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
 
 const AdminDashboard = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [hydrated, setHydrated] = useState(false);
   const { toast } = useToast();
@@ -29,8 +32,11 @@ const AdminDashboard = () => {
   const [incrementDialogOpen, setIncrementDialogOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
   const [incrementAmount, setIncrementAmount] = useState<string>('1');
-  const [activeTab, setActiveTab] = useState<'users' | 'stats'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stats'>(
+    (searchParams.get('tab') as 'users' | 'stats') || 'users'
+  );
   const [statsLoading, setStatsLoading] = useState(false);
+  const [statsError, setStatsError] = useState<string | null>(null);
   const [userStats, setUserStats] = useState<UserStats | null>(null);
   const [orderStats, setOrderStats] = useState<OrderStats | null>(null);
   const [articleStats, setArticleStats] = useState<ArticleStats | null>(null);
@@ -42,6 +48,14 @@ const AdminDashboard = () => {
     const unsub = api?.onFinishHydration?.(() => setHydrated(true));
     return () => unsub?.();
   }, []);
+
+  // Sync activeTab with URL parameter
+  useEffect(() => {
+    const tab = searchParams.get('tab') as 'users' | 'stats' | null;
+    if (tab === 'stats' || tab === 'users') {
+      setActiveTab(tab);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Redirect non-admins to sign in (after hydration)
@@ -58,15 +72,13 @@ const AdminDashboard = () => {
       try {
         setLoading(true);
         const roleParam = roleFilter === 'ALL' ? undefined : roleFilter;
-        console.log('Fetching users with role filter:', roleParam); // Debug log
         const res = await getUsers({
           role: roleParam,
           page,
           limit: pageSize,
         });
-        console.log('Received users:', res.items); // Debug log
-        setUsers(res.items || []);
-        setTotal(res.total);
+        setUsers(res?.items || []);
+        setTotal(res?.total || 0);
       } catch (e: any) {
         toast({ title: 'Error', description: e?.message || 'Failed to load users', variant: 'destructive' });
       } finally {
@@ -86,161 +98,385 @@ const AdminDashboard = () => {
   // Fetch statistics when stats tab is active
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'admin' || activeTab !== 'stats') return;
+    
     const fetchStats = async () => {
       try {
         setStatsLoading(true);
+        setStatsError(null);
         const [userStatsData, orderStatsData, articleStatsData] = await Promise.all([
           getUserStats(),
           getOrderStats(),
           getArticleStats(),
         ]);
-        setUserStats(userStatsData);
-        setOrderStats(orderStatsData);
-        setArticleStats(articleStatsData);
+        setUserStats(userStatsData || null);
+        setOrderStats(orderStatsData || null);
+        setArticleStats(articleStatsData || null);
       } catch (e: any) {
-        toast({ title: 'Error', description: e?.message || 'Failed to load statistics', variant: 'destructive' });
+        const errorMessage = e?.response?.data?.message || e?.message || 'Failed to load statistics';
+        setStatsError(errorMessage);
+        toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
       } finally {
         setStatsLoading(false);
       }
     };
+
     fetchStats();
-  }, [hydrated, isAuthenticated, user?.role, activeTab, toast]);
+  }, [hydrated, isAuthenticated, user?.role, activeTab]);
+
+  // Expose fetchStats for manual refresh
+  const handleRefreshStats = async () => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'admin') return;
+    try {
+      setStatsLoading(true);
+      setStatsError(null);
+      const [userStatsData, orderStatsData, articleStatsData] = await Promise.all([
+        getUserStats(),
+        getOrderStats(),
+        getArticleStats(),
+      ]);
+      setUserStats(userStatsData || null);
+      setOrderStats(orderStatsData || null);
+      setArticleStats(articleStatsData || null);
+      toast({ title: 'Success', description: 'Statistics refreshed successfully' });
+    } catch (e: any) {
+      const errorMessage = e?.response?.data?.message || e?.message || 'Failed to load statistics';
+      setStatsError(errorMessage);
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
+    } finally {
+      setStatsLoading(false);
+    }
+  };
 
   if (!hydrated || !isAuthenticated || user?.role !== 'admin') return null;
 
   return (
     <div className="relative min-h-screen bg-background text-foreground overflow-hidden">
       <AnimatedBackground />
-      <AdminNavbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <AdminNavbar activeTab={activeTab} />
 
       <div className="relative z-20 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Stats Section */}
         {activeTab === 'stats' && (
           <div className="space-y-8">
-            <div>
-              <h2 className="text-2xl font-bold mb-2">Statistics</h2>
-              <p className="text-muted-foreground">Comprehensive overview of system statistics and metrics</p>
+            {/* Header with Refresh Button */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-3xl font-bold mb-2 text-foreground">Statistics Dashboard</h2>
+                <p className="text-muted-foreground">Comprehensive overview of system statistics and metrics</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshStats}
+                disabled={statsLoading}
+                className="flex items-center gap-2"
+              >
+                {statsLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="h-4 w-4" />
+                )}
+                <span>Refresh</span>
+              </Button>
             </div>
 
-            {statsLoading ? (
-              <div className="text-center py-12">
+            {/* Loading State */}
+            {statsLoading && (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
                 <p className="text-muted-foreground">Loading statistics...</p>
               </div>
-            ) : (
-              <>
+            )}
+
+            {/* Error State */}
+            {!statsLoading && statsError && (
+              <Card className="border-destructive bg-destructive/10">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-3">
+                    <AlertCircle className="h-5 w-5 text-destructive" />
+                    <div>
+                      <p className="font-semibold text-destructive">Failed to Load Statistics</p>
+                      <p className="text-sm text-muted-foreground mt-1">{statsError}</p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleRefreshStats}
+                      className="ml-auto"
+                    >
+                      <RefreshCw className="h-4 w-4 mr-2" />
+                      Retry
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Statistics Content */}
+            {!statsLoading && !statsError && (
+              <div className="space-y-8">
                 {/* User Statistics */}
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold">User Statistics</h3>
+                  <div className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-semibold">User Statistics</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Total Users</p>
-                      <p className="text-3xl font-semibold mt-2">{userStats?.total ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Active Users</p>
-                      <p className="text-3xl font-semibold mt-2">{userStats?.active ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Inactive Users</p>
-                      <p className="text-3xl font-semibold mt-2">{userStats?.inactive ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Vendeurs with Cmd</p>
-                      <p className="text-3xl font-semibold mt-2">{userStats?.vendeursWithCmdConf ?? 0}</p>
-                    </div>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-foreground">{userStats?.total?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Active Users</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-green-600">{userStats?.active?.toLocaleString() ?? 0}</p>
+                        {userStats?.total && userStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((userStats.active / userStats.total) * 100).toFixed(1)}% of total
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Inactive Users</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-muted-foreground">{userStats?.inactive?.toLocaleString() ?? 0}</p>
+                        {userStats?.total && userStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((userStats.inactive / userStats.total) * 100).toFixed(1)}% of total
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Vendeurs with Cmd</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-primary">{userStats?.vendeursWithCmdConf?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
                   </div>
-                  <div className="card-glass rounded-xl p-6">
-                    <p className="text-sm text-muted-foreground mb-4">Users by Role</p>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {userStats?.byRole && Object.entries(userStats.byRole).map(([role, count]) => (
-                        <div key={role} className="flex flex-col">
-                          <span className="text-xs text-muted-foreground uppercase">{role}</span>
-                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                  {userStats?.byRole && Object.keys(userStats.byRole).length > 0 && (
+                    <Card className="card-glass border-border">
+                      <CardHeader>
+                        <CardTitle className="text-base font-semibold">Users by Role</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          {Object.entries(userStats.byRole).map(([role, count]) => (
+                            <div key={role} className="flex flex-col p-3 rounded-lg bg-secondary/50">
+                              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">{role}</span>
+                              <span className="text-2xl font-bold mt-2 text-foreground">{count.toLocaleString()}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
 
                 {/* Order Statistics */}
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold">Order Statistics</h3>
+                  <div className="flex items-center gap-2">
+                    <ShoppingCart className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-semibold">Order Statistics</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Total Orders</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.total ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Paid Orders</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.paid ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Unpaid Orders</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.unpaid ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Total Revenue</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.totalRevenue ? orderStats.totalRevenue.toFixed(2) : '0.00'}</p>
-                      <p className="text-xs text-muted-foreground mt-1">TND</p>
-                    </div>
-                  </div>
-                  <div className="card-glass rounded-xl p-6">
-                    <p className="text-sm text-muted-foreground mb-4">Orders by Status</p>
-                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                      {orderStats?.byStatus && Object.entries(orderStats.byStatus).map(([status, count]) => (
-                        <div key={status} className="flex flex-col">
-                          <span className="text-xs text-muted-foreground capitalize">{status.toLowerCase()}</span>
-                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Orders</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-foreground">{orderStats?.total?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Paid Orders</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-green-600">{orderStats?.paid?.toLocaleString() ?? 0}</p>
+                        {orderStats?.total && orderStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((orderStats.paid / orderStats.total) * 100).toFixed(1)}% paid
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Unpaid Orders</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-orange-600">{orderStats?.unpaid?.toLocaleString() ?? 0}</p>
+                        {orderStats?.total && orderStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((orderStats.unpaid / orderStats.total) * 100).toFixed(1)}% unpaid
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex items-baseline gap-2">
+                          <p className="text-3xl font-bold text-foreground">
+                            {orderStats?.totalRevenue ? orderStats.totalRevenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '0.00'}
+                          </p>
+                          <span className="text-sm text-muted-foreground">TND</span>
                         </div>
-                      ))}
-                    </div>
+                        {orderStats?.totalRevenue && orderStats.totalRevenue > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            <TrendingUp className="h-3 w-3 inline mr-1" />
+                            Average: {(orderStats.totalRevenue / (orderStats.paid || 1)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TND
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
+                  {orderStats?.byStatus && Object.keys(orderStats.byStatus).length > 0 && (
+                    <Card className="card-glass border-border">
+                      <CardHeader>
+                        <CardTitle className="text-base font-semibold">Orders by Status</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                          {Object.entries(orderStats.byStatus).map(([status, count]) => (
+                            <div key={status} className="flex flex-col p-3 rounded-lg bg-secondary/50">
+                              <span className="text-xs font-medium text-muted-foreground capitalize">{status.toLowerCase()}</span>
+                              <span className="text-2xl font-bold mt-2 text-foreground">{count.toLocaleString()}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Active Orders</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.active ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Inactive Orders</p>
-                      <p className="text-3xl font-semibold mt-2">{orderStats?.inactive ?? 0}</p>
-                    </div>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Active Orders</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-green-600">{orderStats?.active?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Inactive Orders</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-muted-foreground">{orderStats?.inactive?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
                   </div>
                 </div>
 
                 {/* Article Statistics */}
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold">Article Statistics</h3>
+                  <div className="flex items-center gap-2">
+                    <Package className="h-5 w-5 text-primary" />
+                    <h3 className="text-xl font-semibold">Article Statistics</h3>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Total Articles</p>
-                      <p className="text-3xl font-semibold mt-2">{articleStats?.total ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Active Articles</p>
-                      <p className="text-3xl font-semibold mt-2">{articleStats?.active ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Inactive Articles</p>
-                      <p className="text-3xl font-semibold mt-2">{articleStats?.inactive ?? 0}</p>
-                    </div>
-                    <div className="card-glass rounded-xl p-6">
-                      <p className="text-sm text-muted-foreground">Total Stock</p>
-                      <p className="text-3xl font-semibold mt-2">{articleStats?.totalStock ?? 0}</p>
-                    </div>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Articles</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-foreground">{articleStats?.total?.toLocaleString() ?? 0}</p>
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Active Articles</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-green-600">{articleStats?.active?.toLocaleString() ?? 0}</p>
+                        {articleStats?.total && articleStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((articleStats.active / articleStats.total) * 100).toFixed(1)}% active
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Inactive Articles</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-muted-foreground">{articleStats?.inactive?.toLocaleString() ?? 0}</p>
+                        {articleStats?.total && articleStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {((articleStats.inactive / articleStats.total) * 100).toFixed(1)}% inactive
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                    <Card className="card-glass border-border">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-sm font-medium text-muted-foreground">Total Stock</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-3xl font-bold text-primary">{articleStats?.totalStock?.toLocaleString() ?? 0}</p>
+                        {articleStats?.total && articleStats.total > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Avg: {Math.round((articleStats.totalStock || 0) / articleStats.total).toLocaleString()} per article
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
                   </div>
-                  <div className="card-glass rounded-xl p-6">
-                    <p className="text-sm text-muted-foreground mb-4">Articles by Status</p>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {articleStats?.byStatus && Object.entries(articleStats.byStatus).map(([status, count]) => (
-                        <div key={status} className="flex flex-col">
-                          <span className="text-xs text-muted-foreground capitalize">{status.toLowerCase()}</span>
-                          <span className="text-2xl font-semibold mt-1">{count}</span>
+                  {articleStats?.byStatus && Object.keys(articleStats.byStatus).length > 0 && (
+                    <Card className="card-glass border-border">
+                      <CardHeader>
+                        <CardTitle className="text-base font-semibold">Articles by Status</CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {Object.entries(articleStats.byStatus).map(([status, count]) => (
+                            <div key={status} className="flex flex-col p-3 rounded-lg bg-secondary/50">
+                              <span className="text-xs font-medium text-muted-foreground capitalize">{status.toLowerCase()}</span>
+                              <span className="text-2xl font-bold mt-2 text-foreground">{count.toLocaleString()}</span>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
-              </>
+
+                {/* Empty State - if all stats are null/undefined */}
+                {!userStats && !orderStats && !articleStats && (
+                  <Card className="border-border">
+                    <CardContent className="pt-6">
+                      <div className="text-center py-8">
+                        <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                        <p className="text-muted-foreground">No statistics available</p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handleRefreshStats}
+                          className="mt-4"
+                        >
+                          <RefreshCw className="h-4 w-4 mr-2" />
+                          Try Again
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             )}
           </div>
         )}

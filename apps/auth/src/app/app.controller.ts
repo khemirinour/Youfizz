@@ -20,6 +20,7 @@ import { Paginated } from '../dto/paginated.dto';
 import { JwtAuthGuard } from '@you-fizz/shared';
 import { Roles } from './roles.decorator';
 import { RolesGuard } from './roles.guard';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @ApiTags('auth')
 @Controller()
@@ -145,8 +146,9 @@ export class AppController {
   @ApiTooManyRequestsResponse({ 
     description: 'Too many requests - rate limit exceeded'
   })
-  async login(@Body(ValidationPipe) loginDto: LoginDto): Promise<AuthResponseDto> {
-    return this.authService.login(loginDto);
+  async login(@Body(ValidationPipe) loginDto: LoginDto, @Res({ passthrough: true }) response: any): Promise<AuthResponseDto> {
+    const result = await this.authService.login(loginDto, response);
+    return result;
   }
 
   @Post('refresh')
@@ -172,8 +174,32 @@ export class AppController {
       }
     }
   })
-  async refreshToken(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
-    return this.authService.refreshToken(refreshTokenDto);
+  async refreshToken(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto, @Req() request: any, @Res({ passthrough: true }) response: any): Promise<AuthResponseDto> {
+    // Try to get refresh token from cookie first, fallback to body
+    // Check both parsed cookies and Cookie header (for gateway forwarding)
+    const cookieRefreshToken = request.cookies?.refreshToken;
+    const headerCookie = request.headers?.cookie;
+    
+    // Parse Cookie header if cookies object doesn't have refreshToken
+    let refreshToken = cookieRefreshToken;
+    if (!refreshToken && headerCookie) {
+      const cookies = headerCookie.split(';').reduce((acc: Record<string, string>, cookie: string) => {
+        const [key, value] = cookie.trim().split('=');
+        if (key && value) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {});
+      refreshToken = cookies.refreshToken;
+    }
+    
+    // Fallback to body if not in cookies
+    if (!refreshToken && refreshTokenDto?.refreshToken && refreshTokenDto.refreshToken.trim()) {
+      refreshToken = refreshTokenDto.refreshToken;
+    }
+    
+    const result = await this.authService.refreshToken(refreshTokenDto, response, refreshToken);
+    return result;
   }
 
   @Post('logout')
@@ -193,8 +219,19 @@ export class AppController {
   @ApiBadRequestResponse({ 
     description: 'Bad request - validation errors'
   })
-  async logout(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto): Promise<{ message: string }> {
-    return this.authService.logout(refreshTokenDto.refreshToken);
+  async logout(@Body(ValidationPipe) refreshTokenDto: RefreshTokenDto, @Req() request: any, @Res({ passthrough: true }) response: any): Promise<{ message: string }> {
+    // Try to get refresh token from cookie first, fallback to body
+    const refreshToken = request.cookies?.refreshToken || refreshTokenDto?.refreshToken;
+    if (!refreshToken) {
+      // If no refresh token in cookie or body, still clear cookies
+      if (response) {
+        response.clearCookie('accessToken', { path: '/' });
+        response.clearCookie('refreshToken', { path: '/' });
+      }
+      return { message: 'Successfully logged out' };
+    }
+    const result = await this.authService.logout(refreshToken, response);
+    return result;
   }
 
   @Post('logout-all')
@@ -214,8 +251,9 @@ export class AppController {
   @ApiBadRequestResponse({ 
     description: 'Bad request - validation errors'
   })
-  async logoutAll(@Body() body: { userId: string }): Promise<{ message: string }> {
-    return this.authService.logoutAll(body.userId);
+  async logoutAll(@Body() body: { userId: string }, @Res({ passthrough: true }) response: any): Promise<{ message: string }> {
+    const result = await this.authService.logoutAll(body.userId, response);
+    return result;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -273,12 +311,11 @@ export class AppController {
     return user;
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @UseGuards(JwtAuthGuard)
   @Get('users/:id')
   @ApiOperation({ 
     summary: 'Get user by ID',
-    description: 'Retrieve specific user by ID. Admin only.'
+    description: 'Retrieve specific user by ID. Admin can access any user, regular users can only access their own profile.'
   })
   @ApiBearerAuth()
   @ApiOkResponse({ 
@@ -292,9 +329,55 @@ export class AppController {
     description: 'User not found'
   })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
-  @ApiForbiddenResponse({ description: 'Insufficient role - Admin required' })
-  async findOne(@Param('id') id: string): Promise<UserResponseDto> {
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  async findOne(@Param('id') id: string, @Req() req: any): Promise<UserResponseDto> {
+    const currentUser = req.user;
+    
+    // Allow if user is admin OR if user is accessing their own profile
+    if (currentUser.role !== UserRole.ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException('You can only access your own profile');
+    }
+    
     return this.authService.findOne(id);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('users/:id')
+  @ApiOperation({ 
+    summary: 'Update user profile',
+    description: 'Update user profile information (firstName, lastName, email). Admin can update any user, regular users can only update their own profile. Role cannot be updated via this endpoint.'
+  })
+  @ApiBearerAuth()
+  @ApiOkResponse({ 
+    description: 'User updated successfully', 
+    type: UserResponseDto
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Invalid user ID or email already taken'
+  })
+  @ApiNotFoundResponse({ 
+    description: 'User not found'
+  })
+  @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
+  @ApiForbiddenResponse({ description: 'Insufficient permissions' })
+  async updateUser(
+    @Param('id') id: string,
+    @Body(ValidationPipe) updateData: UpdateUserDto,
+    @Req() req: any
+  ): Promise<UserResponseDto> {
+    const currentUser = req.user;
+    
+    // Allow if user is admin OR if user is updating their own profile
+    if (currentUser.role !== UserRole.ADMIN && currentUser.userId !== id) {
+      throw new ForbiddenException('You can only update your own profile');
+    }
+
+    // Prevent role updates via this endpoint
+    if ((updateData as any).role) {
+      throw new ForbiddenException('Role cannot be updated via this endpoint');
+    }
+
+    return this.authService.updateUserProfile(id, updateData);
   }
 
   @Get('roles')
@@ -962,7 +1045,7 @@ export class AppController {
 
   @Post('password-reset/confirm')
   @UseGuards(CustomThrottlerGuard)
-  @Throttle({ short: { limit: 10, ttl: 60000 } }) // 10 token confirmations per minute
+  @Throttle({ medium: { limit: 30, ttl: 10000 } }) // 30 token confirmations per 10 seconds (more lenient for page loads)
   @ApiOperation({ 
     summary: 'Confirm password reset token validity',
     description: 'Verify if password reset token is valid and not expired.'

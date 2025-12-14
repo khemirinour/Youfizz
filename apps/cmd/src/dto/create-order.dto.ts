@@ -1,11 +1,20 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsArray, IsOptional, IsString, MaxLength, ValidateNested, IsNumberString, IsUUID, IsInt, Min } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, ValidateNested, IsNumberString, IsUUID, IsInt, Min, IsBoolean, ValidateIf } from 'class-validator';
 import { Type } from 'class-transformer';
 
 class OrderItemDto {
   @ApiProperty() @IsUUID() articleId!: string;
   @ApiProperty() @IsInt() @Min(1) qty!: number;
   @ApiProperty({ description: 'Decimal string' }) @IsNumberString() price!: string;
+  @ApiPropertyOptional({ description: 'Whether delivery is selected for this item' }) @IsOptional() @IsBoolean() hasDelivery?: boolean;
+  @ApiPropertyOptional({ description: 'Selected delivery destination/region. Required if hasDelivery is true' }) 
+  @ValidateIf((o) => o.hasDelivery === true)
+  @IsString()
+  destination?: string;
+  @ApiPropertyOptional({ description: 'Delivery price for this item. Required if hasDelivery is true' }) 
+  @ValidateIf((o) => o.hasDelivery === true)
+  @IsNumberString()
+  deliveryPrice?: string;
 }
 
 export class CreateOrderDto {

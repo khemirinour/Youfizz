@@ -16,6 +16,11 @@ import { Switch } from '@/components/ui/switch';
 import { ImageUpload } from '@/components/ImageUpload';
 import { ImageGallery } from '@/components/ImageGallery';
 import type { Article } from '@/lib/articles.api';
+import { getCategoryTree, type Category } from '@/lib/categories.api';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronDown, Plus, X } from 'lucide-react';
+import { CategoryTree } from '@/components/CategoryTree';
 
 const EditArticlePage = () => {
   const params = useParams<{ id: string }>();
@@ -30,12 +35,21 @@ const EditArticlePage = () => {
     title: '',
     description: '',
     price: '',
+    priceAfterDiscount: '',
     stock: 0,
     sku: '',
     status: 'DRAFT',
     categoryId: '',
+    categoryIds: [],
+    specifications: {},
   });
   const [makeActive, setMakeActive] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [specFields, setSpecFields] = useState<Array<{ key: string; value: string }>>([]);
+  const [enableDelivery, setEnableDelivery] = useState(false);
+  const [deliveryRegions, setDeliveryRegions] = useState<string[]>([]);
+  const [deliveryPrices, setDeliveryPrices] = useState<Record<string, string>>({});
+  const [newRegion, setNewRegion] = useState('');
 
   // Wait for Zustand persist hydration
   useEffect(() => {
@@ -45,13 +59,46 @@ const EditArticlePage = () => {
     return () => unsub?.();
   }, []);
 
+  // Verify authentication and refresh token if needed
   useEffect(() => {
-    // Redirect non-vendors to sign in (after hydration)
     if (!hydrated) return;
-    if (!isAuthenticated || user?.role !== 'vendeur' || !vendorId) {
-      router.replace('/signin');
-    }
+    
+    const verifyAuth = async () => {
+      // If we think we're authenticated but tokens might be missing, try to refresh
+      if (isAuthenticated && user?.role === 'vendeur' && vendorId) {
+        try {
+          // Attempt to refresh token to verify we still have valid cookies
+          const refreshed = await useAuthStore.getState().refreshToken();
+          if (!refreshed) {
+            // Refresh failed, redirect to signin
+            router.replace('/signin');
+          }
+        } catch (error) {
+          // Refresh failed, redirect to signin
+          router.replace('/signin');
+        }
+      } else {
+        // Not authenticated, redirect to signin
+        router.replace('/signin');
+      }
+    };
+
+    verifyAuth();
   }, [hydrated, isAuthenticated, user?.role, vendorId, router]);
+
+  // Load categories
+  useEffect(() => {
+    if (!hydrated) return;
+    const loadCategories = async () => {
+      try {
+        const cats = await getCategoryTree();
+        setCategories(cats);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    };
+    loadCategories();
+  }, [hydrated]);
 
   useEffect(() => {
     if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !params.id) return;
@@ -66,12 +113,34 @@ const EditArticlePage = () => {
             title: data.title || '',
             description: data.description || '',
             price: data.price || '',
+            priceAfterDiscount: data.priceAfterDiscount || '',
             stock: data.stock || 0,
             sku: data.sku || '',
             status: data.status || 'DRAFT',
             categoryId: data.categoryId || '',
+            categoryIds: data.categories?.map((c) => c.id) || [],
+            specifications: data.specifications || {},
           });
           setMakeActive(data.isActive ?? false);
+          // Load specifications into specFields
+          if (data.specifications) {
+            setSpecFields(
+              Object.entries(data.specifications).map(([key, value]) => ({
+                key,
+                value: String(value),
+              }))
+            );
+          }
+          // Load delivery configuration
+          if (data.deliveryRegions && data.deliveryRegions.length > 0) {
+            setEnableDelivery(true);
+            setDeliveryRegions(data.deliveryRegions);
+            setDeliveryPrices(data.deliveryPrices || {});
+          } else {
+            setEnableDelivery(false);
+            setDeliveryRegions([]);
+            setDeliveryPrices({});
+          }
         }
       } catch (e: any) {
         if (!cancelled) {
@@ -98,10 +167,22 @@ const EditArticlePage = () => {
 
     try {
       setSubmitting(true);
+      // Build specifications object from specFields
+      const specifications: Record<string, any> = {};
+      specFields.forEach((field) => {
+        if (field.key.trim()) {
+          specifications[field.key.trim()] = field.value.trim();
+        }
+      });
+
       const dataToSend: UpdateArticleDto = {
         ...formData,
         stock: formData.stock || 0,
         price: formData.price || '0',
+        priceAfterDiscount: formData.priceAfterDiscount?.trim() || undefined,
+        specifications: Object.keys(specifications).length > 0 ? specifications : undefined,
+        deliveryRegions: enableDelivery && deliveryRegions.length > 0 ? deliveryRegions : undefined,
+        deliveryPrices: enableDelivery && Object.keys(deliveryPrices).length > 0 ? deliveryPrices : undefined,
       };
       const updated = await updateArticle(params.id, dataToSend);
       if (makeActive && updated?.id) {
@@ -251,6 +332,19 @@ const EditArticlePage = () => {
               </div>
 
               <div className="space-y-2">
+                <Label htmlFor="priceAfterDiscount">Price After Discount (Optional)</Label>
+                <Input
+                  id="priceAfterDiscount"
+                  type="text"
+                  value={formData.priceAfterDiscount}
+                  onChange={(e) => setFormData({ ...formData, priceAfterDiscount: e.target.value })}
+                  placeholder="0.00"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
                 <Label htmlFor="stock">Stock</Label>
                 <Input
                   id="stock"
@@ -300,14 +394,197 @@ const EditArticlePage = () => {
               <Label htmlFor="makeActive">Active (Visible)</Label>
             </div>
 
+            {/* Categories Multi-Select */}
             <div className="space-y-2">
-              <Label htmlFor="categoryId">Category ID</Label>
-              <Input
-                id="categoryId"
-                value={formData.categoryId}
-                onChange={(e) => setFormData({ ...formData, categoryId: e.target.value })}
-                placeholder="Enter category ID (optional)"
-              />
+              <Label>Catégories</Label>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full justify-between"
+                  >
+                    {formData.categoryIds && formData.categoryIds.length > 0
+                      ? `${formData.categoryIds.length} catégorie(s) sélectionnée(s)`
+                      : 'Sélectionner des catégories'}
+                    <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0">
+                  <div className="max-h-60 overflow-y-auto p-3 bg-muted/30">
+                    <CategoryTree
+                      categories={categories}
+                      selectedIds={formData.categoryIds || []}
+                      onToggle={(categoryId) => {
+                        const currentIds = formData.categoryIds || [];
+                        if (currentIds.includes(categoryId)) {
+                          setFormData({ ...formData, categoryIds: currentIds.filter((id) => id !== categoryId) });
+                        } else {
+                          setFormData({ ...formData, categoryIds: [...currentIds, categoryId] });
+                        }
+                      }}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+
+            {/* Specifications */}
+            <div className="space-y-2">
+              <Label>Spécifications du produit</Label>
+              <div className="space-y-2 border rounded-lg p-4 bg-muted/30">
+                {specFields.map((field, index) => (
+                  <div key={index} className="flex gap-2">
+                    <Input
+                      placeholder="Nom (ex: Couleur, Taille, Marque)"
+                      value={field.key}
+                      onChange={(e) => {
+                        const newFields = [...specFields];
+                        newFields[index].key = e.target.value;
+                        setSpecFields(newFields);
+                      }}
+                      className="flex-1"
+                    />
+                    <Input
+                      placeholder="Valeur"
+                      value={field.value}
+                      onChange={(e) => {
+                        const newFields = [...specFields];
+                        newFields[index].value = e.target.value;
+                        setSpecFields(newFields);
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSpecFields(specFields.filter((_, i) => i !== index));
+                      }}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSpecFields([...specFields, { key: '', value: '' }])}
+                  className="w-full"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Ajouter une spécification
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Exemples: Couleur, Taille, Marque, Poids, Matériau, etc.
+              </p>
+            </div>
+
+            {/* Delivery Configuration */}
+            <div className="space-y-4">
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enableDelivery"
+                  checked={enableDelivery}
+                  onCheckedChange={setEnableDelivery}
+                />
+                <Label htmlFor="enableDelivery">Enable Delivery</Label>
+              </div>
+
+              {enableDelivery && (
+                <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
+                  <div className="space-y-2">
+                    <Label>Delivery Regions</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        placeholder="Enter region name (e.g., Tunis, Sfax)"
+                        value={newRegion}
+                        onChange={(e) => setNewRegion(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (newRegion.trim() && !deliveryRegions.includes(newRegion.trim())) {
+                              setDeliveryRegions([...deliveryRegions, newRegion.trim()]);
+                              setNewRegion('');
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          if (newRegion.trim() && !deliveryRegions.includes(newRegion.trim())) {
+                            setDeliveryRegions([...deliveryRegions, newRegion.trim()]);
+                            setNewRegion('');
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add
+                      </Button>
+                    </div>
+                    {deliveryRegions.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {deliveryRegions.map((region) => (
+                          <div
+                            key={region}
+                            className="flex items-center gap-2 bg-background border rounded px-2 py-1"
+                          >
+                            <span className="text-sm">{region}</span>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4"
+                              onClick={() => {
+                                setDeliveryRegions(deliveryRegions.filter((r) => r !== region));
+                                const newPrices = { ...deliveryPrices };
+                                delete newPrices[region];
+                                setDeliveryPrices(newPrices);
+                              }}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {deliveryRegions.length > 0 && (
+                    <div className="space-y-2">
+                      <Label>Delivery Prices per Region</Label>
+                      <div className="space-y-2">
+                        {deliveryRegions.map((region) => (
+                          <div key={region} className="flex items-center gap-2">
+                            <Label className="w-32 text-sm">{region}:</Label>
+                            <Input
+                              type="text"
+                              placeholder="0.00"
+                              value={deliveryPrices[region] || ''}
+                              onChange={(e) => {
+                                setDeliveryPrices({
+                                  ...deliveryPrices,
+                                  [region]: e.target.value,
+                                });
+                              }}
+                              className="flex-1"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Enter delivery price for each region in decimal format (e.g., 5.00, 7.50)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-4">

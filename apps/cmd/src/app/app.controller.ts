@@ -23,7 +23,7 @@ export class AppController {
   @ApiQuery({ name: 'search', required: false, description: 'Order number contains' })
   @ApiQuery({ name: 'status', required: false, enum: ['PENDING','CONFIRMED','SHIPPED','DELIVERED','CANCELLED'] })
   @ApiQuery({ name: 'customerId', required: false })
-  @ApiQuery({ name: 'vendorId', required: false })
+  @ApiQuery({ name: 'vendorId', required: true, description: 'Filter by vendor ID (required)' })
   @ApiQuery({ name: 'isActive', required: false })
   @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
   @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
@@ -78,16 +78,30 @@ export class AppController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order confirmed', type: Order })
-  confirm(@Param('id', new ParseUUIDPipe()) id: string, @Req() req: Request) {
+  confirm(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() body: { vendorId?: string; notes?: string },
+    @Req() req: Request
+  ) {
     // Extract user data from JWT token (same logic as login token)
     const user = req.user as any; // Type assertion to avoid linter conflicts
+    
+    // DEBUG: Log the actual role value to see what we're getting
+    console.log('DEBUG - User role from JWT:', user?.role, 'Type:', typeof user?.role);
+    
+    // Use vendorId from body if provided, otherwise fall back to JWT token
+    const vendorId = body?.vendorId || user?.vendorId;
     const userData = {
       userId: user?.userId,           // User ID from token
       role: user?.role,                // User role
-      vendorId: user?.vendorId,     // Vendor ID from token (if vendeur)
+      vendorId: vendorId,             // Vendor ID from body or token
       confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confermateur)
     };
-    return this.appService.confirm(id, userData);
+    
+    // DEBUG: Log what we're passing to the service
+    console.log('DEBUG - UserData being passed to service:', JSON.stringify(userData));
+    
+    return this.appService.confirm(id, userData, body?.notes);
   }
 
   @Patch(':id/activate')

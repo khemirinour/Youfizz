@@ -1,5 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Article, ArticleStatus } from '../entities/article.entity';
+import { CategoryResponseDto } from './category-response.dto';
 
 export class ArticleResponseDto {
   @ApiProperty()
@@ -14,6 +15,9 @@ export class ArticleResponseDto {
   @ApiProperty({ description: 'Decimal string' })
   price!: string;
 
+  @ApiProperty({ required: false, nullable: true, description: 'Decimal string. Optional price after discount' })
+  priceAfterDiscount?: string | null;
+
   @ApiProperty()
   stock!: number;
 
@@ -21,7 +25,10 @@ export class ArticleResponseDto {
   sku?: string | null;
 
   @ApiProperty({ required: false, nullable: true })
-  categoryId?: string | null;
+  categoryId?: string | null; // Kept for backward compatibility
+
+  @ApiProperty({ type: [CategoryResponseDto], required: false, nullable: true })
+  categories?: CategoryResponseDto[] | null;
 
   @ApiProperty({ required: false, nullable: true })
   vendorId?: string | null;
@@ -38,18 +45,28 @@ export class ArticleResponseDto {
   @ApiProperty({ type: Object, required: false, nullable: true })
   metadata?: Record<string, any> | null;
 
+  @ApiProperty({ type: Object, required: false, nullable: true, description: 'Product specifications/attributes' })
+  specifications?: Record<string, any> | null;
+
+  @ApiProperty({ type: Object, required: false, nullable: true, description: 'Delivery prices per region. Key is region name, value is price as decimal string' })
+  deliveryPrices?: Record<string, string> | null;
+
+  @ApiProperty({ type: [String], required: false, nullable: true, description: 'Available delivery regions for this article' })
+  deliveryRegions?: string[] | null;
+
   @ApiProperty()
   createdAt!: Date;
 
   @ApiProperty()
   updatedAt!: Date;
 
-  static fromEntity(entity: Article): ArticleResponseDto {
-    return {
+  static fromEntity(entity: Article, includeCategories: boolean = false): ArticleResponseDto {
+    const dto: ArticleResponseDto = {
       id: entity.id,
       title: entity.title,
       description: entity.description ?? null,
       price: entity.price,
+      priceAfterDiscount: entity.priceAfterDiscount ?? null,
       stock: entity.stock,
       sku: entity.sku ?? null,
       categoryId: entity.categoryId ?? null,
@@ -58,9 +75,20 @@ export class ArticleResponseDto {
       status: entity.status,
       isActive: entity.isActive,
       metadata: entity.metadata ?? null,
+      specifications: entity.specifications ?? null,
+      deliveryPrices: entity.deliveryPrices ?? null,
+      deliveryRegions: entity.deliveryRegions ?? null,
       createdAt: entity.createdAt,
       updatedAt: entity.updatedAt,
     };
+
+    if (includeCategories && entity.articleCategories && entity.articleCategories.length > 0) {
+      dto.categories = entity.articleCategories.map((ac) => 
+        CategoryResponseDto.fromEntity(ac.category, false)
+      );
+    }
+
+    return dto;
   }
 }
 

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import AnimatedBackground from "@/components/background/AnimatedBackground";
+import { apiRequestPasswordReset } from "@/lib/auth.api";
 
 const ForgotPassword = () => {
   const router = useRouter();
@@ -30,20 +31,21 @@ const ForgotPassword = () => {
           description: t("toast.fillAllFields"),
           variant: "destructive",
         });
+        setIsLoading(false);
         return;
       }
 
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await apiRequestPasswordReset(email);
 
       setIsSubmitted(true);
       toast({
         title: t("toast.success"),
         description: t("toast.resetLinkSent"),
       });
-    } catch (error) {
+    } catch (error: any) {
       toast({
         title: t("toast.error"),
-        description: t("toast.resetLinkFailed"),
+        description: error?.message || t("toast.resetLinkFailed"),
         variant: "destructive",
       });
     } finally {

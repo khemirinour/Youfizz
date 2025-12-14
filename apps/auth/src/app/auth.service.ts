@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, BadRequestException, UnauthorizedException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EmailService } from '@you-fizz/shared';
@@ -16,6 +16,7 @@ import { PasswordResetToken } from '../entities/password-reset-token.entity';
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import * as crypto from 'crypto';
+import { UpdateUserDto } from '../dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
@@ -96,7 +97,7 @@ export class AuthService {
   // Private method to send password reset email asynchronously
   private async sendPasswordResetEmailAsync(email: string, token: string, firstName?: string): Promise<void> {
     try {
-      await this.emailService.sendPasswordResetEmail({ email, resetToken: token, firstName });
+      await this.notificationClient.sendPasswordResetEmail({ email, resetToken: token, firstName });
       console.log(`Password reset email sent successfully to ${email}`);
     } catch (error) {
       // Log error but don't fail the request for security reasons
@@ -105,7 +106,7 @@ export class AuthService {
     }
   }
 
-  async login(loginDto: LoginDto): Promise<AuthResponseDto> {
+  async login(loginDto: LoginDto, response?: any): Promise<AuthResponseDto> {
     const user = await this.userRepo.findOne({ where: { email: loginDto.email } });
     
     if (!user) {
@@ -167,13 +168,38 @@ export class AuthService {
       }),
     );
 
+    // Set HttpOnly cookies if response object is provided
+    if (response) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieSecure = process.env.COOKIE_SECURE !== 'false' && isProduction;
+      
+      // Set access token cookie (15 minutes)
+      response.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+        path: '/',
+      });
+
+      // Set refresh token cookie (7 days)
+      response.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/',
+      });
+    }
+
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
 
+    // Return user data without tokens (tokens are in cookies)
     return {
       user: this.toUserResponseDto(user),
-      accessToken,
-      refreshToken,
+      accessToken: response ? undefined : accessToken, // Only return token if no response (backward compatibility)
+      refreshToken: response ? undefined : refreshToken, // Only return token if no response (backward compatibility)
       tokenType: 'Bearer',
       expiresIn: accessTokenExpirySeconds,
       vendorId,
@@ -181,8 +207,13 @@ export class AuthService {
     };
   }
 
-  async refreshToken(refreshTokenDto: RefreshTokenDto): Promise<AuthResponseDto> {
-    const { refreshToken } = refreshTokenDto;
+  async refreshToken(refreshTokenDto: RefreshTokenDto, response?: any, cookieRefreshToken?: string): Promise<AuthResponseDto> {
+    // Use refresh token from cookie if available, otherwise from DTO
+    const refreshToken = cookieRefreshToken || refreshTokenDto?.refreshToken;
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
 
     // Check if refresh token exists and is valid
     const tokenData = await this.refreshRepo.findOne({ where: { token: refreshToken, isActive: true } });
@@ -242,13 +273,38 @@ export class AuthService {
       }),
     );
 
+    // Set HttpOnly cookies if response object is provided
+    if (response) {
+      const isProduction = process.env.NODE_ENV === 'production';
+      const cookieSecure = process.env.COOKIE_SECURE !== 'false' && isProduction;
+      
+      // Set access token cookie (15 minutes)
+      response.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: 'strict',
+        maxAge: 15 * 60 * 1000, // 15 minutes in milliseconds
+        path: '/',
+      });
+
+      // Set refresh token cookie (7 days)
+      response.cookie('refreshToken', newRefreshToken, {
+        httpOnly: true,
+        secure: cookieSecure,
+        sameSite: 'strict',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in milliseconds
+        path: '/',
+      });
+    }
+
     // Calculate access token expiry in seconds
     const accessTokenExpirySeconds = 15 * 60; // 15 minutes
 
+    // Return user data without tokens (tokens are in cookies)
     return {
       user: this.toUserResponseDto(user),
-      accessToken,
-      refreshToken: newRefreshToken,
+      accessToken: response ? undefined : accessToken, // Only return token if no response (backward compatibility)
+      refreshToken: response ? undefined : newRefreshToken, // Only return token if no response (backward compatibility)
       tokenType: 'Bearer',
       expiresIn: accessTokenExpirySeconds,
       vendorId,
@@ -256,16 +312,30 @@ export class AuthService {
     };
   }
 
-  async logout(refreshToken: string): Promise<{ message: string }> {
-    // Invalidate refresh token
-    await this.refreshRepo.delete({ token: refreshToken });
+  async logout(refreshToken: string | undefined, response?: any): Promise<{ message: string }> {
+    // Invalidate refresh token if provided
+    if (refreshToken) {
+      await this.refreshRepo.delete({ token: refreshToken });
+    }
+
+    // Clear cookies if response object is provided
+    if (response) {
+      response.clearCookie('accessToken', { path: '/' });
+      response.clearCookie('refreshToken', { path: '/' });
+    }
 
     return { message: 'Successfully logged out' };
   }
 
-  async logoutAll(userId: string): Promise<{ message: string }> {
+  async logoutAll(userId: string, response?: any): Promise<{ message: string }> {
     // Invalidate all refresh tokens for user
     await this.refreshRepo.delete({ userId });
+
+    // Clear cookies if response object is provided
+    if (response) {
+      response.clearCookie('accessToken', { path: '/' });
+      response.clearCookie('refreshToken', { path: '/' });
+    }
 
     return { message: 'Successfully logged out from all devices' };
   }
@@ -434,6 +504,34 @@ export class AuthService {
       throw new BadRequestException('User not found');
     }
     user.isActive = isActive;
+    await this.userRepo.save(user);
+    return this.toUserResponseDto(user);
+  }
+
+  async updateUserProfile(id: string, updateData: { firstName?: string; lastName?: string; email?: string }): Promise<UserResponseDto> {
+    const user = await this.userRepo.findOne({ where: { id } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Update only provided fields
+    if (updateData.firstName !== undefined) {
+      user.firstName = updateData.firstName;
+    }
+    if (updateData.lastName !== undefined) {
+      user.lastName = updateData.lastName;
+    }
+    if (updateData.email !== undefined) {
+      // Check if email is already taken by another user
+      const existingUser = await this.userRepo.findOne({ 
+        where: { email: updateData.email } 
+      });
+      if (existingUser && existingUser.id !== id) {
+        throw new BadRequestException('Email is already taken');
+      }
+      user.email = updateData.email;
+    }
+
     await this.userRepo.save(user);
     return this.toUserResponseDto(user);
   }
@@ -709,7 +807,7 @@ export class AuthService {
    * @param confermateurUserId - The user ID of the confermateur
    * @returns Array of vendeur user information (id, firstName, lastName, email)
    */
-  private async getVendeurUsersForConfermateur(confermateurUserId: string): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+  private async getVendeurUsersForConfermateur(confermateurUserId: string): Promise<Array<{ id: string; vendorId: string; firstName: string; lastName: string; email: string }>> {
     try {
       // Step 1: Find Confermateur entity by idUser
       const confermateur = await this.confermateurRepo.findOne({
@@ -738,12 +836,13 @@ export class AuthService {
           }
           return {
             id: v.user.id,
+            vendorId: v.id, // Add vendor entity ID
             firstName: v.user.firstName || '',
             lastName: v.user.lastName || '',
             email: v.user.email || '',
           };
         })
-        .filter((v): v is { id: string; firstName: string; lastName: string; email: string } => v !== null && v.id !== '');
+        .filter((v): v is { id: string; vendorId: string; firstName: string; lastName: string; email: string } => v !== null && v.id !== '');
 
       return vendeurUsers;
     } catch (error) {
@@ -759,7 +858,7 @@ export class AuthService {
    */
   async getVendeursForConfermateur(
     confermateurUserId: string,
-  ): Promise<Array<{ id: string; firstName: string; lastName: string; email: string }>> {
+  ): Promise<Array<{ id: string; vendorId: string; firstName: string; lastName: string; email: string }>> {
     return this.getVendeurUsersForConfermateur(confermateurUserId);
   }
 

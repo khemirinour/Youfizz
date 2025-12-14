@@ -10,14 +10,11 @@ let failedQueue: Array<{
 	reject: (error?: any) => void;
 }> = [];
 
+// Tokens are now stored in HttpOnly cookies, not accessible via JavaScript
+// Browser automatically sends cookies with requests when withCredentials: true
 function getToken(): string | null {
-	try {
-		if (typeof window === 'undefined') return null;
-		const tokenFromStorage = window.localStorage.getItem('token');
-		return tokenFromStorage || null;
-	} catch {
-		return null;
-	}
+	// Return null - tokens are in HttpOnly cookies, not accessible from JS
+	return null;
 }
 
 function processQueue(error: any, token: string | null = null) {
@@ -41,11 +38,9 @@ function createHttp(): AxiosInstance {
 	});
 
 	instance.interceptors.request.use((config) => {
-		const token = getToken();
-		if (token) {
-			config.headers = config.headers ?? {};
-			config.headers.Authorization = `Bearer ${token}`;
-		}
+		// Tokens are in HttpOnly cookies, browser sends them automatically
+		// No need to set Authorization header - backend reads from cookies
+		// Keep withCredentials: true to ensure cookies are sent
 		return config;
 	});
 
@@ -104,14 +99,11 @@ function createHttp(): AxiosInstance {
 					const refreshed = await useAuthStore.getState().refreshToken();
 					
 					if (refreshed) {
-						const newToken = getToken();
-						processQueue(null, newToken);
+						// Token refresh successful, new tokens are in cookies
+						// No need to update headers - cookies are sent automatically
+						processQueue(null, null);
 						
-						// Update authorization header and retry original request
-						if (originalRequest.headers && newToken) {
-							originalRequest.headers.Authorization = `Bearer ${newToken}`;
-						}
-						
+						// Retry original request (cookies will be sent automatically)
 						return httpInstance!.request(originalRequest);
 					} else {
 						processQueue(error, null);
@@ -135,20 +127,83 @@ function createHttp(): AxiosInstance {
 			}
 
 			// Handle 401 - Unauthorized (no token or invalid token)
-			if (status === 401) {
+			if (status === 401 && originalRequest && !originalRequest._retry) {
 				// Don't redirect for public endpoints - let the error propagate
 				if (isPublicEndpoint) {
 					return Promise.reject(error);
 				}
 
-				try {
-					useAuthStore.getState().logout();
-				} catch {}
-				if (typeof window !== 'undefined') {
-					const currentPath = window.location.pathname;
-					if (!currentPath.startsWith('/signin')) {
-						window.location.assign('/signin');
+				// Prevent infinite loop if refresh endpoint also returns 401
+				if (originalRequest.url?.includes('/auth/refresh')) {
+					try {
+						useAuthStore.getState().logout();
+					} catch {}
+					if (typeof window !== 'undefined') {
+						const currentPath = window.location.pathname;
+						if (!currentPath.startsWith('/signin')) {
+							window.location.assign('/signin');
+						}
 					}
+					return Promise.reject(error);
+				}
+
+				// If already refreshing, queue this request
+				if (isRefreshing) {
+					return new Promise((resolve, reject) => {
+						failedQueue.push({ resolve, reject });
+					})
+						.then(() => {
+							// Retry original request (cookies will be sent automatically)
+							return httpInstance!.request(originalRequest);
+						})
+						.catch((err) => {
+							return Promise.reject(err);
+						});
+				}
+
+				// Try to refresh token before logging out
+				originalRequest._retry = true;
+				isRefreshing = true;
+
+				try {
+					const refreshed = await useAuthStore.getState().refreshToken();
+					
+					if (refreshed) {
+						// Token refresh successful, new tokens are in cookies
+						// No need to update headers - cookies are sent automatically
+						processQueue(null, null);
+						
+						// Retry original request (cookies will be sent automatically)
+						return httpInstance!.request(originalRequest);
+					} else {
+						// Refresh failed, logout
+						processQueue(error, null);
+						try {
+							useAuthStore.getState().logout();
+						} catch {}
+						if (typeof window !== 'undefined') {
+							const currentPath = window.location.pathname;
+							if (!currentPath.startsWith('/signin')) {
+								window.location.assign('/signin');
+							}
+						}
+						return Promise.reject(error);
+					}
+				} catch (refreshError) {
+					// Refresh failed, logout
+					processQueue(refreshError, null);
+					try {
+						useAuthStore.getState().logout();
+					} catch {}
+					if (typeof window !== 'undefined') {
+						const currentPath = window.location.pathname;
+						if (!currentPath.startsWith('/signin')) {
+							window.location.assign('/signin');
+						}
+					}
+					return Promise.reject(refreshError);
+				} finally {
+					isRefreshing = false;
 				}
 			}
 
@@ -167,7 +222,14 @@ export function http(): AxiosInstance {
 }
 
 export const get = <T = unknown>(url: string, params?: Record<string, unknown>) =>
-	http().get<T>(url, { params }).then((r) => r.data);
+	http().get<T>(url, { params }).then((r) => {
+		// Handle 304 Not Modified - return undefined to indicate no change
+		// The frontend should preserve existing state when receiving undefined
+		if (r.status === 304) {
+			return undefined;
+		}
+		return r.data;
+	});
 
 export const post = <T = unknown>(url: string, data?: unknown) =>
 	http().post<T>(url, data).then((r) => r.data);

@@ -37,14 +37,13 @@ export async function uploadFile(
   // Import axios directly for FormData uploads
   const axios = (await import('axios')).default;
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+  // Tokens are in HttpOnly cookies, browser sends them automatically
   
   const response = await axios.post<UploadFileResponse>(`${baseURL}${url}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
-    withCredentials: true,
+    withCredentials: true, // Required to send cookies
   });
   return response.data;
 }
@@ -69,14 +68,13 @@ export async function uploadMultipleFiles(
   // Import axios directly for FormData uploads
   const axios = (await import('axios')).default;
   const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  const token = typeof window !== 'undefined' ? window.localStorage.getItem('token') : null;
+  // Tokens are in HttpOnly cookies, browser sends them automatically
   
   const response = await axios.post<MultipleUploadResponse>(`${baseURL}${url}`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
-      ...(token && { Authorization: `Bearer ${token}` }),
     },
-    withCredentials: true,
+    withCredentials: true, // Required to send cookies
   });
   return response.data;
 }

@@ -31,13 +31,30 @@ export class AppController {
   @ApiOperation({ summary: 'List articles', description: 'Returns paginated list of articles. Use filters for search, category, vendor, status, and visibility.' })
   @ApiQuery({ name: 'search', required: false, description: 'Search by title (ILIKE %search%)' })
   @ApiQuery({ name: 'categoryId', required: false })
+  @ApiQuery({ name: 'categoryIds', required: false, type: [String], isArray: true, description: 'Array of category IDs' })
   @ApiQuery({ name: 'vendorId', required: false })
   @ApiQuery({ name: 'status', required: false, enum: ['DRAFT','PUBLISHED','ARCHIVED'] })
   @ApiQuery({ name: 'isActive', required: false, description: 'true to show only active, false for inactive' })
+  @ApiQuery({ name: 'minPrice', required: false })
+  @ApiQuery({ name: 'maxPrice', required: false })
+  @ApiQuery({ name: 'minPriceAfterDiscount', required: false })
+  @ApiQuery({ name: 'maxPriceAfterDiscount', required: false })
+  @ApiQuery({ name: 'minStock', required: false })
+  @ApiQuery({ name: 'maxStock', required: false })
+  @ApiQuery({ name: 'sortBy', required: false })
+  @ApiQuery({ name: 'sortOrder', required: false })
   @ApiQuery({ name: 'limit', required: false, schema: { default: 20, minimum: 1 } })
   @ApiQuery({ name: 'offset', required: false, schema: { default: 0, minimum: 0 } })
   @ApiOkResponse({ description: 'Articles retrieved', type: [ArticleResponseDto] })
-  list(@Query() query: QueryArticlesDto) {
+  list(@Query() query: QueryArticlesDto, @Req() req: Request) {
+    // Handle categoryIds[] format from query string
+    const rawQuery = req.query as any;
+    if (rawQuery['categoryIds[]']) {
+      const categoryIdsArray = Array.isArray(rawQuery['categoryIds[]']) 
+        ? rawQuery['categoryIds[]'] 
+        : [rawQuery['categoryIds[]']];
+      query.categoryIds = categoryIdsArray.filter((id: any) => id);
+    }
     return this.appService.findAll(query);
   }
 
@@ -161,9 +178,19 @@ export class AppController {
       throw new BadRequestException('No file provided');
     }
     // Get authorization header from request (handle both lowercase and capitalized)
-    const authHeader = authorization || 
+    let authHeader = authorization || 
       (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
       (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    
+    // If no authorization header, try to extract token from cookies
+    if (!authHeader && req) {
+      const token = (req as any).cookies?.accessToken || 
+        (req.headers.cookie?.split(';').find((c: string) => c.trim().startsWith('accessToken='))?.split('=')[1]?.trim());
+      if (token) {
+        authHeader = `Bearer ${token}`;
+      }
+    }
+    
     const imageUrl = await this.appService.uploadImage(file, id, authHeader);
     return this.appService.addImageToArticle(id, imageUrl);
   }
@@ -205,9 +232,19 @@ export class AppController {
       throw new BadRequestException('No files provided');
     }
     // Get authorization header from request (handle both lowercase and capitalized)
-    const authHeader = authorization || 
+    let authHeader = authorization || 
       (typeof req?.headers?.authorization === 'string' ? req.headers.authorization : undefined) ||
       (typeof req?.headers?.Authorization === 'string' ? req.headers.Authorization : undefined);
+    
+    // If no authorization header, try to extract token from cookies
+    if (!authHeader && req) {
+      const token = (req as any).cookies?.accessToken || 
+        (req.headers.cookie?.split(';').find((c: string) => c.trim().startsWith('accessToken='))?.split('=')[1]?.trim());
+      if (token) {
+        authHeader = `Bearer ${token}`;
+      }
+    }
+    
     const imageUrls = await this.appService.uploadMultipleImages(files, id, authHeader);
     return this.appService.addImagesToArticle(id, imageUrls);
   }

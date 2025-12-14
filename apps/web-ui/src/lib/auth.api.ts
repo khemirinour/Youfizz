@@ -25,8 +25,8 @@ export interface UserResponse {
 
 export interface AuthResponse {
 	user: UserResponse;
-	accessToken: string;
-	refreshToken: string;
+	accessToken?: string; // Optional - tokens are now in HttpOnly cookies
+	refreshToken?: string; // Optional - tokens are now in HttpOnly cookies
 	tokenType: string; // 'Bearer'
 	expiresIn: number; // seconds
 	vendorId?: string;
@@ -42,7 +42,9 @@ export async function apiRegister(payload: RegisterPayload) {
 }
 
 export async function apiLogout(refreshToken: string) {
-	return post<{ message: string }>('/api/auth/logout', { refreshToken });
+	// Refresh token is read from HttpOnly cookie by backend
+	// Pass empty string or token for backward compatibility
+	return post<{ message: string }>('/api/auth/logout', { refreshToken: refreshToken || '' });
 }
 
 export async function apiLogoutAll(userId: string) {
@@ -55,10 +57,11 @@ export interface RefreshTokenPayload {
 
 export async function apiRefreshToken(refreshToken: string) {
 	// Use http() helper to go through gateway
-	// Refresh endpoint doesn't require Authorization header
+	// Refresh token is read from HttpOnly cookie by backend
+	// Pass empty string or token for backward compatibility
 	const response = await http().post<AuthResponse>(
 		'/api/auth/refresh',
-		{ refreshToken },
+		{ refreshToken: refreshToken || '' },
 	);
 	return response.data;
 }
@@ -69,7 +72,7 @@ export async function apiRequestPasswordReset(email: string) {
 }
 
 export async function apiConfirmPasswordReset(token: string) {
-	return post<{ valid: boolean; message?: string }>('/api/auth/password-reset/confirm', { token });
+	return post<{ isValid: boolean; email?: string; expiresAt?: Date; message: string }>('/api/auth/password-reset/confirm', { token });
 }
 
 export async function apiResetPassword(token: string, newPassword: string) {

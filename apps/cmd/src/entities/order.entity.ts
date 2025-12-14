@@ -19,7 +19,14 @@ export class Order extends BaseEntity {
   status!: OrderStatus;
 
   @Column({ type: 'jsonb' })
-  items!: Array<{ articleId: string; qty: number; price: string }>;
+  items!: Array<{
+    articleId: string;
+    qty: number;
+    price: string;
+    hasDelivery?: boolean;
+    destination?: string;
+    deliveryPrice?: string;
+  }>;
 
   @Column({ type: 'numeric', precision: 12, scale: 2 })
   total!: string;
@@ -41,4 +48,7 @@ export class Order extends BaseEntity {
 
   @Column({ type: 'boolean', default: true })
   isActive!: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  notes?: string;
 }

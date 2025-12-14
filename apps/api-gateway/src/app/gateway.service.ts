@@ -1,7 +1,7 @@
 import { Injectable, Logger, HttpException, HttpStatus } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import { lastValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
 
 export interface ServiceEndpoint {
@@ -23,7 +23,8 @@ export class GatewayService {
     { service: 'auth', path: '/logout', method: 'POST', requiresAuth: true },
     { service: 'auth', path: '/logout-all', method: 'POST', requiresAuth: true },
     { service: 'auth', path: '/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
-    { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/users/:id', method: 'GET', requiresAuth: true },
+    { service: 'auth', path: '/users/:id', method: 'PATCH', requiresAuth: true },
     { service: 'auth', path: '/roles', method: 'GET', requiresAuth: true },
     { service: 'auth', path: '/users/:id/role/:role', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
     { service: 'auth', path: '/users/:id/active', method: 'PATCH', requiresAuth: true, roles: ['admin'] },
@@ -61,11 +62,20 @@ export class GatewayService {
     { service: 'article', path: '/articles/:id/images', method: 'DELETE', requiresAuth: true, roles: ['admin', 'vendeur'] },
     { service: 'article', path: '/stats/articles', method: 'GET', requiresAuth: true, roles: ['admin'] },
     
+    // Category service endpoints
+    { service: 'article', path: '/categories', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories/tree', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories', method: 'POST', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/categories/:id', method: 'GET', requiresAuth: false },
+    { service: 'article', path: '/categories/:id', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur'] },
+    { service: 'article', path: '/categories/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
+    
     // CMD service endpoints
     { service: 'cmd', path: '/orders', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders', method: 'POST', requiresAuth: false }, // Changed to false - guest orders allowed
     { service: 'cmd', path: '/orders/:id', method: 'GET', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders/:id', method: 'PUT', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
+    { service: 'cmd', path: '/orders/:id', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders/:id', method: 'DELETE', requiresAuth: true, roles: ['admin'] },
     { service: 'cmd', path: '/orders/:id/confirm', method: 'PATCH', requiresAuth: true, roles: ['vendeur', 'confermateur'] },
     { service: 'cmd', path: '/orders/:id/activate', method: 'PATCH', requiresAuth: true, roles: ['admin', 'vendeur', 'confermateur'] },
@@ -133,11 +143,14 @@ export class GatewayService {
       'connection',
       'accept-encoding',
       'content-encoding',
+      'if-none-match', // Block cache validation headers
+      'if-modified-since',
     ]);
     const result: Record<string, string> = {};
     for (const [key, value] of Object.entries(headers)) {
       const lowerKey = key.toLowerCase();
-      if (!blocked.has(lowerKey) && value !== undefined && value !== null) {
+      // Allow Cookie header to pass through for cookie forwarding
+      if ((!blocked.has(lowerKey) || lowerKey === 'cookie') && value !== undefined && value !== null) {
         result[key] = value as unknown as string;
       }
     }
@@ -155,6 +168,8 @@ export class GatewayService {
     headers: Record<string, string>,
     user?: any,
     isMultipart: boolean = false,
+    returnHeaders: boolean = false,
+    cookies?: Record<string, string>,
   ): Promise<any> {
     const [pathname, queryString] = path.split('?');
     const endpoint = this.findEndpoint(pathname, method);
@@ -172,6 +187,22 @@ export class GatewayService {
     // Check role requirements
     if (endpoint.roles && user && !endpoint.roles.includes(user.role)) {
         throw new HttpException('Insufficient permissions', HttpStatus.FORBIDDEN);
+    }
+
+    // Forward cookies from client to service
+    // Priority: 1) Explicit cookies parameter, 2) Cookie header from request, 3) Construct from cookies object
+    if (cookies && Object.keys(cookies).length > 0) {
+      const cookieString = Object.entries(cookies)
+        .map(([key, value]) => `${key}=${value}`)
+        .join('; ');
+      headers['Cookie'] = cookieString;
+    } else if (headers['Cookie'] || headers['cookie']) {
+      // Cookie header already exists, keep it (sanitizeHeaders allows it)
+      // No action needed
+    } else if (endpoint.requiresAuth) {
+      // For authenticated endpoints, if no cookies provided, log warning
+      // Cookies should be forwarded from the controller
+      this.logger.warn(`No cookies forwarded for authenticated endpoint: ${method} ${pathname}`);
     }
 
     const serviceUrl = this.getServiceUrl(endpoint.service);
@@ -193,10 +224,13 @@ export class GatewayService {
         ...sanitized,
         ...(user ? { 'x-user-id': user.userId, 'x-user-role': user.role } : {}),
         'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
+        'Cache-Control': 'no-cache, no-store, must-revalidate', // Force fresh data
+        'Pragma': 'no-cache', // HTTP/1.0 compatibility
       },
       timeout: 30000,
       maxBodyLength: Infinity,
       maxContentLength: Infinity,
+      withCredentials: false, // Don't use axios cookie forwarding, we handle it manually via Cookie header
       validateStatus: (status) => {
         // Treat 2xx and 3xx (including 304 Not Modified) as success
         return status >= 200 && status < 400;
@@ -214,12 +248,57 @@ export class GatewayService {
 
     try {
       this.logger.log(`Forwarding ${method} ${path} to ${endpoint.service} service`);
-      const response = await firstValueFrom(this.httpService.request(config));
-      return response.data; // Return only the data, not the full Axios response
+      const response = await lastValueFrom(this.httpService.request(config));
+      
+      // Add response validation
+      if (!response) {
+        this.logger.error(`Empty response from ${endpoint.service} for ${method} ${path}`);
+        throw new HttpException('Empty response from service', HttpStatus.BAD_GATEWAY);
+      }
+      
+      this.logger.debug(`Response status: ${response.status}, has data: ${!!response.data}`);
+      
+      // Handle 304 explicitly - but we need to return the ETag header for proper caching
+      if (response.status === 304) {
+        this.logger.log(`304 Not Modified for ${method} ${path}`);
+        // For 304, we still need to return undefined, but the ETag header should be forwarded
+        // The frontend will handle this with its cache
+        return undefined;
+      }
+      
+      // Validate data exists
+      if (response.data === undefined || response.data === null) {
+        this.logger.warn(`Response data is null/undefined for ${method} ${path}`);
+      }
+      
+      // Extract Set-Cookie headers to forward to client
+      const setCookieHeaders: string[] = [];
+      if (response.headers['set-cookie']) {
+        // Axios normalizes Set-Cookie headers to lowercase and returns as array
+        const cookies = Array.isArray(response.headers['set-cookie']) 
+          ? response.headers['set-cookie'] 
+          : [response.headers['set-cookie']];
+        setCookieHeaders.push(...cookies);
+      }
+      
+      // Return data and headers if requested, otherwise just data (backward compatibility)
+      if (returnHeaders) {
+        return {
+          data: response.data,
+          headers: setCookieHeaders.length > 0 ? { 'set-cookie': setCookieHeaders } : undefined,
+        };
+      }
+      return response.data;
     } catch (error: any) {
+      // Enhanced error logging
       this.logger.error(
         `Error forwarding ${method} ${path} to ${endpoint.service} service:`,
-        error?.message || 'Unknown error'
+        {
+          message: error?.message,
+          status: error?.response?.status,
+          data: error?.response?.data,
+          url: fullUrl,
+        }
       );
       
       if (error?.response) {

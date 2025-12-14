@@ -12,6 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
+import { getArticleUrl } from '@/lib/utils/url';
 import {
   Pagination,
   PaginationContent,
@@ -20,7 +21,17 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
+import { Copy, Check, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
+import { Slider } from '@/components/ui/slider';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { getCategories } from '@/lib/categories.api';
+import { Category } from '@/lib/articles.api';
+import { Checkbox } from '@/components/ui/checkbox';
+import { CategoryTree } from '@/components/CategoryTree';
+import { getCategoryTree } from '@/lib/categories.api';
 
 const ArticlesListPage = () => {
   const router = useRouter();
@@ -31,6 +42,7 @@ const ArticlesListPage = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [copiedArticleId, setCopiedArticleId] = useState<string | null>(null);
 
   const pageSize = 20;
   const [page, setPage] = useState(() => {
@@ -45,6 +57,29 @@ const ArticlesListPage = () => {
   const [isActiveFilter, setIsActiveFilter] = useState<'ALL' | 'true' | 'false'>(
     (searchParams.get('isActive') as any) || 'ALL'
   );
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [minPrice, setMinPrice] = useState<string>(searchParams.get('minPrice') || '');
+  const [maxPrice, setMaxPrice] = useState<string>(searchParams.get('maxPrice') || '');
+  const [minStock, setMinStock] = useState<number | undefined>(
+    searchParams.get('minStock') ? parseInt(searchParams.get('minStock')!, 10) : undefined
+  );
+  const [maxStock, setMaxStock] = useState<number | undefined>(
+    searchParams.get('maxStock') ? parseInt(searchParams.get('maxStock')!, 10) : undefined
+  );
+  const [createdAfter, setCreatedAfter] = useState<Date | undefined>(
+    searchParams.get('createdAfter') ? new Date(searchParams.get('createdAfter')!) : undefined
+  );
+  const [createdBefore, setCreatedBefore] = useState<Date | undefined>(
+    searchParams.get('createdBefore') ? new Date(searchParams.get('createdBefore')!) : undefined
+  );
+  const [sortBy, setSortBy] = useState<'title' | 'price' | 'stock' | 'createdAt'>(
+    (searchParams.get('sortBy') as any) || 'title'
+  );
+  const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>(
+    (searchParams.get('sortOrder') as any) || 'ASC'
+  );
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   // Wait for Zustand hydration
   useEffect(() => {
@@ -54,17 +89,50 @@ const ArticlesListPage = () => {
     return () => unsub?.();
   }, []);
 
-  // Redirect unauthorized users
+  // Verify authentication and refresh token if needed
   useEffect(() => {
     if (!hydrated) return;
-    if (!isAuthenticated || user?.role !== 'vendeur' || !vendorId) {
-      router.replace('/signin');
-    }
+    
+    const verifyAuth = async () => {
+      // If we think we're authenticated but tokens might be missing, try to refresh
+      if (isAuthenticated && user?.role === 'vendeur' && vendorId) {
+        try {
+          // Attempt to refresh token to verify we still have valid cookies
+          const refreshed = await useAuthStore.getState().refreshToken();
+          if (!refreshed) {
+            // Refresh failed, redirect to signin
+            router.replace('/signin');
+          }
+        } catch (error) {
+          // Refresh failed, redirect to signin
+          router.replace('/signin');
+        }
+      } else {
+        // Not authenticated, redirect to signin
+        router.replace('/signin');
+      }
+    };
+
+    verifyAuth();
   }, [hydrated, isAuthenticated, user?.role, vendorId, router]);
 
+  // Load categories on mount
+  useEffect(() => {
+    if (!hydrated) return;
+    const loadCategories = async () => {
+      try {
+        const cats = await getCategoryTree();
+        setCategories(cats);
+      } catch (error) {
+        console.error('Failed to load categories:', error);
+      }
+    };
+    loadCategories();
+  }, [hydrated]);
+
   const queryKey = useMemo(
-    () => `${searchQuery}|${statusFilter}|${isActiveFilter}|${page}|${vendorId}`,
-    [searchQuery, statusFilter, isActiveFilter, page, vendorId]
+    () => `${searchQuery}|${statusFilter}|${isActiveFilter}|${selectedCategories.join(',')}|${minPrice}|${maxPrice}|${minStock}|${maxStock}|${createdAfter?.toISOString()}|${createdBefore?.toISOString()}|${sortBy}|${sortOrder}|${page}|${vendorId}`,
+    [searchQuery, statusFilter, isActiveFilter, selectedCategories, minPrice, maxPrice, minStock, maxStock, createdAfter, createdBefore, sortBy, sortOrder, page, vendorId]
   );
 
   useEffect(() => {
@@ -76,14 +144,32 @@ const ArticlesListPage = () => {
         if (searchQuery.trim()) params.search = searchQuery.trim();
         if (statusFilter !== 'ALL') params.status = statusFilter;
         if (isActiveFilter !== 'ALL') params.isActive = isActiveFilter === 'true';
+        if (selectedCategories.length > 0) params.categoryIds = selectedCategories;
+        if (minPrice) params.minPrice = minPrice;
+        if (maxPrice) params.maxPrice = maxPrice;
+        if (minStock !== undefined) params.minStock = minStock;
+        if (maxStock !== undefined) params.maxStock = maxStock;
+        if (createdAfter) params.createdAfter = createdAfter.toISOString();
+        if (createdBefore) params.createdBefore = createdBefore.toISOString();
+        params.sortBy = sortBy;
+        params.sortOrder = sortOrder;
         const data = await getArticlesByVendor(vendorId, params);
-        setArticles(data.items || []);
-        setTotal(data.total || 0);
+        setArticles(data?.items || []);
+        setTotal(data?.total || 0);
 
         const urlParams = new URLSearchParams();
         if (searchQuery.trim()) urlParams.set('search', searchQuery.trim());
         if (statusFilter !== 'ALL') urlParams.set('status', statusFilter);
         if (isActiveFilter !== 'ALL') urlParams.set('isActive', isActiveFilter);
+        if (selectedCategories.length > 0) urlParams.set('categoryIds', selectedCategories.join(','));
+        if (minPrice) urlParams.set('minPrice', minPrice);
+        if (maxPrice) urlParams.set('maxPrice', maxPrice);
+        if (minStock !== undefined) urlParams.set('minStock', minStock.toString());
+        if (maxStock !== undefined) urlParams.set('maxStock', maxStock.toString());
+        if (createdAfter) urlParams.set('createdAfter', createdAfter.toISOString());
+        if (createdBefore) urlParams.set('createdBefore', createdBefore.toISOString());
+        if (sortBy !== 'title') urlParams.set('sortBy', sortBy);
+        if (sortOrder !== 'ASC') urlParams.set('sortOrder', sortOrder);
         if (page > 1) urlParams.set('page', page.toString());
         router.replace(`/vendor/articles${urlParams.toString() ? `?${urlParams.toString()}` : ''}`);
       } catch (e: any) {
@@ -119,9 +205,47 @@ const ArticlesListPage = () => {
     } catch (e: any) {
       toast({
         title: 'Erreur',
-        description: e?.response?.data?.message || e?.message || 'Échec de l’action',
+        description: e?.response?.data?.message || e?.message || "Échec de l'action",
         variant: 'destructive',
       });
+    }
+  };
+
+  const handleCopyLink = async (articleId: string) => {
+    try {
+      const articleUrl = getArticleUrl(articleId);
+      await navigator.clipboard.writeText(articleUrl);
+      setCopiedArticleId(articleId);
+      toast({
+        title: 'Succès',
+        description: 'Lien copié dans le presse-papiers',
+      });
+      // Reset copied state after 2 seconds
+      setTimeout(() => setCopiedArticleId(null), 2000);
+    } catch (e: any) {
+      // Fallback for older browsers
+      try {
+        const textArea = document.createElement('textarea');
+        textArea.value = getArticleUrl(articleId);
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        setCopiedArticleId(articleId);
+        toast({
+          title: 'Succès',
+          description: 'Lien copié dans le presse-papiers',
+        });
+        setTimeout(() => setCopiedArticleId(null), 2000);
+      } catch (fallbackError) {
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de copier le lien',
+          variant: 'destructive',
+        });
+      }
     }
   };
 
@@ -137,7 +261,7 @@ const ArticlesListPage = () => {
             'radial-gradient(circle at top left, hsl(var(--primary) / 0.12), hsl(var(--background)) 60%)',
         }}
       />
-      <VendorNavbar logoSrc="/logo-dark.png" />
+      <VendorNavbar />
 
       <div className="relative z-10 max-w-6xl mx-auto px-4 py-8 space-y-8 animate-fade-in">
         {/* Header */}
@@ -168,13 +292,30 @@ const ArticlesListPage = () => {
               <Button onClick={() => setPage(1)}>
                 Rechercher
               </Button>
-              {(searchQuery || statusFilter !== 'ALL' || isActiveFilter !== 'ALL') && (
+              <Button
+                variant="outline"
+                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
+                className="border-border text-foreground hover:bg-secondary/70"
+              >
+                Filtres avancés
+                <ChevronDown className={`ml-2 h-4 w-4 transition-transform ${showAdvancedFilters ? 'rotate-180' : ''}`} />
+              </Button>
+              {(searchQuery || statusFilter !== 'ALL' || isActiveFilter !== 'ALL' || selectedCategories.length > 0 || minPrice || maxPrice || minStock !== undefined || maxStock !== undefined || createdAfter || createdBefore) && (
                 <Button
                   variant="outline"
                   onClick={() => {
                     setSearchQuery('');
                     setStatusFilter('ALL');
                     setIsActiveFilter('ALL');
+                    setSelectedCategories([]);
+                    setMinPrice('');
+                    setMaxPrice('');
+                    setMinStock(undefined);
+                    setMaxStock(undefined);
+                    setCreatedAfter(undefined);
+                    setCreatedBefore(undefined);
+                    setSortBy('title');
+                    setSortOrder('ASC');
                     setPage(1);
                   }}
                   className="border-border text-foreground hover:bg-secondary/70"
@@ -184,7 +325,7 @@ const ArticlesListPage = () => {
               )}
             </div>
 
-            {/* Filters */}
+            {/* Basic Filters */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="status-filter" className="text-muted-foreground">
@@ -225,6 +366,163 @@ const ArticlesListPage = () => {
                 </Select>
               </div>
             </div>
+
+            {/* Advanced Filters */}
+            {showAdvancedFilters && (
+              <div className="space-y-4 pt-4 border-t border-border">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {/* Categories Multi-Select */}
+                  <div className="space-y-2">
+                    <Label>Catégories</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-between"
+                        >
+                          {selectedCategories.length > 0
+                            ? `${selectedCategories.length} sélectionnée(s)`
+                            : 'Sélectionner des catégories'}
+                          <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-full p-0 bg-card border-border">
+                        <div className="max-h-60 overflow-y-auto p-3 bg-muted/30">
+                          <CategoryTree
+                            categories={categories}
+                            selectedIds={selectedCategories}
+                            onToggle={(categoryId) => {
+                              if (selectedCategories.includes(categoryId)) {
+                                setSelectedCategories(selectedCategories.filter((id) => id !== categoryId));
+                              } else {
+                                setSelectedCategories([...selectedCategories, categoryId]);
+                              }
+                            }}
+                          />
+                        </div>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Price Range */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Prix min</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={minPrice}
+                      onChange={(e) => setMinPrice(e.target.value)}
+                      className="bg-secondary/80 border-border text-foreground"
+                    />
+                    
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Prix max</Label>
+                    <Input
+                      type="number"
+                      placeholder="9999.99"
+                      value={maxPrice}
+                      onChange={(e) => setMaxPrice(e.target.value)}
+                      className="bg-secondary/80 border-border text-foreground"
+                    />
+                  </div>
+
+                  {/* Stock Range */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Stock min</Label>
+                    <Input
+                      type="number"
+                      placeholder="0"
+                      value={minStock ?? ''}
+                      onChange={(e) => setMinStock(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                      className="bg-secondary/80 border-border text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Stock max</Label>
+                    <Input
+                      type="number"
+                      placeholder="9999"
+                      value={maxStock ?? ''}
+                      onChange={(e) => setMaxStock(e.target.value ? parseInt(e.target.value, 10) : undefined)}
+                      className="bg-secondary/80 border-border text-foreground"
+                    />
+                  </div>
+
+                  {/* Date Range */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Créé après</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-secondary/80 border-border text-foreground"
+                        >
+                          {createdAfter ? format(createdAfter, 'PPP') : 'Sélectionner une date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-card border-border">
+                        <Calendar
+                          mode="single"
+                          selected={createdAfter}
+                          onSelect={setCreatedAfter}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Créé avant</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal bg-secondary/80 border-border text-foreground"
+                        >
+                          {createdBefore ? format(createdBefore, 'PPP') : 'Sélectionner une date'}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0 bg-card border-border">
+                        <Calendar
+                          mode="single"
+                          selected={createdBefore}
+                          onSelect={setCreatedBefore}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+
+                  {/* Sort */}
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Trier par</Label>
+                    <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+                      <SelectTrigger className="bg-secondary/80 border-border text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card text-foreground border-border">
+                        <SelectItem value="title">Titre</SelectItem>
+                        <SelectItem value="price">Prix</SelectItem>
+                        <SelectItem value="stock">Stock</SelectItem>
+                        <SelectItem value="createdAt">Date de création</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Ordre</Label>
+                    <Select value={sortOrder} onValueChange={(v) => setSortOrder(v as any)}>
+                      <SelectTrigger className="bg-secondary/80 border-border text-foreground">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card text-foreground border-border">
+                        <SelectItem value="ASC">Croissant</SelectItem>
+                        <SelectItem value="DESC">Décroissant</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Table */}
@@ -257,6 +555,20 @@ const ArticlesListPage = () => {
                         <TableCell className="text-right">{article.stock ?? 0}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleCopyLink(article.id)}
+                              className="border-border text-foreground hover:bg-secondary/70"
+                              title="Copier le lien de l'article"
+                              aria-label="Copier le lien de l'article"
+                            >
+                              {copiedArticleId === article.id ? (
+                                <Check className="h-4 w-4" />
+                              ) : (
+                                <Copy className="h-4 w-4" />
+                              )}
+                            </Button>
                             <Link href={`/vendor/articles/${article.id}/edit`}>
                               <Button size="sm" variant="outline" className="border-border text-foreground hover:bg-secondary/70">
                                 Éditer
