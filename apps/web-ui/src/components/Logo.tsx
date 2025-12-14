@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import logo from '@/assets/logo.png';
+import logo from '@/assets/youfizz-logo-text.png';
 interface LogoProps {
   className?: string;
   height?: number;
