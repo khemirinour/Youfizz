@@ -51,6 +51,11 @@ export interface Order {
   notes?: string;
   createdAt?: string;
   updatedAt?: string;
+  confirmationAttempts?: number;
+  confirmedByUserId?: string;
+  confirmedByUserName?: string;
+  confirmedByUserEmail?: string;
+  lastConfirmationAttemptAt?: string;
 }
 
 // Backend response type (what we actually receive)
@@ -72,6 +77,11 @@ interface OrderResponse {
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
+  confirmationAttempts?: number;
+  confirmedByUserId?: string;
+  confirmedByUserName?: string;
+  confirmedByUserEmail?: string;
+  lastConfirmationAttemptAt?: string;
 }
 
 export interface GetOrdersParams {

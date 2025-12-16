@@ -56,8 +56,20 @@ export class AppController {
   @ApiOkResponse({ description: 'Order updated', type: Order })
   @ApiUnauthorizedResponse({ description: 'Missing or invalid token' })
   @ApiForbiddenResponse({ description: 'Insufficient role' })
-  update(@Param('id', new ParseUUIDPipe()) id: string, @Body() dto: UpdateOrderDto) {
-    return this.appService.update(id, dto);
+  update(
+    @Param('id', new ParseUUIDPipe()) id: string, 
+    @Body() dto: UpdateOrderDto,
+    @Req() req: Request
+  ) {
+    // Extract user data from JWT token for tracking who made the update
+    const user = req.user as any;
+    const userData = {
+      userId: user?.userId,
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      email: user?.email,
+    };
+    return this.appService.update(id, dto, userData);
   }
 
   @Delete(':id')
@@ -96,6 +108,10 @@ export class AppController {
       role: user?.role,                // User role
       vendorId: vendorId,             // Vendor ID from body or token
       confirmateurId: user?.confirmateurId, // Confirmateur ID from token (if confermateur)
+      // Include user info from JWT if available (may not always be present)
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      email: user?.email,
     };
     
     // DEBUG: Log what we're passing to the service
@@ -110,8 +126,18 @@ export class AppController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order activated', type: Order })
-  activate(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.appService.setActive(id, true);
+  activate(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: Request
+  ) {
+    const user = req.user as any;
+    const userData = {
+      userId: user?.userId,
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      email: user?.email,
+    };
+    return this.appService.setActive(id, true, userData);
   }
 
   @Patch(':id/deactivate')
@@ -120,8 +146,18 @@ export class AppController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('ADMIN', 'VENDEUR', 'CONFERMATEUR')
   @ApiOkResponse({ description: 'Order deactivated', type: Order })
-  deactivate(@Param('id', new ParseUUIDPipe()) id: string) {
-    return this.appService.setActive(id, false);
+  deactivate(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Req() req: Request
+  ) {
+    const user = req.user as any;
+    const userData = {
+      userId: user?.userId,
+      firstName: user?.firstName,
+      lastName: user?.lastName,
+      email: user?.email,
+    };
+    return this.appService.setActive(id, false, userData);
   }
 
   @Get('stats/orders')

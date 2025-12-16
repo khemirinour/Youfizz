@@ -51,4 +51,19 @@ export class Order extends BaseEntity {
 
   @Column({ type: 'text', nullable: true })
   notes?: string;
+
+  @Column({ type: 'integer', default: 0 })
+  confirmationAttempts!: number;
+
+  @Column({ type: 'varchar', length: 50, nullable: true })
+  confirmedByUserId?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  confirmedByUserName?: string;
+
+  @Column({ type: 'varchar', length: 100, nullable: true })
+  confirmedByUserEmail?: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  lastConfirmationAttemptAt?: Date;
 }

@@ -217,7 +217,69 @@ export class AppService {
     return this.repo.save(entity);
   }
 
-  async update(id: string, dto: UpdateOrderDto) {
+  // Helper method to get user information
+  private async getUserInfo(updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }): Promise<{ userName?: string; userEmail?: string }> {
+    let userName: string | undefined;
+    let userEmail: string | undefined;
+
+    // Use data from updater if available
+    if (updater?.firstName || updater?.lastName) {
+      const firstName = updater.firstName || '';
+      const lastName = updater.lastName || '';
+      userName = `${firstName} ${lastName}`.trim() || undefined;
+    }
+
+    if (updater?.email) {
+      userEmail = updater.email;
+    }
+
+    // If we don't have user info and userId is available, try to fetch from API
+    if (updater?.userId && (!userName || !userEmail)) {
+      try {
+        this.logger.log(`Fetching user info for userId: ${updater.userId}`);
+        const userResponse = await axios.get(`http://localhost:3001/api/users/${updater.userId}`, {
+          timeout: 5000,
+        });
+        
+        if (userResponse.data) {
+          if (!userName) {
+            const firstName = userResponse.data.firstName || '';
+            const lastName = userResponse.data.lastName || '';
+            userName = `${firstName} ${lastName}`.trim() || undefined;
+          }
+          if (!userEmail) {
+            userEmail = userResponse.data.email || undefined;
+          }
+        }
+      } catch (e: any) {
+        this.logger.warn(`Failed to fetch user info for userId ${updater.userId}:`, {
+          error: e?.message,
+        });
+      }
+    }
+
+    return { userName, userEmail };
+  }
+
+  async update(id: string, dto: UpdateOrderDto, updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }) {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Always increment confirmation attempts on any update/PATCH
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    
+    // Always get user information for any update/PATCH
+    const { userName, userEmail } = await this.getUserInfo(updater);
+    
+    // Always update user who made the modification on any update/PATCH
+    (dto as any).confirmationAttempts = currentAttempts;
+    (dto as any).confirmedByUserId = updater?.userId;
+    (dto as any).confirmedByUserName = userName;
+    (dto as any).confirmedByUserEmail = userEmail;
+    (dto as any).lastConfirmationAttemptAt = new Date();
+
     // If items are being updated, recalculate total including delivery prices
     if (dto.items && dto.items.length > 0) {
       const calculatedTotal = dto.items.reduce((sum, item) => {
@@ -252,16 +314,41 @@ export class AppService {
     return { id };
   }
 
-  async setActive(id: string, active: boolean) {
-    await this.repo.update({ id }, { isActive: active });
-    return this.findOne(id);
-  }
-
-  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string }, notes?: string) {
+  async setActive(id: string, active: boolean, updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }) {
     const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException('Order not found');
     }
+
+    // Increment confirmation attempts on activate/deactivate
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    
+    // Get user information for activate/deactivate
+    const { userName, userEmail } = await this.getUserInfo(updater);
+    
+    await this.repo.update({ id }, { 
+      isActive: active,
+      confirmationAttempts: currentAttempts,
+      lastConfirmationAttemptAt: new Date(),
+      confirmedByUserId: updater?.userId,
+      confirmedByUserName: userName,
+      confirmedByUserEmail: userEmail,
+    });
+    return this.findOne(id);
+  }
+
+  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string; firstName?: string; lastName?: string; email?: string }, notes?: string) {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Increment confirmation attempts and update last attempt timestamp on every attempt
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    await this.repo.update({ id }, {
+      confirmationAttempts: currentAttempts,
+      lastConfirmationAttemptAt: new Date(),
+    });
 
     // Check if order is already confirmed
     if (order.status === OrderStatus.CONFIRMED) {
@@ -344,9 +431,19 @@ export class AppService {
       this.logger.warn(`Order confirmation skipped quota check - role: ${confirmer?.role}, expected VENDEUR or CONFERMATEUR`);
     }
     
+    // Get user information using helper method
+    const { userName, userEmail } = await this.getUserInfo(confirmer);
+
     // Only update order status if quota was successfully consumed (or if role doesn't require quota)
     this.logger.log(`Updating order ${id} status to CONFIRMED`);
-    const updateData: any = { status: OrderStatus.CONFIRMED, isActive: true };
+    const updateData: any = { 
+      status: OrderStatus.CONFIRMED, 
+      isActive: true,
+      confirmationAttempts: currentAttempts, // Ensure we preserve the incremented value
+      confirmedByUserId: confirmer?.userId,
+      confirmedByUserName: userName,
+      confirmedByUserEmail: userEmail,
+    };
     if (notes !== undefined) {
       updateData.notes = notes;
     }
