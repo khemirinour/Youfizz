@@ -52,8 +52,11 @@ function createHttp(): AxiosInstance {
 			const url = originalRequest?.url || '';
 
 			// List of public endpoints that don't require auth
+			// Auth endpoints (login, register) should not trigger token refresh on 401
 			const publicEndpoints = ['/api/orders'];
+			const authEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/password-reset'];
 			const isPublicEndpoint = publicEndpoints.some(endpoint => url.includes(endpoint));
+			const isAuthEndpoint = authEndpoints.some(endpoint => url.includes(endpoint));
 
 			// Handle 403 - Forbidden (token expired or invalid)
 			if (status === 403 && originalRequest && !originalRequest._retry) {
@@ -130,6 +133,12 @@ function createHttp(): AxiosInstance {
 			if (status === 401 && originalRequest && !originalRequest._retry) {
 				// Don't redirect for public endpoints - let the error propagate
 				if (isPublicEndpoint) {
+					return Promise.reject(error);
+				}
+
+				// Don't try to refresh token for auth endpoints (login, register, password-reset)
+				// These endpoints return 401 for invalid credentials, not expired tokens
+				if (isAuthEndpoint) {
 					return Promise.reject(error);
 				}
 

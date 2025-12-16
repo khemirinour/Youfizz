@@ -170,6 +170,7 @@ export class GatewayService {
     isMultipart: boolean = false,
     returnHeaders: boolean = false,
     cookies?: Record<string, string>,
+    clientIp?: string,
   ): Promise<any> {
     const [pathname, queryString] = path.split('?');
     const endpoint = this.findEndpoint(pathname, method);
@@ -217,13 +218,29 @@ export class GatewayService {
 
     const sanitized = this.sanitizeHeaders(headers, isMultipart);
 
+    // Extract client IP with priority: provided clientIp > existing X-Forwarded-For > unknown
+    let forwardedForIp: string;
+    if (clientIp && clientIp !== 'unknown') {
+      // Use provided client IP
+      forwardedForIp = clientIp;
+      this.logger.log(`[GATEWAY] Forwarding request to ${endpoint.service}${forwardedPath} with client IP: ${forwardedForIp} (from parameter)`);
+    } else if (headers['x-forwarded-for'] && headers['x-forwarded-for'] !== 'gateway') {
+      // Use existing X-Forwarded-For if it's a real IP
+      forwardedForIp = headers['x-forwarded-for'];
+      this.logger.log(`[GATEWAY] Forwarding request to ${endpoint.service}${forwardedPath} with client IP: ${forwardedForIp} (from X-Forwarded-For header)`);
+    } else {
+      // Fallback - this shouldn't happen if trust proxy is enabled
+      forwardedForIp = 'unknown';
+      this.logger.warn(`[GATEWAY] Could not determine client IP for ${method} ${pathname}, using 'unknown'`);
+    }
+
     const config: AxiosRequestConfig = {
       method: method.toLowerCase() as any,
       url: fullUrl,
       headers: {
         ...sanitized,
         ...(user ? { 'x-user-id': user.userId, 'x-user-role': user.role } : {}),
-        'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
+        'x-forwarded-for': forwardedForIp,
         'Cache-Control': 'no-cache, no-store, must-revalidate', // Force fresh data
         'Pragma': 'no-cache', // HTTP/1.0 compatibility
       },

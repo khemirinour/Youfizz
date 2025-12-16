@@ -12,6 +12,12 @@ import { setupSwagger } from './app/swagger.config';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable trust proxy to get real client IP from X-Forwarded-For header
+  // This is essential for rate limiting to work correctly behind API Gateway
+  const httpAdapter = app.getHttpAdapter();
+  const instance = httpAdapter.getInstance();
+  instance.set('trust proxy', true);
+  
   // Enable cookie parser middleware for HttpOnly cookies
   // Use require for CommonJS module
   const cookieParser = require('cookie-parser');
