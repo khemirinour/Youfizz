@@ -685,6 +685,7 @@ const VendorOrdersPage = () => {
                         <th className="px-4 py-3 text-xs font-medium uppercase">Phone</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Total</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Status</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Nombre de tentative</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Active</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Date</th>
@@ -757,6 +758,9 @@ const VendorOrdersPage = () => {
                                 </SelectContent>
                               </Select>
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-foreground">
+                            {order.confirmationAttempts || 0}
                           </td>
                           <td className="px-4 py-3">
                             <Button
@@ -1198,7 +1202,42 @@ const VendorOrdersPage = () => {
                     <p className="font-semibold">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
                   </div>
                 )}
+                <div>
+                  <Label className="text-muted-foreground">Nombre de tentative</Label>
+                  <p className="font-semibold">{selectedOrder.confirmationAttempts || 0}</p>
+                </div>
+                {selectedOrder.lastConfirmationAttemptAt && (
+                  <div>
+                    <Label className="text-muted-foreground">Last Attempt At</Label>
+                    <p className="font-semibold">{new Date(selectedOrder.lastConfirmationAttemptAt).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
+              {selectedOrder.confirmedByUserName || selectedOrder.confirmedByUserEmail ? (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">User qui confirme</Label>
+                  <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
+                    {selectedOrder.confirmedByUserName && (
+                      <p>
+                        <span className="font-medium">Name:</span>{' '}
+                        <span>{selectedOrder.confirmedByUserName}</span>
+                      </p>
+                    )}
+                    {selectedOrder.confirmedByUserEmail && (
+                      <p>
+                        <span className="font-medium">Email:</span>{' '}
+                        <span>{selectedOrder.confirmedByUserEmail}</span>
+                      </p>
+                    )}
+                    {selectedOrder.confirmedByUserId && (
+                      <p>
+                        <span className="font-medium">User ID:</span>{' '}
+                        <span className="text-xs text-muted-foreground">{selectedOrder.confirmedByUserId}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Customer Information</Label>
                 <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
