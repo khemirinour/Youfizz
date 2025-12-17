@@ -52,6 +52,9 @@ export class Order extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
+  @Column({ type: 'text', nullable: true })
+  remarque?: string;
+
   @Column({ type: 'integer', default: 0 })
   confirmationAttempts!: number;
 

@@ -83,6 +83,7 @@ const VendorOrdersPage = () => {
     customerPhone: '',
     customerAddress: '',
     vendorId: vendorId || undefined,
+    remarque: '',
   });
   const [articles, setArticles] = useState<Article[]>([]);
   const [loadingArticles, setLoadingArticles] = useState(false);
@@ -349,10 +350,11 @@ const VendorOrdersPage = () => {
       }
       
       // Recalculate total including delivery prices
+      // Delivery is per order (not per item), so multiply by 1
       const newTotal = newItems.reduce((sum, item) => {
         const itemTotal = parseFloat(item.price) * item.qty;
         const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-          ? parseFloat(item.deliveryPrice) * item.qty 
+          ? parseFloat(item.deliveryPrice) * 1 
           : 0;
         return sum + itemTotal + deliveryTotal;
       }, 0);
@@ -994,6 +996,16 @@ const VendorOrdersPage = () => {
                     placeholder="123 Main St, City, Country"
                   />
                 </div>
+                <div className="space-y-2 col-span-2">
+                  <Label htmlFor="remarque">Remarks / Notes</Label>
+                  <Textarea
+                    id="remarque"
+                    value={formData.remarque || ''}
+                    onChange={(e) => setFormData(prev => ({ ...prev, remarque: e.target.value }))}
+                    placeholder="Any additional notes or special instructions..."
+                    rows={3}
+                  />
+                </div>
               </div>
             </div>
 
@@ -1274,6 +1286,14 @@ const VendorOrdersPage = () => {
                             {selectedOrder.customerAddress || fakeAddress}
                           </span>
                         </p>
+                        {selectedOrder.remarque && (
+                          <p>
+                            <span className="font-medium">Remarks:</span>{' '}
+                            <span className={isHidden ? 'blur-sm select-none' : ''}>
+                              {selectedOrder.remarque}
+                            </span>
+                          </p>
+                        )}
                       </>
                     );
                   })()}
@@ -1340,7 +1360,7 @@ const VendorOrdersPage = () => {
                                 {(() => {
                                   const itemTotal = parseFloat(item.price) * item.qty;
                                   const deliveryTotal = item.hasDelivery && item.deliveryPrice
-                                    ? parseFloat(item.deliveryPrice) * item.qty
+                                    ? parseFloat(item.deliveryPrice) * 1
                                     : 0;
                                   return (itemTotal + deliveryTotal).toFixed(2);
                                 })()} TND
@@ -1350,7 +1370,7 @@ const VendorOrdersPage = () => {
                                 {item.hasDelivery && item.deliveryPrice && (
                                   <>
                                     <br />
-                                    + {item.qty} × {item.deliveryPrice} TND (delivery)
+                                    + {item.deliveryPrice} TND (delivery)
                                   </>
                                 )}
                               </p>
@@ -1550,7 +1570,7 @@ const VendorOrdersPage = () => {
                         {(() => {
                           const deliveryTotal = formData.items.reduce((sum, item) => {
                             if (item.hasDelivery && item.deliveryPrice) {
-                              return sum + parseFloat(item.deliveryPrice) * item.qty;
+                              return sum + parseFloat(item.deliveryPrice) * 1;
                             }
                             return sum;
                           }, 0);

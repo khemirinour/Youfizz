@@ -162,10 +162,11 @@ export class AppService {
 
   async create(dto: CreateOrderDto) {
     // Calculate total including delivery prices
+    // Delivery is per order (not per item), so multiply by 1
     const calculatedTotal = dto.items.reduce((sum, item) => {
       const itemTotal = parseFloat(item.price) * item.qty;
       const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-        ? parseFloat(item.deliveryPrice) * item.qty 
+        ? parseFloat(item.deliveryPrice) * 1 
         : 0;
       return sum + itemTotal + deliveryTotal;
     }, 0);
@@ -203,6 +204,7 @@ export class AppService {
       customerPhone: dto.customerPhone,
       customerAddress: dto.customerAddress,
       vendorId: dto.vendorId,
+      remarque: dto.remarque,
     };
 
     if (lastOrders.length > 0) {

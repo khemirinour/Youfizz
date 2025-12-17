@@ -699,6 +699,14 @@ const ConfermateurOrdersPage = () => {
                             {selectedOrder.customerAddress || fakeAddress}
                           </span>
                         </p>
+                        {selectedOrder.remarque && (
+                          <p>
+                            <span className="font-medium">Remarks:</span>{' '}
+                            <span className={isHidden ? 'blur-sm select-none' : ''}>
+                              {selectedOrder.remarque}
+                            </span>
+                          </p>
+                        )}
                       </>
                     );
                   })()}
@@ -742,13 +750,42 @@ const ConfermateurOrdersPage = () => {
                                 <span>Qty: {item.qty}</span>
                                 <span>Price: {item.price} TND</span>
                               </div>
+                              {item.hasDelivery && (
+                                <div className="mt-2 flex gap-2 items-center">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    With Delivery
+                                  </span>
+                                  {item.destination && (
+                                    <span className="text-sm text-muted-foreground">
+                                      To: {item.destination}
+                                    </span>
+                                  )}
+                                  {item.deliveryPrice && (
+                                    <span className="text-sm text-muted-foreground">
+                                      ({item.deliveryPrice} TND)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="text-right">
                               <p className="font-semibold text-lg">
-                                {(parseFloat(item.price) * item.qty).toFixed(2)} TND
+                                {(() => {
+                                  const itemTotal = parseFloat(item.price) * item.qty;
+                                  const deliveryTotal = item.hasDelivery && item.deliveryPrice
+                                    ? parseFloat(item.deliveryPrice) * 1
+                                    : 0;
+                                  return (itemTotal + deliveryTotal).toFixed(2);
+                                })()} TND
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {item.qty} × {item.price} TND
+                                {item.hasDelivery && item.deliveryPrice && (
+                                  <>
+                                    <br />
+                                    + {item.deliveryPrice} TND (delivery)
+                                  </>
+                                )}
                               </p>
                             </div>
                           </div>

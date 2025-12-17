@@ -30,6 +30,7 @@ export interface CreateOrderDto {
   customerPhone?: string;
   customerAddress?: string;
   vendorId?: string;
+  remarque?: string;
 }
 
 export interface UpdateOrderDto extends Partial<CreateOrderDto> {}
@@ -49,6 +50,7 @@ export interface Order {
   isPaid: boolean;
   isActive: boolean;
   notes?: string;
+  remarque?: string;
   createdAt?: string;
   updatedAt?: string;
   confirmationAttempts?: number;
@@ -74,6 +76,7 @@ interface OrderResponse {
   isPaid: boolean;
   isActive: boolean;
   notes?: string;
+  remarque?: string;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;

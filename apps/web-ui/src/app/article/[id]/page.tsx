@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useSeoMeta } from '@/hooks/use-seo-meta';
 import { getArticleUrl } from '@/lib/utils/url';
 import { ArrowLeft, ShoppingBag, Package, ShoppingCart } from 'lucide-react';
-import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -33,6 +32,7 @@ const ArticleDetailPage = () => {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerAddress, setCustomerAddress] = useState('');
+  const [remarque, setRemarque] = useState('');
   const [hasDelivery, setHasDelivery] = useState(false);
   const [selectedDestination, setSelectedDestination] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
@@ -55,7 +55,7 @@ const ArticleDetailPage = () => {
       try {
         setLoading(true);
         const data = await getArticleById(articleId);
-        setArticle(data);
+        setArticle(data || null);
       } catch (e: any) {
         toast({
           title: 'Error',
@@ -70,6 +70,17 @@ const ArticleDetailPage = () => {
     fetchArticle();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [articleId]); // Remove router and toast from dependencies
+
+  // Automatically enable delivery if article has delivery options
+  useEffect(() => {
+    if (article?.deliveryRegions && article.deliveryRegions.length > 0) {
+      setHasDelivery(true);
+      // Auto-select first destination if only one is available
+      if (article.deliveryRegions.length === 1) {
+        setSelectedDestination(article.deliveryRegions[0]);
+      }
+    }
+  }, [article]);
 
   // Update SEO meta tags when article is loaded
   useSeoMeta(
@@ -140,10 +151,11 @@ const ArticleDetailPage = () => {
     const priceToUse = article.priceAfterDiscount ? parseFloat(article.priceAfterDiscount) : parseFloat(article.price);
     let total = priceToUse * quantity;
     
-    // Add delivery price if delivery is selected
-    if (hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
+    // Add delivery price if article has delivery options and destination is selected
+    // Delivery is per order (not per item), so multiply by 1
+    if (article.deliveryRegions && article.deliveryRegions.length > 0 && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
       const deliveryPrice = parseFloat(article.deliveryPrices[selectedDestination]);
-      total += deliveryPrice * quantity;
+      total += deliveryPrice * 1;
     }
     
     return total.toFixed(2);
@@ -161,6 +173,10 @@ const ArticleDetailPage = () => {
     if (quantity < 1) return false;
     if (typeof article.stock === 'number' && quantity > article.stock) return false;
     if (!article.price) return false;
+    // If article has delivery, destination must be selected
+    if (article.deliveryRegions && article.deliveryRegions.length > 0) {
+      if (!selectedDestination) return false;
+    }
     return true;
   };
 
@@ -198,8 +214,8 @@ const ArticleDetailPage = () => {
         price: effectivePrice,
       };
       
-      // Add delivery information if selected
-      if (hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
+      // Add delivery information if article has delivery options
+      if (article.deliveryRegions && article.deliveryRegions.length > 0 && selectedDestination && article.deliveryPrices?.[selectedDestination]) {
         orderItem.hasDelivery = true;
         orderItem.destination = selectedDestination;
         orderItem.deliveryPrice = article.deliveryPrices[selectedDestination];
@@ -214,9 +230,19 @@ const ArticleDetailPage = () => {
         customerPhone: customerPhone.trim() || undefined,
         customerAddress: customerAddress.trim() || undefined,
         vendorId: article.vendorId || undefined,
+        remarque: remarque.trim() || undefined,
       };
 
       const createdOrder = await createOrder(orderData);
+      
+      if (!createdOrder) {
+        toast({
+          title: 'Error',
+          description: 'Failed to place order. Please try again.',
+          variant: 'destructive',
+        });
+        return;
+      }
       
       toast({
         title: 'Order Placed Successfully!',
@@ -229,8 +255,15 @@ const ArticleDetailPage = () => {
       setCustomerEmail('');
       setCustomerPhone('');
       setCustomerAddress('');
-      setHasDelivery(false);
-      setSelectedDestination('');
+      setRemarque('');
+      // Reset delivery based on article
+      if (article.deliveryRegions && article.deliveryRegions.length > 0) {
+        setHasDelivery(true);
+        setSelectedDestination(article.deliveryRegions.length === 1 ? article.deliveryRegions[0] : '');
+      } else {
+        setHasDelivery(false);
+        setSelectedDestination('');
+      }
     } catch (e: any) {
       toast({
         title: 'Error',
@@ -494,55 +527,36 @@ const ArticleDetailPage = () => {
                     {/* Delivery Selection */}
                     {article.deliveryRegions && article.deliveryRegions.length > 0 && (
                       <div className="space-y-4 border rounded-lg p-4 bg-muted/30">
-                        <div className="flex items-center space-x-2">
-                          <Switch
-                            id="hasDelivery"
-                            checked={hasDelivery}
-                            onCheckedChange={(checked) => {
-                              setHasDelivery(checked);
-                              if (!checked) {
-                                setSelectedDestination('');
-                              } else if (article.deliveryRegions && article.deliveryRegions.length > 0) {
-                                setSelectedDestination(article.deliveryRegions[0]);
-                              }
-                            }}
+                        <div className="space-y-2">
+                          <Label htmlFor="destination">Delivery Destination *</Label>
+                          <Select
+                            value={selectedDestination}
+                            onValueChange={setSelectedDestination}
                             disabled={submitting}
-                          />
-                          <Label htmlFor="hasDelivery">Include Delivery</Label>
+                            required
+                          >
+                            <SelectTrigger id="destination">
+                              <SelectValue placeholder="Select destination" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {article.deliveryRegions.map((region) => (
+                                <SelectItem key={region} value={region}>
+                                  {region}
+                                  {article.deliveryPrices?.[region] && (
+                                    <span className="ml-2 text-muted-foreground">
+                                      (${article.deliveryPrices[region]})
+                                    </span>
+                                  )}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {selectedDestination && article.deliveryPrices?.[selectedDestination] && (
+                            <p className="text-sm text-muted-foreground">
+                              Delivery price: ${article.deliveryPrices[selectedDestination]} per item
+                            </p>
+                          )}
                         </div>
-
-                        {hasDelivery && (
-                          <div className="space-y-2">
-                            <Label htmlFor="destination">Delivery Destination *</Label>
-                            <Select
-                              value={selectedDestination}
-                              onValueChange={setSelectedDestination}
-                              disabled={submitting}
-                              required={hasDelivery}
-                            >
-                              <SelectTrigger id="destination">
-                                <SelectValue placeholder="Select destination" />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {article.deliveryRegions.map((region) => (
-                                  <SelectItem key={region} value={region}>
-                                    {region}
-                                    {article.deliveryPrices?.[region] && (
-                                      <span className="ml-2 text-muted-foreground">
-                                        (${article.deliveryPrices[region]})
-                                      </span>
-                                    )}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            {selectedDestination && article.deliveryPrices?.[selectedDestination] && (
-                              <p className="text-sm text-muted-foreground">
-                                Delivery price: ${article.deliveryPrices[selectedDestination]} per item
-                              </p>
-                            )}
-                          </div>
-                        )}
                       </div>
                     )}
 
@@ -600,6 +614,19 @@ const ArticleDetailPage = () => {
                       />
                     </div>
 
+                    {/* Customer Remarks */}
+                    <div className="space-y-2">
+                      <Label htmlFor="remarque">Remarks / Notes</Label>
+                      <Textarea
+                        id="remarque"
+                        value={remarque}
+                        onChange={(e) => setRemarque(e.target.value)}
+                        disabled={submitting}
+                        placeholder="Any additional notes or special instructions..."
+                        rows={3}
+                      />
+                    </div>
+
                     {/* Total */}
                     <div className="pt-4 border-t space-y-2">
                       <div className="flex justify-between items-center">
@@ -612,11 +639,11 @@ const ArticleDetailPage = () => {
                           })()}
                         </span>
                       </div>
-                      {hasDelivery && selectedDestination && article.deliveryPrices?.[selectedDestination] && (
+                      {article.deliveryRegions && article.deliveryRegions.length > 0 && selectedDestination && article.deliveryPrices?.[selectedDestination] && (
                         <div className="flex justify-between items-center">
                           <span className="text-muted-foreground">Delivery:</span>
                           <span className="font-medium">
-                            ${(parseFloat(article.deliveryPrices[selectedDestination]) * quantity).toFixed(2)}
+                            ${(parseFloat(article.deliveryPrices[selectedDestination]) * 1).toFixed(2)}
                           </span>
                         </div>
                       )}
