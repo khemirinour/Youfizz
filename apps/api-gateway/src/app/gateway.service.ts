@@ -47,6 +47,7 @@ export class GatewayService {
     { service: 'auth', path: '/password-reset/confirm', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/reset', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/stats/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/internal/vendors/confirm-quota', method: 'GET', requiresAuth: true, roles: ['vendeur', 'admin'] },
     
     // Article service endpoints
     { service: 'article', path: '/articles', method: 'GET', requiresAuth: false },

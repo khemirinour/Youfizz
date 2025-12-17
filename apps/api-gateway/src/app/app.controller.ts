@@ -615,6 +615,25 @@ export class AppController {
     return this.gatewayService.forwardRequest(path, 'GET', null, headers);
   }
 
+  @ApiTags('auth')
+  @Get('auth/internal/vendors/confirm-quota')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Get vendor confirmation quota', 
+    description: 'Get the remaining number of confirmed orders for a vendor. Requires vendeur or admin role.' 
+  })
+  @ApiQuery({ name: 'vendorId', required: true, description: 'Vendor ID' })
+  @ApiResponse({ status: 200, description: 'Quota retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Vendeur or Admin role required' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  async getVendorConfirmQuota(@Query('vendorId') vendorId: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    const qs = new URLSearchParams({ vendorId }).toString();
+    const path = `/internal/vendors/confirm-quota?${qs}`;
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user, false, false, (req as any).cookies);
+  }
+
   // ==================== Article Service Routes ====================
   @ApiTags('articles')
   @Get('articles')
