@@ -83,25 +83,58 @@ nano .env.production
 - `NEXT_PUBLIC_SITE_URL` : URL publique de votre site (ex: https://votredomaine.com)
 - `FRONTEND_URL` : URL du frontend pour les emails
 
-### 5. Configurer Nginx et SSL
+### 5. Configurer le DNS OVH
+
+#### Dans le panel OVH :
+1. Allez dans votre domaine OVH > "Zone DNS"
+2. Ajoutez/modifiez les enregistrements DNS :
+   - **Type A** : `@` → IP de votre VPS
+   - **Type A** : `www` → IP de votre VPS
+   - (Optionnel) **Type A** : `api` → IP de votre VPS (si vous voulez un sous-domaine pour l'API)
+
+#### Vérifier la propagation DNS
+```bash
+# Vérifier que le DNS pointe vers votre VPS
+dig votre-domaine.com
+nslookup votre-domaine.com
+```
+
+### 6. Configurer Nginx et SSL
 
 #### Créer le répertoire SSL
 ```bash
 mkdir -p nginx/ssl
 ```
 
-#### Obtenir un certificat SSL avec Let's Encrypt
+#### Option 1 : Utiliser un certificat SSL OVH (recommandé)
+Si vous avez acheté un certificat SSL via OVH :
+
+1. **Télécharger le certificat depuis le panel OVH** :
+   - Allez dans votre domaine > "SSL" > "Certificats"
+   - Téléchargez le certificat et la clé privée
+
+2. **Placer les fichiers sur le VPS** :
+   ```bash
+   # Transférer les fichiers (depuis votre machine locale)
+   scp certificat.crt user@votre-vps:/opt/you_fizz/nginx/ssl/fullchain.pem
+   scp private.key user@votre-vps:/opt/you_fizz/nginx/ssl/privkey.pem
+   
+   # Ou créer les fichiers directement sur le VPS
+   nano nginx/ssl/fullchain.pem  # Collez le contenu du certificat
+   nano nginx/ssl/privkey.pem     # Collez le contenu de la clé privée
+   
+   # Définir les permissions
+   chmod 600 nginx/ssl/privkey.pem
+   chmod 644 nginx/ssl/fullchain.pem
+   ```
+
+#### Option 2 : Utiliser un certificat auto-signé (développement uniquement)
 ```bash
-# Installer certbot
-sudo apt install certbot -y
-
-# Obtenir le certificat (remplacez votre-domaine.com)
-sudo certbot certonly --standalone -d votre-domaine.com -d www.votre-domaine.com
-
-# Copier les certificats
-sudo cp /etc/letsencrypt/live/votre-domaine.com/fullchain.pem nginx/ssl/
-sudo cp /etc/letsencrypt/live/votre-domaine.com/privkey.pem nginx/ssl/
-sudo chown -R $USER:$USER nginx/ssl
+# Générer un certificat auto-signé (NE PAS utiliser en production)
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/privkey.pem \
+  -out nginx/ssl/fullchain.pem \
+  -subj "/CN=votre-domaine.com"
 ```
 
 #### Mettre à jour nginx.conf
@@ -110,7 +143,7 @@ sudo chown -R $USER:$USER nginx/ssl
 server_name votre-domaine.com www.votre-domaine.com;
 ```
 
-### 6. Déployer l'application
+### 7. Déployer l'application
 
 ```bash
 # Exécuter le script de déploiement
@@ -121,7 +154,7 @@ bash scripts/deploy-ovh.sh --skip-build  # Pour sauter le build
 bash scripts/deploy-ovh.sh --logs        # Pour voir les logs
 ```
 
-### 7. Vérifier le déploiement
+### 8. Vérifier le déploiement
 
 ```bash
 # Vérifier le statut des services
