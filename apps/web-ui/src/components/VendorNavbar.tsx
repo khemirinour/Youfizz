@@ -3,15 +3,57 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { useAuthStore } from '@/stores/authStore';
 import { Button } from '@/components/ui/button';
-import { LogOut, Package, Plus, LayoutDashboard, ShoppingCart, UserCircle } from 'lucide-react';
+import { LogOut, Package, Plus, LayoutDashboard, ShoppingCart, UserCircle, Home, Menu, X } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
-import logo from '@/assets/youfizz-logo.png';
+import Logo from './Logo';
+import { useState, useEffect, useRef } from 'react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useNavbarHydration, getUserDisplayInfo, isRouteActive } from '@/lib/navbar.utils';
 
 export default function VendorNavbar() {
   const router = useRouter();
   const pathname = usePathname();
   const { user, logout } = useAuthStore();
+  const hydrated = useNavbarHydration();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+
+  const { userName, userInitials } = getUserDisplayInfo(user);
+  const vendorName = userName || 'Vendor';
+
+  // Close mobile menu on route change
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // Handle escape key to close mobile menu
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && mobileMenuOpen) {
+        setMobileMenuOpen(false);
+        menuButtonRef.current?.focus();
+      }
+    };
+
+    if (mobileMenuOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = '';
+    };
+  }, [mobileMenuOpen]);
 
   const handleLogout = async () => {
     try {
@@ -22,90 +64,143 @@ export default function VendorNavbar() {
     }
   };
 
-  const vendorName = user ? `${user.firstName} ${user.lastName}`.trim() || user.email : 'Vendor';
-  const vendorInitials = user 
-    ? `${user.firstName?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase() || user.email?.[0]?.toUpperCase() || 'V'
-    : 'V';
+  const handleMobileMenuToggle = () => {
+    setMobileMenuOpen((prev) => !prev);
+  };
 
-  const isActive = (path: string) => pathname === path;
+  const handleMobileLinkClick = () => {
+    setMobileMenuOpen(false);
+  };
+
+  const navLinks = [
+    { href: '/vendor', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/vendor/articles', label: 'Articles', icon: Package },
+    { href: '/vendor/articles/new', label: 'Create', icon: Plus },
+    { href: '/vendor/orders', label: 'Orders', icon: ShoppingCart },
+  ];
 
   return (
-    <nav className="relative z-50 w-full border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <nav 
+      className="relative z-50 w-full border-b border-border bg-background md:bg-background/95 md:backdrop-blur supports-[backdrop-filter]:md:bg-background/60"
+      role="navigation"
+      aria-label="Vendor navigation"
+    >
       <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8">
         {/* Mobile Layout - Stacked */}
         <div className="flex flex-col gap-3 py-3 md:hidden">
-          {/* Top Row: Brand and Logout */}
+          {/* Top Row: Brand, Home Link, and Menu Button */}
           <div className="flex items-center justify-between w-full">
-            <Link href="/vendor" className="flex items-center gap-2">
-              <Image src={logo.src || logo} alt="YouFizz" width={40} height={40} className="h-10 w-10" />
-              <span className="text-base sm:text-lg font-bold text-gradient">Vendor Dashboard</span>
-            </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 h-9 px-3"
-            >
-              <LogOut className="h-4 w-4" />
-              <span className="hidden sm:inline">Logout</span>
-            </Button>
-          </div>
-          
-          {/* Bottom Row: Tabs and User Info */}
-          <div className="flex items-center justify-between gap-2">
-            {/* Navigation Tabs */}
-            <div className="flex items-center gap-1.5 flex-1 overflow-x-auto">
-              <Link href="/vendor">
-                <Button
-                  variant={isActive('/vendor') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
-                >
-                  <LayoutDashboard className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-sm">Dashboard</span>
-                </Button>
-              </Link>
-              <Link href="/vendor/articles">
-                <Button
-                  variant={isActive('/vendor/articles') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
-                >
-                  <Package className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-sm">Articles</span>
-                </Button>
-              </Link>
-              <Link href="/vendor/articles/new">
-                <Button
-                  variant={isActive('/vendor/articles/new') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
-                >
-                  <Plus className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-sm">Create</span>
-                </Button>
-              </Link>
-              <Link href="/vendor/orders">
-                <Button
-                  variant={isActive('/vendor/orders') ? 'default' : 'ghost'}
-                  size="sm"
-                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
-                >
-                  <ShoppingCart className="h-4 w-4 shrink-0" />
-                  <span className="text-xs sm:text-sm">Orders</span>
-                </Button>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <Link href="/vendor" className="flex items-center gap-2 min-w-0 flex-1" aria-label="Vendor Dashboard">
+                <Logo height={40} width={120} />
+                <span className="text-base sm:text-lg font-bold text-gradient truncate">
+                  Vendor Dashboard
+                </span>
               </Link>
             </div>
-            
-            {/* User Info - Condensed */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              <div className="hidden sm:block text-xs">
-                <span className="text-muted-foreground">Hi,</span>
-                <span className="ml-1 font-medium truncate max-w-[80px]">{vendorName.split(' ')[0]}</span>
+              <Link href="/" aria-label="Go to home">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center gap-1.5 h-9 px-2 sm:px-3"
+                >
+                  <Home className="h-4 w-4" aria-hidden="true" />
+                  <span className="hidden sm:inline text-xs">Home</span>
+                </Button>
+              </Link>
+              <Button
+                ref={menuButtonRef}
+                variant="ghost"
+                size="sm"
+                onClick={handleMobileMenuToggle}
+                className="h-9 w-9 p-0"
+                aria-label={mobileMenuOpen ? 'Close menu' : 'Open menu'}
+                aria-expanded={mobileMenuOpen}
+                aria-controls="vendor-mobile-menu"
+              >
+                {mobileMenuOpen ? (
+                  <X className="h-5 w-5" aria-hidden="true" />
+                ) : (
+                  <Menu className="h-5 w-5" aria-hidden="true" />
+                )}
+              </Button>
+            </div>
+          </div>
+          
+          {/* Bottom Row: Navigation Tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide pb-1">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const active = isRouteActive(pathname, link.href) || 
+                            (link.href === '/vendor/articles' && pathname.startsWith('/vendor/articles/') && !pathname.startsWith('/vendor/articles/new'));
+              return (
+                <Link 
+                  key={link.href} 
+                  href={link.href}
+                  onClick={handleMobileLinkClick}
+                  className="flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+                >
+                  <Button
+                    variant={active ? 'default' : 'ghost'}
+                    size="sm"
+                    className="flex items-center gap-1.5 h-9 px-2 sm:px-3 flex-shrink-0"
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                    <span className="text-xs sm:text-sm whitespace-nowrap">{link.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
+          </div>
+
+          {/* Mobile Menu Dropdown */}
+          <div
+            id="vendor-mobile-menu"
+            className={`transition-all duration-300 ease-in-out ${
+              mobileMenuOpen 
+                ? 'max-h-[300px] opacity-100' 
+                : 'max-h-0 opacity-0 overflow-hidden'
+            }`}
+          >
+            <div className="border-t border-border pt-3 mt-2 flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-2 py-1.5">
+                <div 
+                  className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary border border-primary/20 flex-shrink-0"
+                  aria-hidden="true"
+                >
+                  {userInitials}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{vendorName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
               </div>
-              <div className="sm:hidden w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary border border-primary/20">
-                {vendorInitials}
-              </div>
+              <div className="border-t border-border my-1" />
+              <Link
+                href="/profile"
+                onClick={handleMobileLinkClick}
+                className="focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 rounded-md"
+              >
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full justify-start gap-2 h-11"
+                >
+                  <UserCircle className="h-4 w-4" aria-hidden="true" />
+                  <span>Profile</span>
+                </Button>
+              </Link>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleLogout}
+                className="w-full justify-start gap-2 h-11 text-destructive hover:text-destructive"
+              >
+                <LogOut className="h-4 w-4" aria-hidden="true" />
+                <span>Logout</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -113,86 +208,100 @@ export default function VendorNavbar() {
         {/* Desktop Layout - Horizontal */}
         <div className="hidden md:flex h-16 items-center justify-between">
           {/* Logo/Brand */}
-          <div className="flex items-center">
-            <Link href="/vendor" className="flex items-center gap-3">
-              <Image src={logo.src || logo} alt="YouFizz" width={48} height={48} className="h-12 w-12" />
+          <div className="flex items-center flex-shrink-0">
+            <Link href="/vendor" className="flex items-center gap-3" aria-label="Vendor Dashboard">
+              <Logo height={48} width={150} />
               <span className="text-xl font-bold text-gradient">Vendor Dashboard</span>
             </Link>
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex items-center gap-2">
-            <Link href="/vendor">
-              <Button
-                variant={isActive('/vendor') ? 'default' : 'ghost'}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <LayoutDashboard className="h-4 w-4" />
-                <span>Dashboard</span>
-              </Button>
-            </Link>
-            <Link href="/vendor/articles">
-              <Button
-                variant={isActive('/vendor/articles') || pathname.startsWith('/vendor/articles/') ? 'default' : 'ghost'}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Package className="h-4 w-4" />
-                <span>Articles</span>
-              </Button>
-            </Link>
-            <Link href="/vendor/articles/new">
-              <Button
-                variant={isActive('/vendor/articles/new') ? 'default' : 'ghost'}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                <span>Create</span>
-              </Button>
-            </Link>
-            <Link href="/vendor/orders">
-              <Button
-                variant={isActive('/vendor/orders') ? 'default' : 'ghost'}
-                size="sm"
-                className="flex items-center gap-2"
-              >
-                <ShoppingCart className="h-4 w-4" />
-                <span>Orders</span>
-              </Button>
-            </Link>
+          <div className="flex items-center gap-2 flex-1 justify-center">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              const active = isRouteActive(pathname, link.href) || 
+                            (link.href === '/vendor/articles' && pathname.startsWith('/vendor/articles/') && !pathname.startsWith('/vendor/articles/new'));
+              return (
+                <Link key={link.href} href={link.href}>
+                  <Button
+                    variant={active ? 'default' : 'ghost'}
+                    size="sm"
+                    className="flex items-center gap-2"
+                    aria-current={active ? 'page' : undefined}
+                  >
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                    <span>{link.label}</span>
+                  </Button>
+                </Link>
+              );
+            })}
           </div>
 
           {/* Vendor Info & Actions */}
-          <div className="flex items-center gap-4">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Welcome,</span>
-              <span className="ml-2 font-medium">{vendorName}</span>
-            </div>
-            <Link href="/profile">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <Link href="/" aria-label="Go to home">
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
                 className="flex items-center gap-2"
               >
-                <UserCircle className="h-4 w-4" />
-                <span>Profile</span>
+                <Home className="h-4 w-4" aria-hidden="true" />
+                <span className="hidden lg:inline">Home</span>
               </Button>
             </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleLogout}
-              className="flex items-center gap-2"
-            >
-              <LogOut className="h-4 w-4" />
-              <span>Logout</span>
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2 min-w-[140px]"
+                  aria-label={`User menu for ${vendorName}`}
+                >
+                  <div 
+                    className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-xs font-medium text-primary border border-primary/20 flex-shrink-0"
+                    aria-hidden="true"
+                  >
+                    {userInitials}
+                  </div>
+                  <span className="max-w-[100px] truncate hidden lg:inline">{vendorName}</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{vendorName}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{user?.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="cursor-pointer">
+                    <UserCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  onClick={handleLogout}
+                  className="text-destructive focus:text-destructive cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" aria-hidden="true" />
+                  <span>Logout</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
+
+      {/* Mobile Menu Backdrop */}
+      {mobileMenuOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-40 md:hidden"
+          onClick={handleMobileMenuToggle}
+          aria-hidden="true"
+        />
+      )}
     </nav>
   );
 }
-

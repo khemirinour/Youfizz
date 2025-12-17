@@ -23,6 +23,16 @@ const nextConfig = {
     // Or use domains for simpler config:
     // domains: ['localhost'],
   },
+  // Enable SWC minification (faster than Terser)
+  swcMinify: true,
+  // Compiler optimizations
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Experimental features for faster dev builds
+  experimental: {
+    optimizeCss: true,
+  },
   webpack: (config) => {
     config.resolve.alias = {
       ...config.resolve.alias,
