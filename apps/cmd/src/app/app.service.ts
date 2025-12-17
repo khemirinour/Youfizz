@@ -220,14 +220,16 @@ export class AppService {
   }
 
   // Helper method to get user information
+  // Returns userName in "firstname lastname" format
   private async getUserInfo(updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }): Promise<{ userName?: string; userEmail?: string }> {
     let userName: string | undefined;
     let userEmail: string | undefined;
 
-    // Use data from updater if available
+    // Use data from updater if available - format as "firstname lastname"
     if (updater?.firstName || updater?.lastName) {
-      const firstName = updater.firstName || '';
-      const lastName = updater.lastName || '';
+      const firstName = (updater.firstName || '').trim();
+      const lastName = (updater.lastName || '').trim();
+      // Ensure proper "firstname lastname" format with space
       userName = `${firstName} ${lastName}`.trim() || undefined;
     }
 
@@ -236,28 +238,63 @@ export class AppService {
     }
 
     // If we don't have user info and userId is available, try to fetch from API
-    if (updater?.userId && (!userName || !userEmail)) {
+    if (updater?.userId && !userName) {
       try {
         this.logger.log(`Fetching user info for userId: ${updater.userId}`);
-        const userResponse = await axios.get(`http://localhost:3001/api/users/${updater.userId}`, {
-          timeout: 5000,
-        });
+        // Try auth service directly first (service-to-service)
+        const authServicePort = process.env.AUTH_SERVICE_PORT || '3001';
+        const authServiceHost = process.env.AUTH_SERVICE_HOST || 'localhost';
+        const authServiceUrl = `http://${authServiceHost}:${authServicePort}`;
         
-        if (userResponse.data) {
-          if (!userName) {
-            const firstName = userResponse.data.firstName || '';
-            const lastName = userResponse.data.lastName || '';
-            userName = `${firstName} ${lastName}`.trim() || undefined;
+        let userResponse;
+        try {
+          // Try direct auth service call first
+          userResponse = await axios.get(`${authServiceUrl}/users/${updater.userId}`, {
+            timeout: 5000,
+          });
+        } catch (directError) {
+          // If direct call fails, try through API gateway
+          const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+          this.logger.log(`Direct auth service call failed, trying API gateway: ${apiGatewayUrl}`);
+          userResponse = await axios.get(`${apiGatewayUrl}/api/auth/users/${updater.userId}`, {
+            timeout: 5000,
+          });
+        }
+        
+        if (userResponse?.data) {
+          const firstName = (userResponse.data.firstName || '').trim();
+          const lastName = (userResponse.data.lastName || '').trim();
+          // Format as "firstname lastname" with space
+          userName = `${firstName} ${lastName}`.trim() || undefined;
+          
+          if (userName) {
+            this.logger.log(`Retrieved userName: "${userName}" for userId: ${updater.userId}`);
           }
-          if (!userEmail) {
-            userEmail = userResponse.data.email || undefined;
+          
+          if (!userEmail && userResponse.data.email) {
+            userEmail = userResponse.data.email;
+            this.logger.log(`Retrieved userEmail: ${userEmail} for userId: ${updater.userId}`);
           }
         }
       } catch (e: any) {
         this.logger.warn(`Failed to fetch user info for userId ${updater.userId}:`, {
           error: e?.message,
+          status: e?.response?.status,
+          statusText: e?.response?.statusText,
         });
       }
+    }
+
+    // If we still don't have email, use from updater
+    if (!userEmail && updater?.email) {
+      userEmail = updater.email;
+    }
+
+    // Final fallback: if we have email but no userName, use email username
+    // But prefer to keep it null if we can't get the actual name
+    if (!userName && userEmail) {
+      userName = userEmail.split('@')[0];
+      this.logger.log(`Using email username as fallback for userName: ${userName}`);
     }
 
     return { userName, userEmail };
@@ -283,11 +320,12 @@ export class AppService {
     (dto as any).lastConfirmationAttemptAt = new Date();
 
     // If items are being updated, recalculate total including delivery prices
+    // Delivery is per order (not per item), so multiply by 1
     if (dto.items && dto.items.length > 0) {
       const calculatedTotal = dto.items.reduce((sum, item) => {
         const itemTotal = parseFloat(item.price) * item.qty;
         const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-          ? parseFloat(item.deliveryPrice) * item.qty 
+          ? parseFloat(item.deliveryPrice) * 1 
           : 0;
         return sum + itemTotal + deliveryTotal;
       }, 0);

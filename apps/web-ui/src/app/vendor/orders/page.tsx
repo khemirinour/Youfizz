@@ -305,8 +305,9 @@ const VendorOrdersPage = () => {
       const newItems = prev.items.filter((_, i) => i !== index);
       const newTotal = newItems.reduce((sum, item) => {
         const itemTotal = parseFloat(item.price) * item.qty;
+        // Delivery is per order (not per item), so multiply by 1
         const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-          ? parseFloat(item.deliveryPrice) * item.qty 
+          ? parseFloat(item.deliveryPrice) * 1 
           : 0;
         return sum + itemTotal + deliveryTotal;
       }, 0);
@@ -1153,8 +1154,9 @@ const VendorOrdersPage = () => {
                       <span className="font-medium">
                         {(() => {
                           const deliveryTotal = formData.items.reduce((sum, item) => {
+                            // Delivery is per order (not per item), so multiply by 1
                             if (item.hasDelivery && item.deliveryPrice) {
-                              return sum + parseFloat(item.deliveryPrice) * item.qty;
+                              return sum + parseFloat(item.deliveryPrice) * 1;
                             }
                             return sum;
                           }, 0);
@@ -1241,12 +1243,7 @@ const VendorOrdersPage = () => {
                         <span>{selectedOrder.confirmedByUserEmail}</span>
                       </p>
                     )}
-                    {selectedOrder.confirmedByUserId && (
-                      <p>
-                        <span className="font-medium">User ID:</span>{' '}
-                        <span className="text-xs text-muted-foreground">{selectedOrder.confirmedByUserId}</span>
-                      </p>
-                    )}
+                    
                   </div>
                 </div>
               ) : null}
