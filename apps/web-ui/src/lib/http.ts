@@ -41,6 +41,12 @@ function createHttp(): AxiosInstance {
 		// Tokens are in HttpOnly cookies, browser sends them automatically
 		// No need to set Authorization header - backend reads from cookies
 		// Keep withCredentials: true to ensure cookies are sent
+		
+		// Don't override Content-Type for FormData - let browser set it with boundary
+		if (config.data instanceof FormData) {
+			delete config.headers['Content-Type'];
+		}
+		
 		return config;
 	});
 
@@ -53,7 +59,7 @@ function createHttp(): AxiosInstance {
 
 			// List of public endpoints that don't require auth
 			// Auth endpoints (login, register) should not trigger token refresh on 401
-			const publicEndpoints = ['/api/orders'];
+			const publicEndpoints: string[] = []; // No public endpoints - all require auth except auth endpoints
 			const authEndpoints = ['/api/auth/login', '/api/auth/register', '/api/auth/password-reset'];
 			const isPublicEndpoint = publicEndpoints.some(endpoint => url.includes(endpoint));
 			const isAuthEndpoint = authEndpoints.some(endpoint => url.includes(endpoint));
@@ -144,6 +150,7 @@ function createHttp(): AxiosInstance {
 
 				// Prevent infinite loop if refresh endpoint also returns 401
 				if (originalRequest.url?.includes('/auth/refresh')) {
+					console.warn('Refresh token endpoint returned 401, logging out');
 					try {
 						useAuthStore.getState().logout();
 					} catch {}
@@ -158,11 +165,13 @@ function createHttp(): AxiosInstance {
 
 				// If already refreshing, queue this request
 				if (isRefreshing) {
+					console.log(`Token refresh in progress, queueing request: ${originalRequest.url}`);
 					return new Promise((resolve, reject) => {
 						failedQueue.push({ resolve, reject });
 					})
 						.then(() => {
 							// Retry original request (cookies will be sent automatically)
+							console.log(`Retrying queued request: ${originalRequest.url}`);
 							return httpInstance!.request(originalRequest);
 						})
 						.catch((err) => {
@@ -171,6 +180,7 @@ function createHttp(): AxiosInstance {
 				}
 
 				// Try to refresh token before logging out
+				console.log(`401 error on ${originalRequest.url}, attempting token refresh`);
 				originalRequest._retry = true;
 				isRefreshing = true;
 
@@ -180,12 +190,14 @@ function createHttp(): AxiosInstance {
 					if (refreshed) {
 						// Token refresh successful, new tokens are in cookies
 						// No need to update headers - cookies are sent automatically
+						console.log('Token refresh successful, retrying original request');
 						processQueue(null, null);
 						
 						// Retry original request (cookies will be sent automatically)
 						return httpInstance!.request(originalRequest);
 					} else {
 						// Refresh failed, logout
+						console.warn('Token refresh failed, logging out');
 						processQueue(error, null);
 						try {
 							useAuthStore.getState().logout();
@@ -200,6 +212,7 @@ function createHttp(): AxiosInstance {
 					}
 				} catch (refreshError) {
 					// Refresh failed, logout
+					console.error('Token refresh error:', refreshError);
 					processQueue(refreshError, null);
 					try {
 						useAuthStore.getState().logout();

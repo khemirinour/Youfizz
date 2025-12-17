@@ -247,18 +247,37 @@ export class AppService {
         const authServiceUrl = `http://${authServiceHost}:${authServicePort}`;
         
         let userResponse;
+        let lastError: any;
+        
         try {
           // Try direct auth service call first
           userResponse = await axios.get(`${authServiceUrl}/users/${updater.userId}`, {
             timeout: 5000,
           });
-        } catch (directError) {
-          // If direct call fails, try through API gateway
+        } catch (directError: any) {
+          lastError = directError;
+          // If direct call fails with 401, it's an auth issue - skip retry
+          if (directError?.response?.status === 401) {
+            this.logger.warn(`Auth service requires authentication for userId ${updater.userId}, skipping user info fetch`);
+            throw directError;
+          }
+          
+          // If direct call fails for other reasons, try through API gateway
           const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
           this.logger.log(`Direct auth service call failed, trying API gateway: ${apiGatewayUrl}`);
-          userResponse = await axios.get(`${apiGatewayUrl}/api/auth/users/${updater.userId}`, {
-            timeout: 5000,
-          });
+          
+          try {
+            userResponse = await axios.get(`${apiGatewayUrl}/api/auth/users/${updater.userId}`, {
+              timeout: 5000,
+            });
+          } catch (gatewayError: any) {
+            // If gateway also returns 401, it's an auth issue - skip retry
+            if (gatewayError?.response?.status === 401) {
+              this.logger.warn(`API gateway requires authentication for userId ${updater.userId}, skipping user info fetch`);
+              throw gatewayError;
+            }
+            throw gatewayError;
+          }
         }
         
         if (userResponse?.data) {
@@ -277,11 +296,16 @@ export class AppService {
           }
         }
       } catch (e: any) {
-        this.logger.warn(`Failed to fetch user info for userId ${updater.userId}:`, {
-          error: e?.message,
-          status: e?.response?.status,
-          statusText: e?.response?.statusText,
-        });
+        // Handle 401 errors gracefully - service-to-service calls may not have auth
+        if (e?.response?.status === 401) {
+          this.logger.warn(`Cannot fetch user info for userId ${updater.userId} - authentication required. Continuing without user name.`);
+        } else {
+          this.logger.warn(`Failed to fetch user info for userId ${updater.userId}:`, {
+            error: e?.message,
+            status: e?.response?.status,
+            statusText: e?.response?.statusText,
+          });
+        }
       }
     }
 

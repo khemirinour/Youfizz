@@ -1,5 +1,4 @@
-import { get, post, patch, del } from './http';
-import axios from 'axios';
+import { get, post, patch, del, http } from './http';
 import { useArticlesStore, generateArticlesCacheKey } from '@/stores/articlesStore';
 
 export interface Category {
@@ -241,10 +240,8 @@ export async function uploadArticleImage(articleId: string, file: File): Promise
   const formData = new FormData();
   formData.append('image', file);
 
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  // Tokens are in HttpOnly cookies, browser sends them automatically
-
-  const response = await axios.post<Article>(`${baseURL}/api/articles/${articleId}/images`, formData, {
+  // Use http() helper to ensure 401 errors trigger token refresh
+  const response = await http().post<Article>(`/api/articles/${articleId}/images`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -259,10 +256,8 @@ export async function uploadMultipleArticleImages(articleId: string, files: File
     formData.append('images', file);
   });
 
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  // Tokens are in HttpOnly cookies, browser sends them automatically
-
-  const response = await axios.post<Article>(`${baseURL}/api/articles/${articleId}/images/multiple`, formData, {
+  // Use http() helper to ensure 401 errors trigger token refresh
+  const response = await http().post<Article>(`/api/articles/${articleId}/images/multiple`, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -272,12 +267,9 @@ export async function uploadMultipleArticleImages(articleId: string, files: File
 }
 
 export async function removeArticleImage(articleId: string, imageUrl: string): Promise<Article> {
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  // Tokens are in HttpOnly cookies, browser sends them automatically
-
-  const response = await axios.delete<Article>(`${baseURL}/api/articles/${articleId}/images`, {
+  // Use http() helper to ensure 401 errors trigger token refresh
+  const response = await http().delete<Article>(`/api/articles/${articleId}/images`, {
     params: { imageUrl },
-    headers: {},
     withCredentials: true, // Required to send cookies
   });
   return response.data;

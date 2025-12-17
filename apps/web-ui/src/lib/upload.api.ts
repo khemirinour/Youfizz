@@ -1,4 +1,4 @@
-import { post, get, del } from './http';
+import { post, get, del, http } from './http';
 
 export interface UploadFileResponse {
   url: string;
@@ -34,12 +34,8 @@ export async function uploadFile(
   const queryString = new URLSearchParams(params).toString();
   const url = `/api/upload${queryString ? `?${queryString}` : ''}`;
 
-  // Import axios directly for FormData uploads
-  const axios = (await import('axios')).default;
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  // Tokens are in HttpOnly cookies, browser sends them automatically
-  
-  const response = await axios.post<UploadFileResponse>(`${baseURL}${url}`, formData, {
+  // Use http() helper to ensure 401 errors trigger token refresh
+  const response = await http().post<UploadFileResponse>(url, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -65,12 +61,8 @@ export async function uploadMultipleFiles(
   const queryString = new URLSearchParams(params).toString();
   const url = `/api/upload/multiple${queryString ? `?${queryString}` : ''}`;
 
-  // Import axios directly for FormData uploads
-  const axios = (await import('axios')).default;
-  const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
-  // Tokens are in HttpOnly cookies, browser sends them automatically
-  
-  const response = await axios.post<MultipleUploadResponse>(`${baseURL}${url}`, formData, {
+  // Use http() helper to ensure 401 errors trigger token refresh
+  const response = await http().post<MultipleUploadResponse>(url, formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
