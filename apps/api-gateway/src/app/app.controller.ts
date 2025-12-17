@@ -4,7 +4,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, 
 import { Throttle } from '@nestjs/throttler';
 import { AppService } from './app.service';
 import { GatewayService } from './gateway.service';
-import { JwtAuthGuard } from '@you-fizz/shared';
+import { JwtAuthGuard, getApiGatewayUrl } from '@you-fizz/shared';
 import { Request } from 'express';
 import  FormData from 'form-data';
 
@@ -395,7 +395,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -464,7 +464,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>

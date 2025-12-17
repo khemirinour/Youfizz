@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
+import { getAuthServiceUrl, getArticleServiceUrl, getCmdServiceUrl, getNotificationServiceUrl } from '@you-fizz/shared';
 
 export interface ServiceEndpoint {
   service: string;
@@ -100,20 +101,33 @@ export class GatewayService {
   ) {}
 
   private getServiceUrl(service: string): string {
-    const serviceConfigs = {
-      auth: this.configService.get('authService'),
-      user: this.configService.get('userService'),
-      article: this.configService.get('articleService'),
-      cmd: this.configService.get('cmdService'),
-      notification: this.configService.get('notificationService'),
+    // Use service URL utility functions for proper environment variable handling
+    const serviceUrls: Record<string, string> = {
+      auth: getAuthServiceUrl(),
+      article: getArticleServiceUrl(),
+      cmd: getCmdServiceUrl(),
+      notification: getNotificationServiceUrl(),
+      // User service - construct from config if needed, or add to utility
+      user: (() => {
+        const userServiceUrl = process.env.USER_SERVICE_URL;
+        const userServiceHost = process.env.USER_SERVICE_HOST || 'localhost';
+        const userServicePort = parseInt(process.env.USER_SERVICE_PORT || '3002', 10);
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        if (userServiceUrl) return userServiceUrl;
+        if (isProduction && userServiceHost === 'localhost') {
+          throw new Error('USER_SERVICE_URL or USER_SERVICE_HOST must be configured in production');
+        }
+        return `http://${userServiceHost}:${userServicePort}`;
+      })(),
     };
 
-    const config = serviceConfigs[service];
-    if (!config) {
+    const url = serviceUrls[service];
+    if (!url) {
       throw new HttpException(`Service ${service} not configured`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    return `http://localhost:${config.port}`;
+    return url;
   }
 
   private findEndpoint(path: string, method: string): ServiceEndpoint | null {

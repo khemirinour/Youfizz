@@ -6,13 +6,22 @@ import { Order, OrderStatus } from '../entities/order.entity';
 import { QueryOrdersDto } from '../dto/query-orders.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
+import { getAuthServiceUrl, getArticleServiceUrl, getApiGatewayUrl } from '@you-fizz/shared';
 
 @Injectable()
 export class AppService {
   private readonly logger = new Logger(AppService.name);
+  private readonly authServiceUrl: string;
+  private readonly articleServiceUrl: string;
+  private readonly apiGatewayUrl: string;
+
   constructor(
     @InjectRepository(Order) private readonly repo: Repository<Order>,
-  ) {}
+  ) {
+    this.authServiceUrl = getAuthServiceUrl();
+    this.articleServiceUrl = getArticleServiceUrl();
+    this.apiGatewayUrl = getApiGatewayUrl();
+  }
 
   async findAll(query: QueryOrdersDto) {
     const where: any = {};
@@ -30,7 +39,7 @@ export class AppService {
     // Check vendor's nbrCmdConf - get vendorId from filter
     let shouldHideCustomerInfo = false;
     try {
-      const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+      const quotaCheck = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
         params: { vendorId: query.vendorId },
         timeout: 5000,
       });
@@ -76,7 +85,7 @@ export class AppService {
     let shouldHideCustomerInfo = false;
     if (order.vendorId) {
       try {
-        const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+        const quotaCheck = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
           params: { vendorId: order.vendorId },
           timeout: 5000,
         });
@@ -103,7 +112,7 @@ export class AppService {
         order.items.map(async (item) => {
           try {
             // Fetch article details from article service
-            const articleResponse = await axios.get(`http://localhost:3004/api/articles/${item.articleId}`, {
+            const articleResponse = await axios.get(`${this.articleServiceUrl}/api/articles/${item.articleId}`, {
               timeout: 5000,
             });
             
@@ -242,16 +251,12 @@ export class AppService {
       try {
         this.logger.log(`Fetching user info for userId: ${updater.userId}`);
         // Try auth service directly first (service-to-service)
-        const authServicePort = process.env.AUTH_SERVICE_PORT || '3001';
-        const authServiceHost = process.env.AUTH_SERVICE_HOST || 'localhost';
-        const authServiceUrl = `http://${authServiceHost}:${authServicePort}`;
-        
         let userResponse;
         let lastError: any;
         
         try {
           // Try direct auth service call first
-          userResponse = await axios.get(`${authServiceUrl}/users/${updater.userId}`, {
+          userResponse = await axios.get(`${this.authServiceUrl}/users/${updater.userId}`, {
             timeout: 5000,
           });
         } catch (directError: any) {
@@ -263,11 +268,10 @@ export class AppService {
           }
           
           // If direct call fails for other reasons, try through API gateway
-          const apiGatewayUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
-          this.logger.log(`Direct auth service call failed, trying API gateway: ${apiGatewayUrl}`);
+          this.logger.log(`Direct auth service call failed, trying API gateway: ${this.apiGatewayUrl}`);
           
           try {
-            userResponse = await axios.get(`${apiGatewayUrl}/api/auth/users/${updater.userId}`, {
+            userResponse = await axios.get(`${this.apiGatewayUrl}/api/auth/users/${updater.userId}`, {
               timeout: 5000,
             });
           } catch (gatewayError: any) {
@@ -450,7 +454,7 @@ export class AppService {
         const params: any = vendorId ? { vendorId } : { vendorUserId };
         this.logger.log(`Checking quota with params: ${JSON.stringify(params)}`);
         
-        const check = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+        const check = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
           params,
           timeout: 5000,
         });
@@ -466,7 +470,7 @@ export class AppService {
         const body: any = vendorId ? { vendorId } : { vendorUserId };
         this.logger.log(`Consuming quota with body: ${JSON.stringify(body)}`);
         
-        const consumeResponse = await axios.post('http://localhost:3001/api/internal/vendors/confirm-quota/consume', body, { 
+        const consumeResponse = await axios.post(`${this.authServiceUrl}/api/internal/vendors/confirm-quota/consume`, body, { 
           timeout: 5000 
         });
         
@@ -519,8 +523,8 @@ export class AppService {
       
       for (const item of order.items) {
         try {
-          // Get current article stock using internal endpoint (article service runs on port 3004)
-          const articleResponse = await axios.get(`http://localhost:3004/api/internal/articles/${item.articleId}`, {
+          // Get current article stock using internal endpoint
+          const articleResponse = await axios.get(`${this.articleServiceUrl}/api/internal/articles/${item.articleId}`, {
             timeout: 5000,
           });
           
@@ -531,7 +535,7 @@ export class AppService {
             this.logger.log(`Updating stock for article ${item.articleId}: ${currentStock} -> ${newStock} (qty: ${item.qty})`);
             
             // Update article stock using internal endpoint
-            const updateResponse = await axios.patch(`http://localhost:3004/api/internal/articles/${item.articleId}/stock`, {
+            const updateResponse = await axios.patch(`${this.articleServiceUrl}/api/internal/articles/${item.articleId}/stock`, {
               stock: newStock,
             }, {
               timeout: 5000,

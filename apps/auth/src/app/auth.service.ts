@@ -1,7 +1,7 @@
 import { Injectable, ConflictException, BadRequestException, UnauthorizedException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { EmailService } from '@you-fizz/shared';
+import { EmailService, getApiGatewayUrl } from '@you-fizz/shared';
 import { NotificationClient } from './notification.client';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
@@ -655,8 +655,8 @@ export class AuthService {
     }
 
     // Step 4: Generate accept and refuse URLs
-    // Use API gateway URL or backend URL for the links
-    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    // Use API gateway URL for the links
+    const apiBaseUrl = getApiGatewayUrl();
     const acceptUrl = `${apiBaseUrl}/api/auth/confermateurs/${confermateurUser.id}/accept-vendeur/${vendeurId}`;
     const refuseUrl = `${apiBaseUrl}/api/auth/confermateurs/${confermateurUser.id}/refuse-vendeur/${vendeurId}`;
 

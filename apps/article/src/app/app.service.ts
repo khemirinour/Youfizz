@@ -10,6 +10,7 @@ import { ArticleCategory } from '../entities/article-category.entity';
 import { QueryArticlesDto, SortBy, SortOrder } from '../dto/query-articles.dto';
 import { UpdateArticleDto } from '../dto/update-article.dto';
 import { CategoryService } from './category.service';
+import { getUploadServiceUrl } from '@you-fizz/shared';
 
 @Injectable()
 export class AppService {
@@ -24,8 +25,9 @@ export class AppService {
     private readonly configService: ConfigService,
     private readonly categoryService: CategoryService,
   ) {
-    const uploadPort = this.configService.get('uploadService.port') || 3006;
-    this.uploadServiceUrl = `http://localhost:${uploadPort}/api/upload`;
+    // Use service URL utility for proper environment variable handling
+    const baseUploadUrl = getUploadServiceUrl();
+    this.uploadServiceUrl = `${baseUploadUrl}/api/upload`;
   }
 
   getData(): { message: string } {

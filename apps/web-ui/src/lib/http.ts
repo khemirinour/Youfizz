@@ -1,7 +1,28 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 
-const baseURL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000';
+// Get API URL from environment variable
+// In production, NEXT_PUBLIC_API_URL must be set
+// In development, fallback to localhost for convenience
+const getBaseURL = (): string => {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  if (apiUrl) {
+    return apiUrl;
+  }
+  
+  // Development fallback only
+  if (process.env.NODE_ENV === 'development') {
+    return 'http://localhost:3000';
+  }
+  
+  // Production: throw error if not configured
+  throw new Error(
+    'NEXT_PUBLIC_API_URL environment variable is required in production. ' +
+    'Please set it to your API Gateway URL (e.g., https://api.youfizz.com)'
+  );
+};
+
+const baseURL = getBaseURL();
 
 let httpInstance: AxiosInstance | null = null;
 let isRefreshing = false;
