@@ -7,8 +7,8 @@ COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig.base.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install all dependencies (needed for build tools)
+RUN npm ci
 
 # Copy source code
 COPY . .

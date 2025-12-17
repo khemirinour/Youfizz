@@ -26,4 +26,5 @@ export class CreateOrderDto {
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(20) customerPhone?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() @MaxLength(200) customerAddress?: string;
   @ApiPropertyOptional() @IsOptional() @IsString() vendorId?: string;
+  @ApiPropertyOptional({ description: 'Customer remarks/notes for the order' }) @IsOptional() @IsString() remarque?: string;
 }

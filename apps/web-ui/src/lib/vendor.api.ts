@@ -66,3 +66,21 @@ export async function removeConfermateurForVendeur(
   );
 }
 
+export interface VendorConfirmQuota {
+  vendorId: string;
+  remaining: number;
+}
+
+export async function getVendorConfirmQuota(vendorId: string): Promise<VendorConfirmQuota | undefined> {
+  const response = await get<{ vendorId: string; remaining: number }>(
+    `${AUTH_BASE}/internal/vendors/confirm-quota`,
+    { vendorId },
+  );
+  
+  if (!response) {
+    return undefined;
+  }
+  
+  return response;
+}
+

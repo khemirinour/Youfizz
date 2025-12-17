@@ -1,16 +1,18 @@
-import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, Res, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, Headers, Req, Res, UseGuards, UploadedFile, UploadedFiles, UseInterceptors, BadRequestException, Logger } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiParam, ApiQuery, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { AppService } from './app.service';
 import { GatewayService } from './gateway.service';
-import { JwtAuthGuard } from '@you-fizz/shared';
+import { JwtAuthGuard, getApiGatewayUrl } from '@you-fizz/shared';
 import { Request } from 'express';
 import  FormData from 'form-data';
 
 @ApiTags('api-gateway')
 @Controller()
 export class AppController {
+  private readonly logger = new Logger(AppController.name);
+
   constructor(
     private readonly appService: AppService,
     private readonly gatewayService: GatewayService,
@@ -46,8 +48,10 @@ export class AppController {
   @ApiResponse({ status: 400, description: 'Bad request - validation errors' })
   @ApiResponse({ status: 409, description: 'User already exists' })
   @ApiBody({ description: 'User registration data', schema: { type: 'object' } })
-  async register(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/register', 'POST', body, headers);
+  async register(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    this.logger.log(`[REGISTER] Client IP extracted: ${clientIp} (req.ip: ${req.ip}, remoteAddress: ${req.connection?.remoteAddress})`);
+    return this.gatewayService.forwardRequest('/register', 'POST', body, headers, undefined, false, false, undefined, clientIp);
   }
 
   @ApiTags('auth')
@@ -61,7 +65,9 @@ export class AppController {
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   @ApiBody({ description: 'Login credentials', schema: { type: 'object' } })
   async login(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any, @Res({ passthrough: true }) res: any) {
-    const result = await this.gatewayService.forwardRequest('/login', 'POST', body, headers, undefined, false, true, req.cookies);
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    this.logger.log(`[LOGIN] Client IP extracted: ${clientIp} (req.ip: ${req.ip}, remoteAddress: ${req.connection?.remoteAddress})`);
+    const result = await this.gatewayService.forwardRequest('/login', 'POST', body, headers, undefined, false, true, req.cookies, clientIp);
     // Forward Set-Cookie headers from auth service to client
     if (result.headers && result.headers['set-cookie']) {
       const cookies = Array.isArray(result.headers['set-cookie'])
@@ -389,7 +395,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -458,7 +464,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -551,8 +557,10 @@ export class AppController {
   })
   @ApiResponse({ status: 200, description: 'Password reset email sent (if account exists)' })
   @ApiBody({ description: 'Email address', schema: { type: 'object', properties: { email: { type: 'string' } } } })
-  async requestPasswordReset(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/password-reset/request', 'POST', body, headers);
+  async requestPasswordReset(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    this.logger.log(`[PASSWORD-RESET-REQUEST] Client IP extracted: ${clientIp} (req.ip: ${req.ip}, remoteAddress: ${req.connection?.remoteAddress})`);
+    return this.gatewayService.forwardRequest('/password-reset/request', 'POST', body, headers, undefined, false, false, undefined, clientIp);
   }
 
   @ApiTags('auth')
@@ -564,8 +572,10 @@ export class AppController {
   })
   @ApiResponse({ status: 200, description: 'Token validation result' })
   @ApiBody({ description: 'Reset token', schema: { type: 'object', properties: { token: { type: 'string' } } } })
-  async confirmPasswordResetToken(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/password-reset/confirm', 'POST', body, headers);
+  async confirmPasswordResetToken(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    this.logger.log(`[PASSWORD-RESET-CONFIRM] Client IP extracted: ${clientIp} (req.ip: ${req.ip}, remoteAddress: ${req.connection?.remoteAddress})`);
+    return this.gatewayService.forwardRequest('/password-reset/confirm', 'POST', body, headers, undefined, false, false, undefined, clientIp);
   }
 
   @ApiTags('auth')
@@ -577,8 +587,10 @@ export class AppController {
   })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
   @ApiBody({ description: 'Reset token and new password', schema: { type: 'object' } })
-  async resetPassword(@Body() body: any, @Headers() headers: Record<string, string>) {
-    return this.gatewayService.forwardRequest('/password-reset/reset', 'POST', body, headers);
+  async resetPassword(@Body() body: any, @Headers() headers: Record<string, string>, @Req() req: any) {
+    const clientIp = req.ip || req.connection?.remoteAddress || 'unknown';
+    this.logger.log(`[PASSWORD-RESET-RESET] Client IP extracted: ${clientIp} (req.ip: ${req.ip}, remoteAddress: ${req.connection?.remoteAddress})`);
+    return this.gatewayService.forwardRequest('/password-reset/reset', 'POST', body, headers, undefined, false, false, undefined, clientIp);
   }
 
   @ApiTags('auth')
@@ -601,6 +613,25 @@ export class AppController {
     const encodedEmail = encodeURIComponent(decodeURIComponent(email));
     const path = role ? `/users/by-email/${encodedEmail}?role=${role}` : `/users/by-email/${encodedEmail}`;
     return this.gatewayService.forwardRequest(path, 'GET', null, headers);
+  }
+
+  @ApiTags('auth')
+  @Get('auth/internal/vendors/confirm-quota')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Get vendor confirmation quota', 
+    description: 'Get the remaining number of confirmed orders for a vendor. Requires vendeur or admin role.' 
+  })
+  @ApiQuery({ name: 'vendorId', required: true, description: 'Vendor ID' })
+  @ApiResponse({ status: 200, description: 'Quota retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 403, description: 'Forbidden - Vendeur or Admin role required' })
+  @ApiResponse({ status: 404, description: 'Vendor not found' })
+  async getVendorConfirmQuota(@Query('vendorId') vendorId: string, @Headers() headers: Record<string, string>, @Req() req: Request) {
+    const qs = new URLSearchParams({ vendorId }).toString();
+    const path = `/internal/vendors/confirm-quota?${qs}`;
+    return this.gatewayService.forwardRequest(path, 'GET', null, headers, req.user, false, false, (req as any).cookies);
   }
 
   // ==================== Article Service Routes ====================

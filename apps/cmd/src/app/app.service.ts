@@ -6,13 +6,22 @@ import { Order, OrderStatus } from '../entities/order.entity';
 import { QueryOrdersDto } from '../dto/query-orders.dto';
 import { UpdateOrderDto } from '../dto/update-order.dto';
 import { CreateOrderDto } from '../dto/create-order.dto';
+import { getAuthServiceUrl, getArticleServiceUrl, getApiGatewayUrl } from '@you-fizz/shared';
 
 @Injectable()
 export class AppService {
   private readonly logger = new Logger(AppService.name);
+  private readonly authServiceUrl: string;
+  private readonly articleServiceUrl: string;
+  private readonly apiGatewayUrl: string;
+
   constructor(
     @InjectRepository(Order) private readonly repo: Repository<Order>,
-  ) {}
+  ) {
+    this.authServiceUrl = getAuthServiceUrl();
+    this.articleServiceUrl = getArticleServiceUrl();
+    this.apiGatewayUrl = getApiGatewayUrl();
+  }
 
   async findAll(query: QueryOrdersDto) {
     const where: any = {};
@@ -30,7 +39,7 @@ export class AppService {
     // Check vendor's nbrCmdConf - get vendorId from filter
     let shouldHideCustomerInfo = false;
     try {
-      const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+      const quotaCheck = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
         params: { vendorId: query.vendorId },
         timeout: 5000,
       });
@@ -76,7 +85,7 @@ export class AppService {
     let shouldHideCustomerInfo = false;
     if (order.vendorId) {
       try {
-        const quotaCheck = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+        const quotaCheck = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
           params: { vendorId: order.vendorId },
           timeout: 5000,
         });
@@ -103,7 +112,7 @@ export class AppService {
         order.items.map(async (item) => {
           try {
             // Fetch article details from article service
-            const articleResponse = await axios.get(`http://localhost:3004/api/articles/${item.articleId}`, {
+            const articleResponse = await axios.get(`${this.articleServiceUrl}/api/articles/${item.articleId}`, {
               timeout: 5000,
             });
             
@@ -162,10 +171,11 @@ export class AppService {
 
   async create(dto: CreateOrderDto) {
     // Calculate total including delivery prices
+    // Delivery is per order (not per item), so multiply by 1
     const calculatedTotal = dto.items.reduce((sum, item) => {
       const itemTotal = parseFloat(item.price) * item.qty;
       const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-        ? parseFloat(item.deliveryPrice) * item.qty 
+        ? parseFloat(item.deliveryPrice) * 1 
         : 0;
       return sum + itemTotal + deliveryTotal;
     }, 0);
@@ -203,6 +213,7 @@ export class AppService {
       customerPhone: dto.customerPhone,
       customerAddress: dto.customerAddress,
       vendorId: dto.vendorId,
+      remarque: dto.remarque,
     };
 
     if (lastOrders.length > 0) {
@@ -217,13 +228,132 @@ export class AppService {
     return this.repo.save(entity);
   }
 
-  async update(id: string, dto: UpdateOrderDto) {
+  // Helper method to get user information
+  // Returns userName in "firstname lastname" format
+  private async getUserInfo(updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }): Promise<{ userName?: string; userEmail?: string }> {
+    let userName: string | undefined;
+    let userEmail: string | undefined;
+
+    // Use data from updater if available - format as "firstname lastname"
+    if (updater?.firstName || updater?.lastName) {
+      const firstName = (updater.firstName || '').trim();
+      const lastName = (updater.lastName || '').trim();
+      // Ensure proper "firstname lastname" format with space
+      userName = `${firstName} ${lastName}`.trim() || undefined;
+    }
+
+    if (updater?.email) {
+      userEmail = updater.email;
+    }
+
+    // If we don't have user info and userId is available, try to fetch from API
+    if (updater?.userId && !userName) {
+      try {
+        this.logger.log(`Fetching user info for userId: ${updater.userId}`);
+        // Try auth service directly first (service-to-service)
+        let userResponse;
+        let lastError: any;
+        
+        try {
+          // Try direct auth service call first
+          userResponse = await axios.get(`${this.authServiceUrl}/users/${updater.userId}`, {
+            timeout: 5000,
+          });
+        } catch (directError: any) {
+          lastError = directError;
+          // If direct call fails with 401, it's an auth issue - skip retry
+          if (directError?.response?.status === 401) {
+            this.logger.warn(`Auth service requires authentication for userId ${updater.userId}, skipping user info fetch`);
+            throw directError;
+          }
+          
+          // If direct call fails for other reasons, try through API gateway
+          this.logger.log(`Direct auth service call failed, trying API gateway: ${this.apiGatewayUrl}`);
+          
+          try {
+            userResponse = await axios.get(`${this.apiGatewayUrl}/api/auth/users/${updater.userId}`, {
+              timeout: 5000,
+            });
+          } catch (gatewayError: any) {
+            // If gateway also returns 401, it's an auth issue - skip retry
+            if (gatewayError?.response?.status === 401) {
+              this.logger.warn(`API gateway requires authentication for userId ${updater.userId}, skipping user info fetch`);
+              throw gatewayError;
+            }
+            throw gatewayError;
+          }
+        }
+        
+        if (userResponse?.data) {
+          const firstName = (userResponse.data.firstName || '').trim();
+          const lastName = (userResponse.data.lastName || '').trim();
+          // Format as "firstname lastname" with space
+          userName = `${firstName} ${lastName}`.trim() || undefined;
+          
+          if (userName) {
+            this.logger.log(`Retrieved userName: "${userName}" for userId: ${updater.userId}`);
+          }
+          
+          if (!userEmail && userResponse.data.email) {
+            userEmail = userResponse.data.email;
+            this.logger.log(`Retrieved userEmail: ${userEmail} for userId: ${updater.userId}`);
+          }
+        }
+      } catch (e: any) {
+        // Handle 401 errors gracefully - service-to-service calls may not have auth
+        if (e?.response?.status === 401) {
+          this.logger.warn(`Cannot fetch user info for userId ${updater.userId} - authentication required. Continuing without user name.`);
+        } else {
+          this.logger.warn(`Failed to fetch user info for userId ${updater.userId}:`, {
+            error: e?.message,
+            status: e?.response?.status,
+            statusText: e?.response?.statusText,
+          });
+        }
+      }
+    }
+
+    // If we still don't have email, use from updater
+    if (!userEmail && updater?.email) {
+      userEmail = updater.email;
+    }
+
+    // Final fallback: if we have email but no userName, use email username
+    // But prefer to keep it null if we can't get the actual name
+    if (!userName && userEmail) {
+      userName = userEmail.split('@')[0];
+      this.logger.log(`Using email username as fallback for userName: ${userName}`);
+    }
+
+    return { userName, userEmail };
+  }
+
+  async update(id: string, dto: UpdateOrderDto, updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }) {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Always increment confirmation attempts on any update/PATCH
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    
+    // Always get user information for any update/PATCH
+    const { userName, userEmail } = await this.getUserInfo(updater);
+    
+    // Always update user who made the modification on any update/PATCH
+    (dto as any).confirmationAttempts = currentAttempts;
+    (dto as any).confirmedByUserId = updater?.userId;
+    (dto as any).confirmedByUserName = userName;
+    (dto as any).confirmedByUserEmail = userEmail;
+    (dto as any).lastConfirmationAttemptAt = new Date();
+
     // If items are being updated, recalculate total including delivery prices
+    // Delivery is per order (not per item), so multiply by 1
     if (dto.items && dto.items.length > 0) {
       const calculatedTotal = dto.items.reduce((sum, item) => {
         const itemTotal = parseFloat(item.price) * item.qty;
         const deliveryTotal = item.hasDelivery && item.deliveryPrice 
-          ? parseFloat(item.deliveryPrice) * item.qty 
+          ? parseFloat(item.deliveryPrice) * 1 
           : 0;
         return sum + itemTotal + deliveryTotal;
       }, 0);
@@ -252,16 +382,41 @@ export class AppService {
     return { id };
   }
 
-  async setActive(id: string, active: boolean) {
-    await this.repo.update({ id }, { isActive: active });
-    return this.findOne(id);
-  }
-
-  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string }, notes?: string) {
+  async setActive(id: string, active: boolean, updater?: { userId?: string; firstName?: string; lastName?: string; email?: string }) {
     const order = await this.findOne(id);
     if (!order) {
       throw new NotFoundException('Order not found');
     }
+
+    // Increment confirmation attempts on activate/deactivate
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    
+    // Get user information for activate/deactivate
+    const { userName, userEmail } = await this.getUserInfo(updater);
+    
+    await this.repo.update({ id }, { 
+      isActive: active,
+      confirmationAttempts: currentAttempts,
+      lastConfirmationAttemptAt: new Date(),
+      confirmedByUserId: updater?.userId,
+      confirmedByUserName: userName,
+      confirmedByUserEmail: userEmail,
+    });
+    return this.findOne(id);
+  }
+
+  async confirm(id: string, confirmer?: { userId?: string; role?: string; vendorId?: string; confirmateurId?: string; firstName?: string; lastName?: string; email?: string }, notes?: string) {
+    const order = await this.findOne(id);
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+
+    // Increment confirmation attempts and update last attempt timestamp on every attempt
+    const currentAttempts = (order.confirmationAttempts || 0) + 1;
+    await this.repo.update({ id }, {
+      confirmationAttempts: currentAttempts,
+      lastConfirmationAttemptAt: new Date(),
+    });
 
     // Check if order is already confirmed
     if (order.status === OrderStatus.CONFIRMED) {
@@ -299,7 +454,7 @@ export class AppService {
         const params: any = vendorId ? { vendorId } : { vendorUserId };
         this.logger.log(`Checking quota with params: ${JSON.stringify(params)}`);
         
-        const check = await axios.get('http://localhost:3001/api/internal/vendors/confirm-quota', {
+        const check = await axios.get(`${this.authServiceUrl}/api/internal/vendors/confirm-quota`, {
           params,
           timeout: 5000,
         });
@@ -315,7 +470,7 @@ export class AppService {
         const body: any = vendorId ? { vendorId } : { vendorUserId };
         this.logger.log(`Consuming quota with body: ${JSON.stringify(body)}`);
         
-        const consumeResponse = await axios.post('http://localhost:3001/api/internal/vendors/confirm-quota/consume', body, { 
+        const consumeResponse = await axios.post(`${this.authServiceUrl}/api/internal/vendors/confirm-quota/consume`, body, { 
           timeout: 5000 
         });
         
@@ -344,9 +499,19 @@ export class AppService {
       this.logger.warn(`Order confirmation skipped quota check - role: ${confirmer?.role}, expected VENDEUR or CONFERMATEUR`);
     }
     
+    // Get user information using helper method
+    const { userName, userEmail } = await this.getUserInfo(confirmer);
+
     // Only update order status if quota was successfully consumed (or if role doesn't require quota)
     this.logger.log(`Updating order ${id} status to CONFIRMED`);
-    const updateData: any = { status: OrderStatus.CONFIRMED, isActive: true };
+    const updateData: any = { 
+      status: OrderStatus.CONFIRMED, 
+      isActive: true,
+      confirmationAttempts: currentAttempts, // Ensure we preserve the incremented value
+      confirmedByUserId: confirmer?.userId,
+      confirmedByUserName: userName,
+      confirmedByUserEmail: userEmail,
+    };
     if (notes !== undefined) {
       updateData.notes = notes;
     }
@@ -358,8 +523,8 @@ export class AppService {
       
       for (const item of order.items) {
         try {
-          // Get current article stock using internal endpoint (article service runs on port 3004)
-          const articleResponse = await axios.get(`http://localhost:3004/api/internal/articles/${item.articleId}`, {
+          // Get current article stock using internal endpoint
+          const articleResponse = await axios.get(`${this.articleServiceUrl}/api/internal/articles/${item.articleId}`, {
             timeout: 5000,
           });
           
@@ -370,7 +535,7 @@ export class AppService {
             this.logger.log(`Updating stock for article ${item.articleId}: ${currentStock} -> ${newStock} (qty: ${item.qty})`);
             
             // Update article stock using internal endpoint
-            const updateResponse = await axios.patch(`http://localhost:3004/api/internal/articles/${item.articleId}/stock`, {
+            const updateResponse = await axios.patch(`${this.articleServiceUrl}/api/internal/articles/${item.articleId}/stock`, {
               stock: newStock,
             }, {
               timeout: 5000,

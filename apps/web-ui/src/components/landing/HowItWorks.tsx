@@ -31,21 +31,21 @@ const steps = [
 
 const HowItWorks = () => {
   return (
-    <section className="py-20 bg-background relative overflow-hidden">
+    <section className="py-12 sm:py-16 md:py-20 bg-background relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent" />
       
-      <div className="container mx-auto px-4">
-        <div className="text-center mb-16">
-          <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
+      <div className="container mx-auto px-4 sm:px-6 md:px-8">
+        <div className="text-center mb-10 sm:mb-12 md:mb-16">
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold text-foreground mb-3 sm:mb-4 px-2">
             Comment ça marche ?
           </h2>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
             Lancez votre activité en ligne en 4 étapes simples
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 relative">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8 relative">
           {/* Connection line for desktop */}
           <div className="hidden lg:block absolute top-20 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/20 via-primary/50 to-primary/20" style={{ top: "80px" }} />
           
@@ -53,20 +53,20 @@ const HowItWorks = () => {
             const Icon = step.icon;
             return (
               <div key={index} className="relative">
-                <div className="bg-card border border-border rounded-2xl p-8 hover:border-primary/50 transition-all duration-300 relative z-10">
+                <div className="bg-card border border-border rounded-xl sm:rounded-2xl p-6 sm:p-8 hover:border-primary/50 transition-all duration-300 relative z-10">
                   {/* Step number */}
-                  <div className="absolute -top-4 -right-4 w-12 h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-lg shadow-lg">
+                  <div className="absolute -top-3 -right-3 sm:-top-4 sm:-right-4 w-10 h-10 sm:w-12 sm:h-12 bg-primary text-primary-foreground rounded-full flex items-center justify-center font-bold text-sm sm:text-base md:text-lg shadow-lg">
                     {step.number}
                   </div>
                   
-                  <div className="bg-primary/10 w-16 h-16 rounded-xl flex items-center justify-center mb-6">
-                    <Icon className="h-8 w-8 text-primary" />
+                  <div className="bg-primary/10 w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-xl flex items-center justify-center mb-4 sm:mb-6">
+                    <Icon className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-primary" />
                   </div>
                   
-                  <h3 className="text-xl font-semibold text-foreground mb-3">
+                  <h3 className="text-lg sm:text-xl font-semibold text-foreground mb-2 sm:mb-3">
                     {step.title}
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
                     {step.description}
                   </p>
                 </div>

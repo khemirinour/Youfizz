@@ -3,6 +3,7 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { lastValueFrom } from 'rxjs';
 import { AxiosRequestConfig } from 'axios';
+import { getAuthServiceUrl, getArticleServiceUrl, getCmdServiceUrl, getNotificationServiceUrl } from '@you-fizz/shared';
 
 export interface ServiceEndpoint {
   service: string;
@@ -46,6 +47,7 @@ export class GatewayService {
     { service: 'auth', path: '/password-reset/confirm', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/password-reset/reset', method: 'POST', requiresAuth: false },
     { service: 'auth', path: '/stats/users', method: 'GET', requiresAuth: true, roles: ['admin'] },
+    { service: 'auth', path: '/internal/vendors/confirm-quota', method: 'GET', requiresAuth: true, roles: ['vendeur', 'admin'] },
     
     // Article service endpoints
     { service: 'article', path: '/articles', method: 'GET', requiresAuth: false },
@@ -100,20 +102,33 @@ export class GatewayService {
   ) {}
 
   private getServiceUrl(service: string): string {
-    const serviceConfigs = {
-      auth: this.configService.get('authService'),
-      user: this.configService.get('userService'),
-      article: this.configService.get('articleService'),
-      cmd: this.configService.get('cmdService'),
-      notification: this.configService.get('notificationService'),
+    // Use service URL utility functions for proper environment variable handling
+    const serviceUrls: Record<string, string> = {
+      auth: getAuthServiceUrl(),
+      article: getArticleServiceUrl(),
+      cmd: getCmdServiceUrl(),
+      notification: getNotificationServiceUrl(),
+      // User service - construct from config if needed, or add to utility
+      user: (() => {
+        const userServiceUrl = process.env.USER_SERVICE_URL;
+        const userServiceHost = process.env.USER_SERVICE_HOST || 'localhost';
+        const userServicePort = parseInt(process.env.USER_SERVICE_PORT || '3002', 10);
+        const isProduction = process.env.NODE_ENV === 'production';
+        
+        if (userServiceUrl) return userServiceUrl;
+        if (isProduction && userServiceHost === 'localhost') {
+          throw new Error('USER_SERVICE_URL or USER_SERVICE_HOST must be configured in production');
+        }
+        return `http://${userServiceHost}:${userServicePort}`;
+      })(),
     };
 
-    const config = serviceConfigs[service];
-    if (!config) {
+    const url = serviceUrls[service];
+    if (!url) {
       throw new HttpException(`Service ${service} not configured`, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-    return `http://localhost:${config.port}`;
+    return url;
   }
 
   private findEndpoint(path: string, method: string): ServiceEndpoint | null {
@@ -170,6 +185,7 @@ export class GatewayService {
     isMultipart: boolean = false,
     returnHeaders: boolean = false,
     cookies?: Record<string, string>,
+    clientIp?: string,
   ): Promise<any> {
     const [pathname, queryString] = path.split('?');
     const endpoint = this.findEndpoint(pathname, method);
@@ -217,13 +233,29 @@ export class GatewayService {
 
     const sanitized = this.sanitizeHeaders(headers, isMultipart);
 
+    // Extract client IP with priority: provided clientIp > existing X-Forwarded-For > unknown
+    let forwardedForIp: string;
+    if (clientIp && clientIp !== 'unknown') {
+      // Use provided client IP
+      forwardedForIp = clientIp;
+      this.logger.log(`[GATEWAY] Forwarding request to ${endpoint.service}${forwardedPath} with client IP: ${forwardedForIp} (from parameter)`);
+    } else if (headers['x-forwarded-for'] && headers['x-forwarded-for'] !== 'gateway') {
+      // Use existing X-Forwarded-For if it's a real IP
+      forwardedForIp = headers['x-forwarded-for'];
+      this.logger.log(`[GATEWAY] Forwarding request to ${endpoint.service}${forwardedPath} with client IP: ${forwardedForIp} (from X-Forwarded-For header)`);
+    } else {
+      // Fallback - this shouldn't happen if trust proxy is enabled
+      forwardedForIp = 'unknown';
+      this.logger.warn(`[GATEWAY] Could not determine client IP for ${method} ${pathname}, using 'unknown'`);
+    }
+
     const config: AxiosRequestConfig = {
       method: method.toLowerCase() as any,
       url: fullUrl,
       headers: {
         ...sanitized,
         ...(user ? { 'x-user-id': user.userId, 'x-user-role': user.role } : {}),
-        'x-forwarded-for': headers['x-forwarded-for'] || 'gateway',
+        'x-forwarded-for': forwardedForIp,
         'Cache-Control': 'no-cache, no-store, must-revalidate', // Force fresh data
         'Pragma': 'no-cache', // HTTP/1.0 compatibility
       },

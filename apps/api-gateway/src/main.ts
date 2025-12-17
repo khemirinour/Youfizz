@@ -14,6 +14,12 @@ import { URL } from 'url';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   
+  // Enable trust proxy to get real client IP from X-Forwarded-For header
+  // This is essential for rate limiting to work correctly behind load balancers/proxies
+  const httpAdapter = app.getHttpAdapter();
+  const instance = httpAdapter.getInstance();
+  instance.set('trust proxy', true);
+  
   // Enable cookie parser middleware to read cookies from requests
   const cookieParser = require('cookie-parser');
   app.use(cookieParser());

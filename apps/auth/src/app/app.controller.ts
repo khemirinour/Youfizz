@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { CustomThrottlerGuard } from './custom-throttler.guard';
 import { AppService } from './app.service';
 import { AuthService } from './auth.service';
+import { getApiGatewayUrl } from '@you-fizz/shared';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { UserResponseDto } from '../dto/user-response.dto';
 import { LoginDto } from '../dto/login.dto';
@@ -704,7 +705,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>
@@ -826,7 +827,7 @@ export class AppController {
     @Param('vendeurId') vendeurId: string,
     @Res() res: any
   ) {
-    const apiBaseUrl = process.env.API_GATEWAY_URL || process.env.BACKEND_URL || 'http://localhost:3000';
+    const apiBaseUrl = getApiGatewayUrl();
     const html = `
       <!DOCTYPE html>
       <html>

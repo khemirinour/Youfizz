@@ -30,6 +30,7 @@ export interface CreateOrderDto {
   customerPhone?: string;
   customerAddress?: string;
   vendorId?: string;
+  remarque?: string;
 }
 
 export interface UpdateOrderDto extends Partial<CreateOrderDto> {}
@@ -49,8 +50,14 @@ export interface Order {
   isPaid: boolean;
   isActive: boolean;
   notes?: string;
+  remarque?: string;
   createdAt?: string;
   updatedAt?: string;
+  confirmationAttempts?: number;
+  confirmedByUserId?: string;
+  confirmedByUserName?: string;
+  confirmedByUserEmail?: string;
+  lastConfirmationAttemptAt?: string;
 }
 
 // Backend response type (what we actually receive)
@@ -69,9 +76,15 @@ interface OrderResponse {
   isPaid: boolean;
   isActive: boolean;
   notes?: string;
+  remarque?: string;
   createdAt?: string;
   updatedAt?: string;
   deletedAt?: string | null;
+  confirmationAttempts?: number;
+  confirmedByUserId?: string;
+  confirmedByUserName?: string;
+  confirmedByUserEmail?: string;
+  lastConfirmationAttemptAt?: string;
 }
 
 export interface GetOrdersParams {

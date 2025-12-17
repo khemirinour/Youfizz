@@ -17,6 +17,7 @@ import {
   requestConfermateurAssignment,
   getConfermateursForVendeur,
   removeConfermateurForVendeur,
+  getVendorConfirmQuota,
   type ConfermateurUser,
 } from '@/lib/vendor.api';
 
@@ -34,9 +35,12 @@ const VendorDashboard = () => {
   const [myConfermateurs, setMyConfermateurs] = useState<ConfermateurUser[]>([]);
   const [loadingConfermateurs, setLoadingConfermateurs] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  const [remainingConfirmations, setRemainingConfirmations] = useState<number | null>(null);
+  const [loadingQuota, setLoadingQuota] = useState(true);
 
   const hasFetchedHealth = useRef(false);
   const hasFetchedConfermateurs = useRef(false);
+  const hasFetchedQuota = useRef(false);
 
   useEffect(() => {
     const api = (useAuthStore as any).persist;
@@ -116,6 +120,30 @@ const VendorDashboard = () => {
 
     fetchConfermateurs();
   }, [hydrated, isAuthenticated, user?.role, user?.id, toast]);
+
+  // Fetch vendor confirmation quota
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user?.role !== 'vendeur' || !vendorId) return;
+    if (hasFetchedQuota.current) return;
+    hasFetchedQuota.current = true;
+
+    const fetchQuota = async () => {
+      try {
+        setLoadingQuota(true);
+        const quota = await getVendorConfirmQuota(vendorId);
+        if (quota) {
+          setRemainingConfirmations(quota.remaining);
+        }
+      } catch (error: any) {
+        console.error('Failed to fetch vendor quota:', error);
+        setRemainingConfirmations(0);
+      } finally {
+        setLoadingQuota(false);
+      }
+    };
+
+    fetchQuota();
+  }, [hydrated, isAuthenticated, user?.role, vendorId]);
 
   const handleSearch = async () => {
     if (!confermateurEmail) return;
@@ -216,15 +244,10 @@ const VendorDashboard = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <Card className="rounded-xl p-6 shadow-lg border-border bg-card">
-            <p className="text-sm text-muted-foreground">Statut du service Article</p>
+            <p className="text-sm text-muted-foreground">Commandes confirmées restantes</p>
             <p className="text-3xl font-semibold mt-2 text-primary">
-              {healthLoading ? 'Chargement...' : healthStatus || 'inconnu'}
+              {loadingQuota ? 'Chargement...' : remainingConfirmations !== null ? remainingConfirmations : 'N/A'}
             </p>
-          </Card>
-
-          <Card className="rounded-xl p-6 shadow-lg border-border bg-card">
-            <p className="text-sm text-muted-foreground">Identifiant Vendeur</p>
-            <p className="text-3xl font-semibold mt-2 text-primary">{vendorId || 'N/A'}</p>
           </Card>
         </div>
 

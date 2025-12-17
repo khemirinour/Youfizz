@@ -386,6 +386,7 @@ const ConfermateurOrdersPage = () => {
                         <th className="px-4 py-3 text-xs font-medium uppercase">Customer</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Total</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Status</th>
+                        <th className="px-4 py-3 text-xs font-medium uppercase">Nombre de tentative</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Paid</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Active</th>
                         <th className="px-4 py-3 text-xs font-medium uppercase">Notes</th>
@@ -446,6 +447,9 @@ const ConfermateurOrdersPage = () => {
                                 </SelectContent>
                               </Select>
                             )}
+                          </td>
+                          <td className="px-4 py-3 text-foreground">
+                            {order.confirmationAttempts || 0}
                           </td>
                           <td className="px-4 py-3">
                             {order.isPaid ? (
@@ -623,7 +627,42 @@ const ConfermateurOrdersPage = () => {
                     <p className="font-semibold">{new Date(selectedOrder.createdAt).toLocaleString()}</p>
                   </div>
                 )}
+                <div>
+                  <Label className="text-muted-foreground">Nombre de tentative</Label>
+                  <p className="font-semibold">{selectedOrder.confirmationAttempts || 0}</p>
+                </div>
+                {selectedOrder.lastConfirmationAttemptAt && (
+                  <div>
+                    <Label className="text-muted-foreground">Last Attempt At</Label>
+                    <p className="font-semibold">{new Date(selectedOrder.lastConfirmationAttemptAt).toLocaleString()}</p>
+                  </div>
+                )}
               </div>
+              {selectedOrder.confirmedByUserName || selectedOrder.confirmedByUserEmail ? (
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground">User qui confirme</Label>
+                  <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
+                    {selectedOrder.confirmedByUserName && (
+                      <p>
+                        <span className="font-medium">Name:</span>{' '}
+                        <span>{selectedOrder.confirmedByUserName}</span>
+                      </p>
+                    )}
+                    {selectedOrder.confirmedByUserEmail && (
+                      <p>
+                        <span className="font-medium">Email:</span>{' '}
+                        <span>{selectedOrder.confirmedByUserEmail}</span>
+                      </p>
+                    )}
+                    {selectedOrder.confirmedByUserId && (
+                      <p>
+                        <span className="font-medium">User ID:</span>{' '}
+                        <span className="text-xs text-muted-foreground">{selectedOrder.confirmedByUserId}</span>
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ) : null}
               <div className="space-y-2">
                 <Label className="text-muted-foreground">Customer Information</Label>
                 <div className="p-3 bg-secondary/50 rounded-lg space-y-1">
@@ -660,6 +699,14 @@ const ConfermateurOrdersPage = () => {
                             {selectedOrder.customerAddress || fakeAddress}
                           </span>
                         </p>
+                        {selectedOrder.remarque && (
+                          <p>
+                            <span className="font-medium">Remarks:</span>{' '}
+                            <span className={isHidden ? 'blur-sm select-none' : ''}>
+                              {selectedOrder.remarque}
+                            </span>
+                          </p>
+                        )}
                       </>
                     );
                   })()}
@@ -703,13 +750,42 @@ const ConfermateurOrdersPage = () => {
                                 <span>Qty: {item.qty}</span>
                                 <span>Price: {item.price} TND</span>
                               </div>
+                              {item.hasDelivery && (
+                                <div className="mt-2 flex gap-2 items-center">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    With Delivery
+                                  </span>
+                                  {item.destination && (
+                                    <span className="text-sm text-muted-foreground">
+                                      To: {item.destination}
+                                    </span>
+                                  )}
+                                  {item.deliveryPrice && (
+                                    <span className="text-sm text-muted-foreground">
+                                      ({item.deliveryPrice} TND)
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                             <div className="text-right">
                               <p className="font-semibold text-lg">
-                                {(parseFloat(item.price) * item.qty).toFixed(2)} TND
+                                {(() => {
+                                  const itemTotal = parseFloat(item.price) * item.qty;
+                                  const deliveryTotal = item.hasDelivery && item.deliveryPrice
+                                    ? parseFloat(item.deliveryPrice) * 1
+                                    : 0;
+                                  return (itemTotal + deliveryTotal).toFixed(2);
+                                })()} TND
                               </p>
                               <p className="text-xs text-muted-foreground mt-1">
                                 {item.qty} × {item.price} TND
+                                {item.hasDelivery && item.deliveryPrice && (
+                                  <>
+                                    <br />
+                                    + {item.deliveryPrice} TND (delivery)
+                                  </>
+                                )}
                               </p>
                             </div>
                           </div>

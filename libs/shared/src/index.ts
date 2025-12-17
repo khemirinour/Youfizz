@@ -8,6 +8,7 @@ export * from './lib/utils/response.util';
 export * from './lib/utils/validation.util';
 export * from './lib/utils/error.util';
 export * from './lib/utils/logging.util';
+export * from './lib/utils/service-url.util';
 export * from './lib/config/config.module';
 export * from './lib/guards/rate-limit.guard';
 export * from './lib/interceptors/logging.interceptor';
