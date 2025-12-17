@@ -1,0 +1,249 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: you_fizz_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-you_fizz}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: you_fizz_redis
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-}
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  minio:
+    image: minio/minio:latest
+    container_name: you_fizz_minio
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      # Mount external OVH Block Storage volume
+      - /mnt/minio-storage:/data
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  auth:
+    build:
+      context: .
+      dockerfile: apps/auth/Dockerfile
+    container_name: you_fizz_auth
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-you_fizz}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-15m}
+      - REFRESH_TOKEN_EXPIRES_IN=${REFRESH_TOKEN_EXPIRES_IN:-7d}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_SECURE=${SMTP_SECURE:-false}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - FROM_EMAIL=${FROM_EMAIL}
+      - FRONTEND_URL=${FRONTEND_URL}
+      - PORT=3001
+      - SERVICE_NAME=auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  user:
+    build:
+      context: .
+      dockerfile: apps/user/Dockerfile
+    container_name: you_fizz_user
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-you_fizz}
+      - PORT=3002
+      - SERVICE_NAME=user
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  article:
+    build:
+      context: .
+      dockerfile: apps/article/Dockerfile
+    container_name: you_fizz_article
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-you_fizz}
+      - PORT=3003
+      - SERVICE_NAME=article
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  cmd:
+    build:
+      context: .
+      dockerfile: apps/cmd/Dockerfile
+    container_name: you_fizz_cmd
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-you_fizz}
+      - PORT=3004
+      - SERVICE_NAME=cmd
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  notification:
+    build:
+      context: .
+      dockerfile: apps/notification/Dockerfile
+    container_name: you_fizz_notification
+    environment:
+      - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:-}
+      - REDIS_DB=${REDIS_DB:-0}
+      - PORT=3005
+      - SERVICE_NAME=notification
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  upload:
+    build:
+      context: .
+      dockerfile: apps/upload/Dockerfile
+    container_name: you_fizz_upload
+    environment:
+      - NODE_ENV=production
+      - MINIO_ENDPOINT=minio
+      - MINIO_PORT=9000
+      - MINIO_USE_SSL=false
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD}
+      - MINIO_BUCKET_NAME=${MINIO_BUCKET_NAME:-youfizz-uploads}
+      - PORT=3006
+      - SERVICE_NAME=upload
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: you_fizz_api_gateway
+    environment:
+      - NODE_ENV=production
+      - AUTH_SERVICE_URL=http://auth:3001
+      - USER_SERVICE_URL=http://user:3002
+      - ARTICLE_SERVICE_URL=http://article:3003
+      - CMD_SERVICE_URL=http://cmd:3004
+      - NOTIFICATION_SERVICE_URL=http://notification:3005
+      - UPLOAD_SERVICE_URL=http://upload:3006
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - CORS_CREDENTIALS=${CORS_CREDENTIALS:-true}
+      - PORT=3000
+      - SERVICE_NAME=api-gateway
+    depends_on:
+      - auth
+      - user
+      - article
+      - cmd
+      - notification
+      - upload
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  web-ui:
+    build:
+      context: .
+      dockerfile: apps/web-ui/Dockerfile
+    container_name: you_fizz_web_ui
+    environment:
+      - NODE_ENV=production
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+      - NEXT_PUBLIC_MINIO_URL=${NEXT_PUBLIC_MINIO_URL}
+      - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+  nginx:
+    image: nginx:alpine
+    container_name: you_fizz_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - web-ui
+      - api-gateway
+    restart: unless-stopped
+    networks:
+      - you_fizz_network
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  you_fizz_network:
+    driver: bridge
+

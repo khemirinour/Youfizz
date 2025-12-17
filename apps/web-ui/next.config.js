@@ -10,6 +10,8 @@ const nextConfig = {
   // Use this to set Nx-specific options
   // See: https://nx.dev/recipes/next/next-config-setup
   nx: {},
+  // Enable standalone output for Docker deployment
+  output: 'standalone',
   images: {
     formats: ['image/avif', 'image/webp'],
     remotePatterns: [
@@ -19,9 +21,12 @@ const nextConfig = {
         port: '9000',
         pathname: '/youfizz-articles/**',
       },
+      {
+        protocol: 'https',
+        hostname: '**',
+        pathname: '/youfizz-articles/**',
+      },
     ],
-    // Or use domains for simpler config:
-    // domains: ['localhost'],
   },
   // Enable SWC minification (faster than Terser)
   swcMinify: true,
