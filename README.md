@@ -63,8 +63,6 @@ La page **Shop** permet aux utilisateurs de découvrir les produits disponibles 
 
 ## 🌐 API Gateway
 
-**Port : `3000`**
-
 L'API Gateway constitue le point d'entrée principal des requêtes HTTP.
 
 ### Responsabilités
@@ -79,8 +77,6 @@ L'API Gateway constitue le point d'entrée principal des requêtes HTTP.
 
 ## 🔐 Auth Service
 
-**Port : `3001`**
-
 Le service **Auth** est responsable de l'authentification des utilisateurs.
 
 ### Fonctionnalités
@@ -92,15 +88,10 @@ Le service **Auth** est responsable de l'authentification des utilisateurs.
 - Gestion des accès
 - Communication avec les autres services
 
-Le service fonctionne en mode hybride :
-
-**HTTP + Microservice TCP**
-
 ---
 
 ## 👤 User Service
 
-**Port : `3002`**
 
 Le service **User** gère les données et informations des utilisateurs.
 
@@ -112,15 +103,9 @@ Le service **User** gère les données et informations des utilisateurs.
 - Informations utilisateur
 - Communication avec le service Auth
 
-Le service fonctionne également en mode hybride :
-
-**HTTP + Microservice TCP**
-
 ---
 
 ## 🔔 Notification Service
-
-**Port : `3003`**
 
 Le service **Notification** est responsable de la gestion des notifications.
 
@@ -131,87 +116,24 @@ Le service **Notification** est responsable de la gestion des notifications.
 - Communication avec les autres services
 - Gestion des notifications utilisateurs
 
-Le service fonctionne en mode hybride :
 
-**HTTP + Microservice TCP**
 
 ---
 
-## 📚 Shared Library
 
-Une bibliothèque partagée contient les éléments communs utilisés par les différents services.
 
-Elle permet de centraliser :
-
-- Modules communs
-- DTOs
-- Interfaces
-- Types
-- Utilitaires
-- Configurations partagées
-
----
-
-# 📖 Documentation API
-
-La documentation des APIs est disponible avec **Swagger**.
-
-Swagger permet notamment de :
-
-- consulter les endpoints ;
-- visualiser les requêtes ;
-- visualiser les réponses ;
-- tester les APIs ;
-- consulter les modèles de données.
-
----
 
 # 🛠️ Technologies utilisées
 
-## Frontend
 
 - **Next.js**
 - **React**
 - **TypeScript**
 - **Tailwind CSS**
-- **Lucide Icons**
-
-## Backend
-
-- **NestJS**
 - **Node.js**
-- **TypeScript**
-- **Microservices TCP**
 - **Swagger**
-
-## Architecture
-
 - **Nx Monorepo**
-- **Microservices Architecture**
-- **API Gateway**
-- **Shared Libraries**
 
-## DevOps & outils
-
-- **Docker**
-- **Git**
-- **GitHub**
-- **npm**
-
----
-
-
-# 🚀 Installation
-
-## Prérequis
-
-Avant de commencer, assurez-vous d'avoir installé :
-
-- **Node.js 18+**
-- **npm**
-- **Git**
-
-Nx CLI est inclus dans les dépendances du projet.
 
 ---
 
@@ -325,18 +247,6 @@ Il est conçu comme un service indépendant afin de faciliter son évolution et 
 
 ---
 
-# 🎨 Interface utilisateur
-
-YouFizz utilise une interface **Dark Mode** avec une identité visuelle moderne basée notamment sur :
-
-- 🖤 Noir / gris foncé
-- 🟠 Orange
-- 🃏 Cartes modernes
-- ✨ Effets lumineux
-- 📱 Design responsive
-- 🧭 Navigation intuitive
-
----
 
 # 🎯 Objectif du projet
 
@@ -401,14 +311,6 @@ Pour consulter la configuration d'un projet :
 ```bash
 npx nx show project web-ui
 ```
-
----
-
-# 🔍 GitHub
-
-Repository :
-
-https://github.com/khemirinour/Youfizz
 
 ---
 
