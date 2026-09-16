@@ -318,7 +318,6 @@ npx nx show project web-ui
 
 ## Nour Elwoujoud Khémiri
 
-Ingénieure en **Cybersécurité, Intelligence Artificielle, Systèmes, Réseaux et Cloud Computing**.
 
 📧 **Email**
 
